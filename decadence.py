@@ -63,6 +63,7 @@ class Channel:
         self.scale = Scale.DIATONIC
         self.player = player
         self.instrument = 0
+        self.octave = 5
     def note_on(self, n, v):
         if n < 0 or n > RANGE:
             return
@@ -76,7 +77,8 @@ class Channel:
             self.notes[n] = 0
     def note_all_off(self, v=127):
         for n in xrange(RANGE):
-            self.player.note_off(n,v,self.ch)
+            if self.notes[n]:
+                self.player.note_off(n,v,self.ch)
         self.notes = [0] * RANGE
 
 midi.init()
@@ -86,9 +88,10 @@ PLAYER.set_instrument(INSTRUMENT)
 CHANNELS = [Channel(x, PLAYER) for x in range(16)]
 
 try:
+    slept = True
     with open(sys.argv[1]) as f:
         for line in f.readlines():
-            cells = line.split('|')
+            cells = ' '.join(line.split(' ')).split(' ')
             ch_idx = 0
             if not line.strip():
                 continue
@@ -104,17 +107,17 @@ try:
                     continue
                 ch.note_all_off()
                 
-                if cell=='-': # mute
+                if cell[0]=='-': # mute
                     continue
                 
                 scale = SCALES[ch.scale]
                 notecount = len(scale.intervals)
-                # octave = int(line[0]) / notecount
-                note = ((int(line[0])-1) % notecount) + 1
+                # octave = int(cell[0]) / notecount
+                note = ((int(cell[0])-1) % notecount) + 1
                 n = 0
                 for i in xrange(note):
                     n += int(scale.intervals[i-1])
-                octave = 5
+                octave = ch.octave
                 base = 4
                 mn = 0
                 
@@ -128,23 +131,26 @@ try:
                         shift = int(cell[2]) if cell[2].isdigit() else 0
                         mn = n + base + octave * 12 - shift * 12
                     elif cell[1] == '=':
-                        shift = int(cell[2]) if cell[2].isdigit() else 0
-                        mn = n + base + shift * 12
+                        octave = int(cell[2]) if cell[2].isdigit() else 5
+                        mn = n + base + octave * 12
                 
                 ch.note_on(mn,127)
                 
                 ch_idx += 1
 
             if line.strip():
-                time.sleep(0.2)
+                time.sleep(0.1)
+                slept = True
 
-    time.sleep(0.2)
+    if not slept:
+        time.sleep(0.1)
 
 except Exception, ex:
     print traceback.format_exc(ex)
 
 for ch in CHANNELS:
     ch.note_all_off()
+    ch.player = None
 
 del PLAYER
 midi.quit()

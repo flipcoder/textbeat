@@ -9,7 +9,6 @@ import random
 
 SCALES = []
 SCALE_NAMES = []
-PLAYER = None
 
 random.seed()
 
@@ -39,8 +38,13 @@ for scale in SCALES:
 
 # for lookup, normalize name first, add root
 CHORDS = {
+    "p4": "4",
+    "p5": "5",
+    
+    # chords and voicings
     "maj": "3 5",
     "maj7": "3 5 7",
+    "maj7b5": "3 5b 7",
     "m": "b3 5",
     "m7": "b3 5 b7",
     "aug": "3 #5",
@@ -53,7 +57,6 @@ CHORDS = {
     "sus7": "4 5 7b",
     "sixth": "3 5 6",
     "ninth": "3 5 b7 9",
-    "fifth": "5",
     "pow": "5 8",
     "q": "4 b7", # quartal
     "qt": "5 9", # quintal
@@ -73,29 +76,31 @@ CHORDS_ALT = {
     "major": "maj",
     "ma7": "maj7",
     "major7": "maj7",
+    "M7": "maj7",
+    "M7b5": "maj7b5",
     "min": "m",
     "minor": "m",
-    "-7": "minor7",
+    "-7": "m7",
     "min7": "m7",
     "minor7": "m7",
     "7": "dom7",
     "seven": "dom7",
-    "p": "pow",
     "power": "pow",
     "lydian": "lyd",
-    "f": "fifth",
-    "5th": "fifth",
     "9": "ninth",
     "9th": "ninth",
     "11": "eleventh",
     "11th": "eleventh"
 }
 def normalize_chord(c):
-    c = c.lower()
     try:
         c = CHORDS_ALT[c]
     except KeyError:
-        pass
+        c = c.lower()
+        try:
+            c = CHORDS_ALT[c]
+        except KeyError:
+            pass
     return c
 
 def expand_chord(c):
@@ -110,6 +115,7 @@ RANGE = 109
 OCTAVE_BASE = 5
 
 MIDI_CC = 0b1011
+MIDI_PROGRAM = 0b1100
 
 class Channel:
     def __init__(self, ch, player):
@@ -132,8 +138,10 @@ class Channel:
         self.arp_cycle_limit = 0 # cycles remaining, only if limit != 0
         self.arp_pattern = [] # relative steps to
         self.arp_enabled = False
-        self.vel = 127
+        self.arp_once = False
+        self.vel = 64
         self.staccato = False
+        self.patch_num = 0
     def note_on(self, n, v=-1, hold=False):
         if v == -1:
             v = self.vel
@@ -176,8 +184,13 @@ class Channel:
     def cc(self, cc, val): # control change
         status = (MIDI_CC<<4) + ch.midich
         # print "MIDI (%s,%s)" % (bin(MIDI_CC),val)
-        PLAYER.write_short(status,cc,val)
+        self.player.write_short(status,cc,val)
         self.mod = val
+    def patch(self, p):
+        print p
+        self.patch_num = p
+        status = (MIDI_CC<<4) + ch.midich
+        self.player.write_short(status,p)
     def arp(self, notes, count=0, pattern=[1]):
         self.arp_enabled = True
         self.arp_notes = notes
@@ -186,15 +199,16 @@ class Channel:
         self.arp_pattern = pattern
         self.arp_pattern_idx = 0
         self.arp_idx = 0 # use inversions to move this start point (?)
+        self.arp_once = False
     def arp_stop(self):
         self.arp_enabled = False
         self.note_all_off()
     def arp_next(self):
-        # print 'arp_next'
         assert self.arp_enabled
         note = ch.arp_notes[ch.arp_idx]
-        if self.arp_cycle_limit:
-            if ch.arp_idx+1 == len(ch.arp_notes): # cycle?
+        if ch.arp_idx+1 == len(ch.arp_notes): # cycle?
+            self.arp_once = True
+            if self.arp_cycle_limit:
                 ch.arp_cycle -= 1
                 if ch.arp_cycle == 0:
                     # print 'stop arp'
@@ -204,6 +218,15 @@ class Channel:
         ch.arp_idx = (ch.arp_idx+self.arp_pattern[self.arp_pattern_idx])%len(ch.arp_notes)
         self.arp_pattern_idx = (self.arp_pattern_idx+1) % len(self.arp_pattern)
         return note
+
+def peel_number(s):
+    r = ''
+    for char in cell:
+        if char.isdigit():
+            r += char
+        else:
+            break
+    return r
 
 # class Marker:
 #     def __init__(self,name,row):
@@ -228,19 +251,32 @@ class StackFrame:
 MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
 
-CCHAR = '<>=~.\'\`,_&^'
+# control chars that are definitely not note or chord names
+CCHAR = '<>=~.\'\`,_&^|!?'
+
+# entries: [time, func]
+SCHEDULE = []
 
 try:
     slept = True
 
+    FN = None
+    
     # run command
-    if len(sys.argv)>1 and sys.argv[1] == '-c':
-        buf = ' '.join(sys.argv[2:]).split(';')
-        TEMPO = 90
-        GRID = 1
+    for arg in sys.argv:
+        if arg=='-c':
+            buf = ' '.join(sys.argv[2:]).split(';')
+            TEMPO = 120
+            GRID = 2
+            break
+        if arg=='-s':
+            buf = ' '.join(sys.argv[2:]).split(' ')
+            TEMPO = 120
+            GRID = 2
+            break
     else: 
-        fn = sys.argv[1] if len(sys.argv)>=2 else 'songs/test.dec'
-        with open(fn) as f:
+        FN = sys.argv[1] if len(sys.argv)>=2 else 'songs/test.dec'
+        with open(FN) as f:
             for line in f.readlines():
                 if line:
                     if line[-1] == '\n':
@@ -255,18 +291,49 @@ try:
                     # place marker
                     if ls and ls[-1]==':':
                         # only store INITIAL marker position here
-                        if not ls[:-1] in MARKERS:
-                            MARKERS[ls[:-1]] = len(buf)
+                        bm = ls[:-1]
+                        if not bm in MARKERS:
+                            MARKERS[bm] = len(buf)
+                    elif ls and ls[0]==':':
+                        # only store INITIAL marker position here
+                        bm = ls[1:]
+                        if not bm in MARKERS:
+                            MARKERS[bm] = len(buf)
 
                 buf += [line]
+    
     row = 0
-
     quitflag = False
-    while True:
+    
+    # skip to row (+ param)
+    for arg in sys.argv:
+        if arg.startswith('+'):
+            try:
+                row = int(arg[1:])
+            except ValueError:
+                try:
+                    row = MARKERS[arg[1:]]
+                except KeyError:
+                    print 'invalid entry point'
+                    quitflag = True
+
+    while not quitflag:
+        line = '.'
         try:
             line = buf[row]
-        except:
-            break
+        except IndexError:
+            if not FN: # finish arps in shell mode
+                arps_remaining = 0
+                for ch in CHANNELS:
+                    if ch.arp_enabled:
+                        if not ch.arp_once:
+                            line = "."
+                            arps_remaining += 1
+
+                if arps_remaining == 0:
+                    break
+            else:
+                break
         # cells = ' '.join(line.split(' ')).split(' ')
         # cells = line.split(' '*2)
         cells = line.split(' ')
@@ -274,72 +341,68 @@ try:
         ch_idx = 0
         # if not line.strip():
         #     continue
-
-        notes = []
-
-        # COMMENT
-        if buf and buf[row][0] == ';':
-            row += 1
-            continue
-
-        # set marker
-        if buf[-1]==':': # suffix marker
-            # allow override of markers in case of reuse
-            MARKERS[buf[:-1]] = row
-            ch_idx += 1
-            continue
-        elif buf[0]==':': #prefix marker
-            # allow override of markers in case of reuse
-            MARKERS[buf[1:]] = row
-            ch_idx += 1
-            continue
-
         
-        # jumps
-        if buf[0]=='@':
-            if len(buf)==1:
-                row = 0
+        if line:
+            
+            # COMMENT
+            if line and line.strip()[0] == ';':
+                row += 1
                 continue
-            if len(buf)>1 and buf[1:] == '@': # @@ return/pop callstack
-                frame = CALLSTACK[-1]
-                CALLSTACK = CALLSTACK[:-1]
-                row = frame.row
-                continue
-            buf = buf[1:].split('*') # * repeats
-            bm = buf[0] # marker name
-            count = 0
-            if len(buf)>1:
-                count = int(buf[1]) if len(buf)>1 else 1
-            frame = CALLSTACK[-1]
-            frame.count = count
-            if count: # repeats remaining
-                CALLSTACK.append(StackFrame(row))
-                row = MARKERS[bm]
-                continue
-            else:
-                row = MARKERS[bm]
-                continue
-        
-        ctrl = False # ctrl line, %
-        for cell in cells:
+            # set marker
+            elif line[-1]==':': # suffix marker
+                # allow override of markers in case of reuse
+                MARKERS[line[:-1]] = row
+                row += 1
+                # continue
+            elif line[0]==':': #prefix marker
+                # allow override of markers in case of reuse
+                MARKERS[line[1:]] = row
+                row += 1
+            
             # TODO: check for global cmds here
-            if cell.startswith('%'):
-                ctrl = True
-                cell = cell[1:]
-                for tok in cell.split(' '):
+            if line.startswith('%'):
+                line = line[1:]
+                for tok in line.split(' '):
                     # print tok
                     if tok.startswith('tempo='):
                         tok = tok[len('tempo='):].split(' ')
                         TEMPO=float(tok[0])
-                        cell = cell[len('tempo='):]
+                        line = line[len('tempo='):]
                     elif tok.startswith('grid='): # grid subdivisions
                         tok = tok[len('grid='):].split(' ')
                         GRID=float(tok[0])
-                        cell = cell[len('grid='):]
-                cell = []
+                        line = line[len('grid='):]
+                row += 1
+                continue
             
-            if ctrl:
-                break
+            # jumps
+            if line[0]=='@':
+                if len(line)==1:
+                    row = 0
+                    continue
+                if len(line)>1 and line[1:] == '@': # @@ return/pop callstack
+                    frame = CALLSTACK[-1]
+                    CALLSTACK = CALLSTACK[:-1]
+                    row = frame.row
+                    continue
+                line = line[1:].split('*') # * repeats
+                bm = line[0] # marker name
+                count = 0
+                if len(line)>1:
+                    count = int(line[1]) if len(line)>1 else 1
+                frame = CALLSTACK[-1]
+                frame.count = count
+                if count: # repeats remaining
+                    CALLSTACK.append(StackFrame(row))
+                    row = MARKERS[bm]
+                    continue
+                else:
+                    row = MARKERS[bm]
+                    continue
+            
+        ctrl = False
+        
+        for cell in cells:
 
             ignore = False
             ch = CHANNELS[ch_idx]
@@ -376,10 +439,13 @@ try:
             notes = [] # outgoing notes to midi
             chord_root = 1
             expanded = False # inside chord? if so, don't advance cell itr
-            while True:
-                if not chord_notes:
+            accidentals = False
+            loop = True
+            noteloop = True
+            while noteloop:
+                if not chord_notes: # processing cell note
                     tok = cell
-                else:
+                else: # looping notes of a chord?
                     tok = chord_notes[0]
                     chord_notes = chord_notes[1:]
                 
@@ -406,18 +472,21 @@ try:
                         n += 1
                         tok = tok[1:]
                         if not expanded: cell = cell[1:]
+                    accidentals = True
                 c = tok[0]
                 
                 if c.isdigit():
                     # numbered notation
                     # wrap notes into 1-7 range before scale lookup
-                    note = ((int(c)-1) % notecount) + 1
+                    c = int(c)
+                    note = (c-1) % notecount + 1
                     for i in xrange(note):
                         # dont use scale for expanded chord notes
                         if expanded:
                             n += int(DIATONIC.intervals[i-1])
                         else:
                             n += int(scale.intervals[i-1])
+                        n += (c-1) / notecount * 12
                     tok = tok[1:]
                     if not expanded: cell = cell[1:]
                 
@@ -442,6 +511,7 @@ try:
                             n += 1
                             tok = tok[:1]
                             if not expanded: cell = cell[:1]
+                        # accidentals = True # dont need this
                     
                     c = tok[0]
 
@@ -456,35 +526,80 @@ try:
                     except ValueError:
                         ignore = True
                 else:
-                    break # cmd stuff
+                    # assume 1 if there's a chord, otherwise ignore this
+                    ignore = True # reenable if there's a chord listed
                 
                 # CHORDS
-                if cell and not expanded:
-                    chordname = ''
+                is_chord = False
+                if not expanded:
+                    if tok:
+                        chordname = ''
 
-                    # cut chord name from text after it
-                    for char in cell:
-                        if char not in CCHAR:
-                            chordname += char
-                        else:
-                            break
+                        # cut chord name from text after it
+                        for char in tok:
+                            if char not in CCHAR:
+                                chordname += char
+                            else:
+                                break
+
+                        # this will continue looping to process notes
+                        if chordname:
+                            try:
+                                chord_notes = expand_chord(chordname)
+                                expanded = True
+                                try:
+                                    cell = cell[len(chordname):] 
+                                    tok = []
+                                    is_chord = True
+                                except:
+                                    assert False
+                            except KeyError, e:
+                                # may have grabbed a ctrl char, pop one
+                                if len(chord_notes)>1: # can pop?
+                                    try:
+                                        chord_notes = expand_chord(chordname[:-1])
+                                        expanded = True
+                                        try:
+                                            tok = tok[len(chordname)-1:] 
+                                            cell = cell[len(chordname)-1:] 
+                                            is_chord = True
+                                        except:
+                                            assert False
+                                    except KeyError:
+                                        print 'key error'
+                                        break
+                                else:
+                                    noteloop = True
+                                    break
+                            
+                            if is_chord:
+                                # assert not accidentals # accidentals with no note name?
+                                notes.append(n)
+                                chord_root = n
+                                ignore = False # reenable default root if chord was w/o note name
+                                continue
+                            else:
+                                break
+                        else: # blank chord name
+                            tok = []
+                            noteloop = False
+                    else: # not tok and not expanded
+                        tok = []
+                        noteloop = False
+                # else and not chord_notes:
+                #     # last note in chord, we're done
+                #     tok = []
+                #     noteloop = False
                     
-                    # this will continue looping to process notes
-                    if chordname:
-                        try:
-                            cell = cell[len(chordname):] 
-                            chord_notes = expand_chord(chordname)
-                            expanded = True
-                        except KeyError, e:
-                            print 'key error'
-                            break
-                        # print 'chord ' + chordname
-                        notes.append(n)
-                        chord_root = n
-                        continue
-                
                 notes.append(n + chord_root-1)
 
+                if expanded and not chord_notes:
+                    break
+
+            if ignore:
+                notes = []
+
+            # TODO: arp doesn't work if channel not visible/present, move this
             if ch.arp_enabled:
                 if notes: # incoming notes?
                     # interupt arp
@@ -493,7 +608,8 @@ try:
                     # continue arp
                     notes = [ch.arp_next()]
 
-            print notes
+            if notes:
+                print notes
             
             base = 4 + OCTAVE_BASE * 12
             p = base + octave * 12 # default
@@ -503,9 +619,9 @@ try:
             vel = ch.vel
             mute = False
             hold = False
-            
-            # stacatto current doesn't persist
-            
+           
+            t = 0.0
+            schedule = False
             while len(cell) >= 1:
                 # All tokens here must be listed in CCHAR
                 
@@ -519,7 +635,7 @@ try:
                 # if c == '-' or c == '+' or c.isdigit(c):
                 #     cell = cell[1:] # deprecated, ignore
                     # continue
-
+                
                 # OCTAVE SHIFT UP
                 if c == '>' or c=='\'' or c=='\`':
                     sym = c
@@ -538,7 +654,7 @@ try:
                 #     shift = int(c) if c.isdigit() else 0
                 #     p = base + (octave+shift) * 12
                 # OCTAVE SHIFT DOWN
-                elif c == '<' or c==',':
+                elif c == '<' or c == ',':
                     sym = c
                     cell = cell[1:]
                     if cell and cell[0].isdigit():
@@ -548,9 +664,7 @@ try:
                         shift = 1
                     octave -= shift
                     p = base + octave * 12
-                    if sym == '<':
-                        ch.octave = octave # persist
-                    # row_events += 1
+                    if sym == '<': ch.octave = octave # persist
                 # SET OCTAVE
                 elif c == '=':
                     cell = cell[1:]
@@ -597,29 +711,29 @@ try:
                             break
                     assert num != ''
                     cell = cell[len(num):]
-                    vel = int((float(num) / float('9'*len(num)))*127)
+                    vel = int((float(num) / 100)*127)
                     ch.vel = vel
                     # print vel
-                elif c=='c': # control change
-                    cell = cell[1:]
+                elif c=='c': # MIDI CC
                     # get number
-                    num = ''
-                    for char in cell:
-                        if char.isdigit():
-                            num += char
-                        else:
-                            break
-                    assert num != ''
+                    cell = cell[1:]
+                    num = peel_number(cell)
+                    assert num
                     cc = int(num)
+                    cell = cell[len(num)+1:]
+                    num = peel_number(cell)
+                    assert num
                     cell = cell[len(num):]
-                    for char in cell:
-                        if char.isdigit():
-                            num += char
-                        else:
-                            break
-                    assert num != ''
-                    num = int(ccval)
+                    ccval = int(num)
                     ch.cc(cc,ccval)
+                elif c=='p': # program/patch change
+                    cell = cell[1:]
+                    num = peel_number(cell)
+                    assert num
+                    cell = cell[len(num):]
+                    p = int(num)
+                    # ch.cc(0,p)
+                    ch.patch(p)
                 elif c=='&':
                         
                     # repeat limit?
@@ -647,20 +761,54 @@ try:
                         ch.arp_enabled = True
                         ch.arp_idx = 0
                 elif c=='m': # midi channel
-                    print c
+                    num = peel_number(cell)
+                    cell = cell[1+len(num):]
+                    ch.midi_channel(num)
+                elif c=='e': # note end
                     num = ''
                     for char in cell[1:]:
-                        if char.isdigit():
+                        if char.isdigit() or char=='.':
                             num += char
                         else:
                             break
                     cell = cell[1+len(num):]
-                    ch.midi_channel(num)
+                    t = float(num)
+                    assert -0.0001 > t > 1.0001
+                    schedule = True
+                # eventually make sure these don't clash with schedule
+                elif len(cell)>=1 and cell[:2]=='..':
+                    if notes and not ignore:
+                        SCHEDULE.append([0.25, lambda _: ch.note_all_off()])
+                    cell = cell[2:]
                 elif c=='.':
-                    if notes:
-                        ch.staccato = True
-                    cell = cell[1:] # otherwise ignore
-                    
+                    if notes and not ignore:
+                        SCHEDULE.append([0.5, lambda _: ch.note_all_off()])
+                    cell = cell[1:]
+                elif c=='s': # note start
+                    num = ''
+                    cell = cell[1:]
+                    num = peel_number(cell)
+                    cell = cell[len(num):] # ignore
+                    num = float('0.'+num) if num else 0.5
+                    SCHEDULE.append([num, lambda _: ch.note_all_off()])
+                elif c=='|':
+                    cell = cell[1:] # ignore
+                elif len(cell)>=2 and cell[:2]=='!!': # loud accent
+                    vel = 127
+                    cell = cell[2:]
+                elif c=='!': # accent
+                    vel = min(127,int(ch.vel+0.5*(127-ch.vel)))
+                    cell = cell[1:]
+                elif len(cell)>=2 and cell[:2]=='??': # very quiet
+                    vel = max(0,int(ch.vel-0.25*(127-ch.vel)))
+                    cell = cell[2:]
+                elif c=='?': # quiet
+                    vel = max(0,int(ch.vel-0.5*(127-ch.vel)))
+                    cell = cell[1:]
+                else:
+                    print cell + " ???"
+                    cell = []
+                
                 # elif c=='/': # bend in
                 # elif c=='\\': # bend down
 
@@ -669,23 +817,41 @@ try:
 
             if not ignore:
                 for n in notes:
-                    ch.note_on(p + n, vel, hold)
+                    f = lambda _: ch.note_on(p + n, vel, hold)
+                    if not schedule:
+                        f(0)
+                    else:
+                        SCHEDULE.append(t,f)
             
             ch_idx += 1
 
         while True:
+            tp = 0.0 # timepassed percent of frame
+            t = 60.0 / TEMPO / GRID
             try:
                 if not ctrl:
-                    t = 60.0 / TEMPO / GRID
-                    time.sleep(t / 2.0)
-                    for ch in CHANNELS:
-                        if ch.staccato:
-                            ch.note_all_off()
-                            ch.staccato = False
-                    time.sleep(t / 2.0)
-                break
-            except KeyboardInterrupt:
-                print('')
+                    # sort by schedule time
+                    SCHEDULE = sorted(SCHEDULE, key=lambda e: e[0])
+                    for ev in SCHEDULE:
+                        if ev[0] > 1.0:
+                            ev[0] -= 1.0
+                        else:
+                            # sleep until next event
+                            time.sleep(t*(ev[0] - tp))
+                            # do event
+                            ev[1](0)
+                            # calc time passed
+                            tp += ev[0]
+                    
+                    # sleep until next frame
+                    SCHEDULE = []
+                    time.sleep(t*(1.0-tp))
+                    
+                    break # while true is for catch exceptions, break!
+            except KeyboardInterrupt, ex:
+                print ' '
+                print traceback.format_exc(ex)
+                print ' '
                 try:
                     for ch in CHANNELS:
                         ch.note_all_off(True)
@@ -700,6 +866,7 @@ try:
         row += 1
 
 except Exception, ex:
+    print ' '
     print traceback.format_exc(ex)
 
 for ch in CHANNELS:

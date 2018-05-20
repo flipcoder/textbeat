@@ -191,30 +191,33 @@ not yet impl
 # Commands
 
 Global commands:
-    - %: set vars
-    - ;: comment
-    - :: set marker (requires name)
-    - @: go to mark
-    - @@: pop mark, go back to last
-    - @@@: exit
+
+- %: set vars
+- ;: comment
+- :: set marker (requires name)
+- @: go to mark
+- @@: pop mark, go back to last
+- @@@: exit
 
 Variables:
-    - tempo: current tempo of project
-    - grid: subdivisions / note value
+
+- tempo: current tempo of project
+- grid: subdivisions / note value
 
 Channel commands:
-    - m: assign channel to a midi channel
-        - midi channels exceeding max value will be multiplexed to different outputs
-    - p: program assign
-    - c: control change (midi CC param)
-        - use 
-    - x: bank select
-    - Articulation (customizable effect)
-        - ~: vibrato
-        - /: bend up to note
-        - \: bend down to down
-    - ": repeat last cell (ignoring dots, blanks, mutes)
-    - ^: staccato
+
+- m: assign channel to a midi channel
+    - midi channels exceeding max value will be multiplexed to different outputs
+- p: program assign
+- c: control change (midi CC param)
+    - use 
+- x: bank select
+- Articulation (customizable effect)
+    - ~: vibrato
+    - /: bend up to note
+    - \: bend down to down
+- ": repeat last cell (ignoring dots, blanks, mutes)
+- .: staccato (as a suffix)
 
 That's all I have so far!
 

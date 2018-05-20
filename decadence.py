@@ -228,13 +228,13 @@ class StackFrame:
 MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
 
-CCHAR = '<>=~.\'\`,_cvgm&^'
+CCHAR = '<>=~.\'\`,_&^'
 
 try:
     slept = True
 
     # run command
-    if sys.argv[1] == '-c':
+    if len(sys.argv)>1 and sys.argv[1] == '-c':
         buf = ' '.join(sys.argv[2:]).split(';')
         TEMPO = 90
         GRID = 1
@@ -492,6 +492,8 @@ try:
                 else:
                     # continue arp
                     notes = [ch.arp_next()]
+
+            print notes
             
             base = 4 + OCTAVE_BASE * 12
             p = base + octave * 12 # default
@@ -645,6 +647,7 @@ try:
                         ch.arp_enabled = True
                         ch.arp_idx = 0
                 elif c=='m': # midi channel
+                    print c
                     num = ''
                     for char in cell[1:]:
                         if char.isdigit():
@@ -652,7 +655,7 @@ try:
                         else:
                             break
                     cell = cell[1+len(num):]
-                    ch.channel(num)
+                    ch.midi_channel(num)
                 elif c=='.':
                     if notes:
                         ch.staccato = True

@@ -1,14 +1,17 @@
 #!/usr/bin/env python2
 
 import sys
-import time
 import pygame
 import pygame.midi as midi
 import traceback
+import time
+import random
 
 SCALES = []
 SCALE_NAMES = []
 PLAYER = None
+
+random.seed()
 
 class Scale:
     CHROMATIC = 0
@@ -96,6 +99,11 @@ def normalize_chord(c):
     return c
 
 def expand_chord(c):
+    # if c=='rand':
+    #     print CHORDS.values()
+    #     r = random.choice(CHORDS.values())
+    #     print r
+    #     return r
     return CHORDS[normalize_chord(c)].split(' ')
 
 RANGE = 109
@@ -132,7 +140,7 @@ class Channel:
             return
         self.notes[n] = v
         self.held_notes[n] = hold
-        print "on " + str(n)
+        # print "on " + str(n)
         self.player.note_on(n,v,self.midich)
     def note_off(self, n, v=-1):
         if v == -1:
@@ -140,7 +148,7 @@ class Channel:
         if n < 0 or n >= RANGE:
             return
         if self.notes[n]:
-            print "off " + str(n)
+            # print "off " + str(n)
             self.player.note_off(n,v,self.midich)
             self.notes[n] = 0
             self.held_notes[n] = 0
@@ -156,7 +164,7 @@ class Channel:
                 self.player.note_off(n,v,self.midich)
                 self.notes[n] = 0
                 self.held_notes[n] = 0
-                print "off " + str(n)
+                # print "off " + str(n)
         # self.notes = [0] * RANGE
         if self.mod>0:
             self.cc(1,0)
@@ -166,7 +174,7 @@ class Channel:
         self.midich = midich
     def cc(self, cc, val): # control change
         status = (MIDI_CC<<4) + ch.midich
-        print "MIDI (%s,%s)" % (bin(MIDI_CC),val)
+        # print "MIDI (%s,%s)" % (bin(MIDI_CC),val)
         PLAYER.write_short(status,cc,val)
         self.mod = val
     def arp(self, notes, count=0, pattern=[1]):
@@ -181,14 +189,14 @@ class Channel:
         self.arp_enabled = False
         self.note_all_off()
     def arp_next(self):
-        print 'arp_next'
+        # print 'arp_next'
         assert self.arp_enabled
         note = ch.arp_notes[ch.arp_idx]
         if self.arp_cycle_limit:
             if ch.arp_idx+1 == len(ch.arp_notes): # cycle?
                 ch.arp_cycle -= 1
                 if ch.arp_cycle == 0:
-                    print 'stop arp'
+                    # print 'stop arp'
                     ch.arp_enabled = False
                 # if ch.arp_cycle = 0
         # increment according to pattern order
@@ -196,7 +204,7 @@ class Channel:
         self.arp_pattern_idx = (self.arp_pattern_idx+1) % len(self.arp_pattern)
         return note
 
-# class Bookmark:
+# class Marker:
 #     def __init__(self,name,row):
 #         self.name = name
 #         self.line = row
@@ -216,8 +224,8 @@ class StackFrame:
         self.row = row
         self.counter = 0 # repeat call counter
 
-BOOKMARKS = {}
-CALLSTACK = []
+MARKERS = {}
+CALLSTACK = [StackFrame(-1)]
 
 CCHAR = '<>=~.\'\`,_cvg&'
 
@@ -236,11 +244,11 @@ try:
                     continue
                 ls = line.strip()
                 
-                # place bookmark
+                # place marker
                 if ls and ls[-1]==':':
-                    # only store INITIAL bookmark position here
-                    if not ls[:-1] in BOOKMARKS:
-                        BOOKMARKS[ls[:-1]] = len(buf)
+                    # only store INITIAL marker position here
+                    if not ls[:-1] in MARKERS:
+                        MARKERS[ls[:-1]] = len(buf)
 
             buf += [line]
     row = 0
@@ -265,6 +273,44 @@ try:
         if buf and buf[row][0] == ';':
             row += 1
             continue
+
+        # set marker
+        if buf[-1]==':': # suffix marker
+            # allow override of markers in case of reuse
+            MARKERS[buf[:-1]] = row
+            ch_idx += 1
+            continue
+        elif buf[0]==':': #prefix marker
+            # allow override of markers in case of reuse
+            MARKERS[buf[1:]] = row
+            ch_idx += 1
+            continue
+
+        
+        # jumps
+        if buf[0]=='@':
+            if len(buf)==1:
+                row = 0
+                continue
+            if len(buf)>1 and buf[1:] == '@': # @@ return/pop callstack
+                frame = CALLSTACK[-1]
+                CALLSTACK = CALLSTACK[:-1]
+                row = frame.row
+                continue
+            buf = buf[1:].split('*') # * repeats
+            bm = buf[0] # marker name
+            count = 0
+            if len(buf)>1:
+                count = int(buf[1]) if len(buf)>1 else 1
+            frame = CALLSTACK[-1]
+            frame.count = count
+            if count: # repeats remaining
+                CALLSTACK.append(StackFrame(row))
+                row = MARKERS[bm]
+                continue
+            else:
+                row = MARKERS[bm]
+                continue
         
         ctrl = False # ctrl line, %
         for cell in cells:
@@ -273,7 +319,7 @@ try:
                 ctrl = True
                 cell = cell[1:]
                 for tok in cell.split(' '):
-                    print tok
+                    # print tok
                     if tok.startswith('tempo='):
                         tok = tok[len('tempo='):].split(' ')
                         TEMPO=float(tok[0])
@@ -285,7 +331,7 @@ try:
                 cell = []
             
             if ctrl:
-                continue
+                break
 
             ignore = False
             ch = CHANNELS[ch_idx]
@@ -299,31 +345,6 @@ try:
             if not cell:
                 ch_idx += 1
                 continue
-            
-            # set bookmark
-            if cell[-1]==':':
-                # allow override of bookmarks in case of reuse
-                BOOKMARKS[cell[:-1]] = row
-                ch_idx += 1
-                continue
-            
-            # jumps
-            if cell[0]=='@':
-                # use * for number of calls
-                if len(cell)>1 and cell[1:] == '@': # @@ return/pop callstack
-                    frame = CALLSTACK[-1]
-                    CALLSTACK = CALLSTACK[:-1]
-                    row = frame.row
-                    break
-                cell = cell[1:].split('*').strip() # * repeats
-                bm = cell[0] # bookmark name
-                if len(cell)>1:
-                    count = int(cell[1]) if len(cell)>1 else 1
-                frame = CALLSTACK[-1]
-                if count: # repeats remaining
-                    CALLSTACK.append(StackFrame(row))
-                    row = BOOKMARKS[bm]
-                    continue
             
             if cell=='-' or cell[0]=='=': # mute
                 ch.note_all_off(True) # mute held as well
@@ -361,19 +382,19 @@ try:
                 n = 0
                 c = tok[0]
                 if c=='b' or c=='#':
-                    if len(tok) >= 2 and tok[0:2] =='bb':
+                    if len(tok) > 2 and tok[0:2] =='bb':
                         n -= 2
                         tok = tok[2:]
                         if not expanded: cell = cell[2:]
-                    elif tok[0] =='b':
+                    elif c =='b':
                         n -= 1
                         tok = tok[1:]
                         if not expanded: cell = cell[1:]
-                    elif len(tok) >= 2 and tok[0:2] =='##':
+                    elif len(tok) > 2 and tok[0:2] =='##':
                         n += 2
                         tok = tok[2:]
                         if not expanded: cell = cell[2:]
-                    elif tok[0] =='#':
+                    elif c =='#':
                         n += 1
                         tok = tok[1:]
                         if not expanded: cell = cell[1:]
@@ -449,7 +470,7 @@ try:
                         except KeyError, e:
                             print 'key error'
                             break
-                        print 'chord ' + chordname
+                        # print 'chord ' + chordname
                         notes.append(n)
                         chord_root = n
                         continue
@@ -568,6 +589,7 @@ try:
                     cell = cell[len(num):]
                     vel = int((float(num) / float('9'*len(num)))*127)
                     ch.vel = vel
+                    # print vel
                 elif c=='c': # control change
                     cell = cell[1:]
                     # get number
@@ -606,9 +628,10 @@ try:
                         num = int(num)
                     
                     if notes:
-                        ch.arp(notes,num)
+                        ch.arp(notes, num)
                         notes = [ch.arp_next()]
-                        print 'arp start??'
+                        # print notes
+                        # print 'arp start??'
                     else:
                         # & restarts arp (if no note)
                         ch.arp_enabled = True
@@ -630,7 +653,8 @@ try:
 
         while True:
             try:
-                time.sleep(60.0 / TEMPO / GRID)
+                if not ctrl:
+                    time.sleep(60.0 / TEMPO / GRID)
                 break
             except:
                 print('')

@@ -1,0 +1,12 @@
+; basic note hold test
+; hold first 3 notes, mute after
+; then, hold first 2 notes, mute on 3rd note
+
+%tempo=120 grid=1
+1_
+2_
+3_
+-
+1_
+2_
+-3

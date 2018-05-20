@@ -101,6 +101,8 @@ def expand_chord(c):
 RANGE = 109
 OCTAVE_BASE = 5
 
+MIDI_CC = 0b1011
+
 class Channel:
     def __init__(self, ch, player):
         self.ch = ch
@@ -109,21 +111,28 @@ class Channel:
     def reset(self):
         self.midich = 0
         self.notes = [0] * RANGE
+        self.held_notes = [False] * RANGE # held note filter
         self.mode = 1 # 0 is NONE which inherits global mode
         self.scale = Scale.DIATONIC
         self.instrument = 0
         self.octave = 0 # rel to OCTAVE_BASE
         self.mod = 0 # dont read in mod, just track its change by this channel
-        self.hold = False
-        self.arp = [] # list of notes to arpegiate
-        self.pattern = [] # relative steps to
-        self.vel = 0
-    def note_on(self, n, v=-1):
+        # self.hold = False
+        self.arp_notes = [] # list of notes to arpegiate
+        self.arp_idx = 0
+        self.arp_limit = 0
+        self.arp_cycle_limit = 0 # cycles remaining, only if limit != 0
+        self.arp_pattern = [] # relative steps to
+        self.arp_enabled = False
+        self.vel = 127
+    def note_on(self, n, v=-1, hold=False):
         if v == -1:
             v = self.vel
         if n < 0 or n > RANGE:
             return
         self.notes[n] = v
+        self.held_notes[n] = hold
+        print "on " + str(n)
         self.player.note_on(n,v,self.midich)
     def note_off(self, n, v=-1):
         if v == -1:
@@ -131,26 +140,61 @@ class Channel:
         if n < 0 or n >= RANGE:
             return
         if self.notes[n]:
+            print "off " + str(n)
             self.player.note_off(n,v,self.midich)
             self.notes[n] = 0
-    def note_all_off(self, v=-1): # this is not the midi equivalent
+            self.held_notes[n] = 0
+    def note_all_off(self, mute_held=False, v=-1): # this is not the midi equivalent
         if v == -1:
             v = self.vel
         for n in xrange(RANGE):
-            if self.notes[n]:
+            # if mute_held, mute held notes too, otherwise ignore
+            muteheld_cond = True
+            if not mute_held:
+                muteheld_cond =  not self.held_notes[n]
+            if self.notes[n] and muteheld_cond:
                 self.player.note_off(n,v,self.midich)
-        self.notes = [0] * RANGE
+                self.notes[n] = 0
+                self.held_notes[n] = 0
+                print "off " + str(n)
+        # self.notes = [0] * RANGE
         if self.mod>0:
             self.cc(1,0)
+        # self.arp_enabled = False
     def midi_channel(self, midich):
         self.note_all_off()
         self.midich = midich
     def cc(self, cc, val): # control change
-        cmd = 0b1011
-        status = (cmd<<4) + ch.midich
-        print "MIDI"
+        status = (MIDI_CC<<4) + ch.midich
+        print "MIDI (%s,%s)" % (bin(MIDI_CC),val)
         PLAYER.write_short(status,cc,val)
         self.mod = val
+    def arp(self, notes, count=0, pattern=[1]):
+        self.arp_enabled = True
+        self.arp_notes = notes
+        self.arp_cycle_limit = count
+        self.arp_cycle = count
+        self.arp_pattern = pattern
+        self.arp_pattern_idx = 0
+        self.arp_idx = 0 # use inversions to move this start point (?)
+    def arp_stop(self):
+        self.arp_enabled = False
+        self.note_all_off()
+    def arp_next(self):
+        print 'arp_next'
+        assert self.arp_enabled
+        note = ch.arp_notes[ch.arp_idx]
+        if self.arp_cycle_limit:
+            if ch.arp_idx+1 == len(ch.arp_notes): # cycle?
+                ch.arp_cycle -= 1
+                if ch.arp_cycle == 0:
+                    print 'stop arp'
+                    ch.arp_enabled = False
+                # if ch.arp_cycle = 0
+        # increment according to pattern order
+        ch.arp_idx = (ch.arp_idx+self.arp_pattern[self.arp_pattern_idx])%len(ch.arp_notes)
+        self.arp_pattern_idx = (self.arp_pattern_idx+1) % len(self.arp_pattern)
+        return note
 
 # class Bookmark:
 #     def __init__(self,name,row):
@@ -162,8 +206,8 @@ PLAYER = pygame.midi.Output(pygame.midi.get_default_output_id())
 INSTRUMENT = 0
 PLAYER.set_instrument(INSTRUMENT)
 CHANNELS = [Channel(ch, PLAYER) for ch in range(16)]
-TEMPO = 120
-GRID = 4 # Grid subdivisions of a beat (4 = sixteenth note)
+TEMPO = 120.0
+GRID = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
 
 buf = []
 
@@ -175,7 +219,7 @@ class StackFrame:
 BOOKMARKS = {}
 CALLSTACK = []
 
-CCHAR = '<>=~.\'\`,_'
+CCHAR = '<>=~.\'\`,_cvg&'
 
 try:
     slept = True
@@ -208,7 +252,8 @@ try:
         except:
             break
         # cells = ' '.join(line.split(' ')).split(' ')
-        cells = line.split(' '*2)
+        # cells = line.split(' '*2)
+        cells = line.split(' ')
         cells = filter(None, cells)
         ch_idx = 0
         # if not line.strip():
@@ -228,14 +273,15 @@ try:
                 ctrl = True
                 cell = cell[1:]
                 for tok in cell.split(' '):
+                    print tok
                     if tok.startswith('tempo='):
                         tok = tok[len('tempo='):].split(' ')
-                        TEMPO=int(tok[0])
-                        continue
+                        TEMPO=float(tok[0])
+                        cell = cell[len('tempo='):]
                     elif tok.startswith('grid='): # grid subdivisions
                         tok = tok[len('grid='):].split(' ')
-                        GRID=int(tok[0])
-                        continue
+                        GRID=float(tok[0])
+                        cell = cell[len('grid='):]
                 cell = []
             
             if ctrl:
@@ -250,7 +296,7 @@ try:
             print cell
             
             # empty
-            if not cell or cell=='.':
+            if not cell:
                 ch_idx += 1
                 continue
             
@@ -280,13 +326,13 @@ try:
                     continue
             
             if cell=='-' or cell[0]=='=': # mute
-                ch.note_all_off()
+                ch.note_all_off(True) # mute held as well
                 ch_idx += 1
                 continue
 
-            if cell[0]=='-':
-                ch.note_all_off()
-                ch.hold = False
+            if cell[0]=='-': # mute prefix
+                ch.note_all_off(True)
+                # ch.hold = False
                 cell = cell[1:]
             
             scale = SCALES[ch.scale]
@@ -409,14 +455,23 @@ try:
                         continue
                 
                 notes.append(n + chord_root-1)
+
+            if ch.arp_enabled:
+                if notes: # incoming notes?
+                    # interupt arp
+                    ch.arp_stop()
+                else:
+                    # continue arp
+                    notes = [ch.arp_next()]
             
             base = 4 + OCTAVE_BASE * 12
             p = base + octave * 12 # default
             
             cell = cell.strip() # ignore spaces
 
-            vel = 127
-            nomute = False
+            vel = ch.vel
+            mute = False
+            hold = False
             while len(cell) >= 1:
                 # All tokens here must be listed in CCHAR
                 
@@ -478,18 +533,16 @@ try:
                 elif c == '~': # vibrato -- eventually using pitch wheel
                     ch.cc(1,127)
                     cell = cell[1:]
-                    nomute = True
                     # row_events += 1d
                 # SEP
                 elif c=='.':
                     cell = cell[1:] #ignore
-                    nomute = True
                 # HOLD
                 elif c=='_':
-                    ch.hold = True
+                    hold = True # use hold flag in note on func
                     cell = cell[1:]
                     assert notes # holding w/o note?
-                elif c=='v':
+                elif c=='g': # gain/volume
                     cell = cell[1:]
                     # get number
                     num = ''
@@ -499,15 +552,79 @@ try:
                         else:
                             break
                     assert num != ''
-                    vel = int(num) / ('9'*len(num))
+                    cell = cell[len(num):]
+                    vel = int((float(num) / float('9'*len(num)))*127)
+                    ch.cc(7,vel)
+                elif c=='v': # velocity
+                    cell = cell[1:]
+                    # get number
+                    num = ''
+                    for char in cell:
+                        if char.isdigit():
+                            num += char
+                        else:
+                            break
+                    assert num != ''
+                    cell = cell[len(num):]
+                    vel = int((float(num) / float('9'*len(num)))*127)
                     ch.vel = vel
+                elif c=='c': # control change
+                    cell = cell[1:]
+                    # get number
+                    num = ''
+                    for char in cell:
+                        if char.isdigit():
+                            num += char
+                        else:
+                            break
+                    assert num != ''
+                    cc = int(num)
+                    cell = cell[len(num):]
+                    for char in cell:
+                        if char.isdigit():
+                            num += char
+                        else:
+                            break
+                    assert num != ''
+                    num = int(ccval)
+                    ch.cc(cc,ccval)
+                elif c=='&':
+                        
+                    # repeat limit?
+                    num = ''
+                    for char in cell[1:]:
+                        if char.isdigit():
+                            num += char
+                        else:
+                            break
+                    
+                    cell = cell[1+len(num):]
+                    
+                    if not num:
+                        num = 0
+                    else:
+                        num = int(num)
+                    
+                    if notes:
+                        ch.arp(notes,num)
+                        notes = [ch.arp_next()]
+                        print 'arp start??'
+                    else:
+                        # & restarts arp (if no note)
+                        ch.arp_enabled = True
+                        ch.arp_idx = 0
+                elif c=='^':
+                    
+                    
+                # elif c=='/': # bend in
+                # elif c=='\\': # bend down
 
-            if notes and not nomute and not ch.hold:
+            if notes or mute:
                 ch.note_all_off()
 
             if not ignore:
                 for n in notes:
-                    ch.note_on(p + n, vel)
+                    ch.note_on(p + n, vel, hold)
             
             ch_idx += 1
 
@@ -519,7 +636,7 @@ try:
                 print('')
                 try:
                     for ch in CHANNELS:
-                        ch.note_all_off()
+                        ch.note_all_off(True)
                     raw_input(' === PAUSED === ')
                 except:
                     quitflag = True
@@ -534,7 +651,7 @@ except Exception, ex:
     print traceback.format_exc(ex)
 
 for ch in CHANNELS:
-    ch.note_all_off()
+    ch.note_all_off(True)
     ch.player = None
 
 del PLAYER

@@ -614,7 +614,7 @@ try:
                         ch.arp_enabled = True
                         ch.arp_idx = 0
                 elif c=='^':
-                    
+                    pass
                     
                 # elif c=='/': # bend in
                 # elif c=='\\': # bend down

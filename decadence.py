@@ -227,7 +227,7 @@ class StackFrame:
 MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
 
-CCHAR = '<>=~.\'\`,_cvg&'
+CCHAR = '<>=~.\'\`,_cvgm&'
 
 try:
     slept = True
@@ -636,6 +636,15 @@ try:
                         # & restarts arp (if no note)
                         ch.arp_enabled = True
                         ch.arp_idx = 0
+                elif c=='m': # midi channel
+                    num = ''
+                    for char in cell[1:]:
+                        if char.isdigit():
+                            num += char
+                        else:
+                            break
+                    cell = cell[1+len(num):]
+                    ch.channel(num)
                 elif c=='^':
                     pass
                     

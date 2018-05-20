@@ -130,3 +130,97 @@ Let's try some chords:
 1maj'
 ```
 
+There are lots of chords and voicing (check the .py file under CHORDS and CHORDS_ALT) and I'll be adding a lot more.
+
+# Arpeggios and Strumming
+
+Chords can be walked if they are suffixed by '&'
+Be sure to rest in your song long enough to hear it cycle.
+
+```
+1maj&
+.
+.
+.
+```
+
+After the &, you can put a number to denote the number of cycles.
+By default, it cycles infinitely until muted
+
+# Velocity and Gain/Volume
+
+Control velocity and gain of notes using the v## or g## flags respectfully
+All velocity and gain values go from 0-9 in every digit, like in decimal numbers
+Example: v0 in min, v9 is max.  But also: v00 is minimum, v99 is max
+Use more numbers for increased precision (Careful, v9 is 100% where as v09 is ~9.1%)
+
+Interpolation not yet impl
+    
+```
+1majv9
+-
+1majv6
+-
+1majv4
+-
+1majv2
+-
+```
+
+# Articulation
+
+Tilda(~) is another command, but sets mod wheel value
+It is intended to be used for vibrato.
+Vibrato functionality will change to pitch wheel oscillation in the future
+
+# Set note length
+
+Use caret (^) to set a default auto-cut note length (expressed in beats).  Providing no value sets back to default (unlimited)
+
+
+# Channels
+
+Columns are separate channels, line them up for more than one instrument
+
+```
+1<2  1
+.    4
+.    5
+.    1'
+.    4'
+.    5'
+.    1'2
+```
+# Markers
+
+not yet impl
+
+# Commands
+
+Global commands:
+    - %: set vars
+    - ;: comment
+    - :: set marker (requires name)
+    - @: go to mark
+    - @@: pop mark, go back to last
+    - @@@: exit
+
+Variables:
+    - tempo: current tempo of project
+    - grid: subdivisions / note value
+
+Channel commands:
+    - m: assign channel to a midi channel
+        - midi channels exceeding max value will be multiplexed to different outputs
+    - p: program assign
+    - c: control change (midi CC param)
+        - use 
+    - x: bank select
+    - Articulation (customizable effect)
+        - ~: vibrato
+        - /: bend up to note
+        - \: bend down to down
+    - ": repeat last cell (ignoring dots, blanks, mutes)
+
+That's all I have so far!
+

@@ -133,6 +133,7 @@ class Channel:
         self.arp_pattern = [] # relative steps to
         self.arp_enabled = False
         self.vel = 127
+        self.staccato = False
     def note_on(self, n, v=-1, hold=False):
         if v == -1:
             v = self.vel
@@ -227,30 +228,37 @@ class StackFrame:
 MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
 
-CCHAR = '<>=~.\'\`,_cvgm&'
+CCHAR = '<>=~.\'\`,_cvgm&^'
 
 try:
     slept = True
-    fn = sys.argv[1] if len(sys.argv)>=2 else 'songs/test.dec'
-    with open(fn) as f:
-        for line in f.readlines():
-            if line:
-                if line[-1] == '\n':
-                    line = line[:-1]
-                elif len(line)>2 and line[-2:0] == '\r\n':
-                    line = line[:-2]
-                
-                if not line:
-                    continue
-                ls = line.strip()
-                
-                # place marker
-                if ls and ls[-1]==':':
-                    # only store INITIAL marker position here
-                    if not ls[:-1] in MARKERS:
-                        MARKERS[ls[:-1]] = len(buf)
 
-            buf += [line]
+    # run command
+    if sys.argv[1] == '-c':
+        buf = ' '.join(sys.argv[2:]).split(';')
+        TEMPO = 90
+        GRID = 1
+    else: 
+        fn = sys.argv[1] if len(sys.argv)>=2 else 'songs/test.dec'
+        with open(fn) as f:
+            for line in f.readlines():
+                if line:
+                    if line[-1] == '\n':
+                        line = line[:-1]
+                    elif len(line)>2 and line[-2:0] == '\r\n':
+                        line = line[:-2]
+                    
+                    if not line:
+                        continue
+                    ls = line.strip()
+                    
+                    # place marker
+                    if ls and ls[-1]==':':
+                        # only store INITIAL marker position here
+                        if not ls[:-1] in MARKERS:
+                            MARKERS[ls[:-1]] = len(buf)
+
+                buf += [line]
     row = 0
 
     quitflag = False
@@ -493,6 +501,9 @@ try:
             vel = ch.vel
             mute = False
             hold = False
+            
+            # stacatto current doesn't persist
+            
             while len(cell) >= 1:
                 # All tokens here must be listed in CCHAR
                 
@@ -555,9 +566,6 @@ try:
                     ch.cc(1,127)
                     cell = cell[1:]
                     # row_events += 1d
-                # SEP
-                elif c=='.':
-                    cell = cell[1:] #ignore
                 # HOLD
                 elif c=='_':
                     hold = True # use hold flag in note on func
@@ -645,8 +653,10 @@ try:
                             break
                     cell = cell[1+len(num):]
                     ch.channel(num)
-                elif c=='^':
-                    pass
+                elif c=='.':
+                    if notes:
+                        ch.staccato = True
+                    cell = cell[1:] # otherwise ignore
                     
                 # elif c=='/': # bend in
                 # elif c=='\\': # bend down
@@ -663,9 +673,15 @@ try:
         while True:
             try:
                 if not ctrl:
-                    time.sleep(60.0 / TEMPO / GRID)
+                    t = 60.0 / TEMPO / GRID
+                    time.sleep(t / 2.0)
+                    for ch in CHANNELS:
+                        if ch.staccato:
+                            ch.note_all_off()
+                            ch.staccato = False
+                    time.sleep(t / 2.0)
                 break
-            except:
+            except KeyboardInterrupt:
                 print('')
                 try:
                     for ch in CHANNELS:

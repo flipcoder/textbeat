@@ -3,16 +3,14 @@ Use your text editor as a music tracker
 
 Copyright (c) 2018 Grady O'Connell
 
+Status: Just started. Still prototyping.
+
 I wanted to track music in my text editor because I'm quite fast with it.
 The available options weren't good enough.
 This is my attempt at making a column-oriented, music tracker that works from
 a text editor.
 
-I plan to make a vim plugin for this as well to follow the song and hear individual sections
-
-If you're using this with vim, set virtualedit=all to edit beyond EOL
-
-Status: Just started this!  More features soon, currently very prototypish.
+I plan to make a vim plugin for this as well to follow the song and hear individual sections (see integration.vim for temporary usage)
 
 ## Features
 
@@ -173,11 +171,6 @@ Tilda(~) is another command, but sets mod wheel value
 It is intended to be used for vibrato.
 Vibrato functionality will change to pitch wheel oscillation in the future
 
-# Set note length
-
-Use caret (^) to set a default auto-cut note length (expressed in beats).  Providing no value sets back to default (unlimited)
-
-
 # Channels
 
 Columns are separate channels, line them up for more than one instrument
@@ -221,6 +214,7 @@ Channel commands:
         - /: bend up to note
         - \: bend down to down
     - ": repeat last cell (ignoring dots, blanks, mutes)
+    - ^: staccato
 
 That's all I have so far!
 

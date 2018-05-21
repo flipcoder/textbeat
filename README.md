@@ -12,23 +12,32 @@ a text editor and includes an interactie midi shell.
 
 I plan to make a vim plugin for this as well to follow the song and hear individual sections (see integration.vim for temporary usage)
 
-Currently I test on Linux using the Helm softsynth
+Currently I test on Linux using the Helm and qsynth
+
+NOTE: I'll probably rewrite this in C++ once I'm done prototyping, as python isn't the best choice for audio :)
 
 # Overview
 
+If you're familiar with trackers, you should pick this up quite easily.
+Music flows vertically, with separate columns that are separated by whitespace or setting separators.
+
 Each column is a "channel" and they default to separate midi channel numbers.
 Channels sequence notes.  You'll usually play at least 1 channel per instrument.
+This doesn't mean you're limited to just one note per channel though,
+you can keep notes held down and play chords as you wish, using the right note effects.
 
 By default, any note event in a channel will mute previous notes on that channel
 
-Numbered note notation is encouraged as it can better support
-transposition and can take advantage of the scale/mode system (not yet impl).
+Numbered notes, note letter names, and roman numerals are supported.
+
+I've almost got the scale/mode system in (not yet impl).
 
 The following will play the C major scale using numbered notation:
 ```
 ; Major Scale -- this is a comment, write whatever you want here!
 
 ; 120bpm subdivided into 2 (i.e., eighth notes)
+
 %t120 g2
 
 1
@@ -43,7 +52,7 @@ The following will play the C major scale using numbered notation:
 
 The tempo is in BPM, and the grid is based in subdivisions.
 Musicians can think of grid as fractions of quarter note,
-whereas grid=1 is quarter, grid=2 is eighth notes, grid=3 is eighth triplet, etc.
+Grid is the beat subdivision.
 
 Both Tempo and Grid can be decimal numbers as well.
 
@@ -58,23 +67,43 @@ You can add a number at the end of these to increase the shift (For example, >2 
 
 Notes will continue playing automatically, until they're muted or another note is played in the same channel.
 
-You can mute notes with -
+You can mute all notes in a channel with -
 
-To control muting of notes, use Dash (-).  The period (.) is simply a placeholder, so notes continue to be played through them.
+To control releasing of notes, use dash (-).  The period (.) is simply a placeholder, so notes continue to be played through them.
 ```
 
-; short note
+; 1 beat and then mute
 1
--
+.
+.
+.
 
+; OR auto-mute with note value (*):
+1*
+.
+.
+.
+ 
 ; long note
 1
 .
 .
-.
 -
 
 ```
+
+Note durations can be controlled by adding * to increase value by powers of two, 
+You can also add a fractional component to multiply this.
+The opposite of this is the dot (.) which halves note values
+
+```
+; set note length to fraction
+1*3
+
+; set note based on percentage (33%)
+1*33
+```
+
 
 Notes that are played in the same channel as other notes mute previous notes.
 In order to overide this, hold a note by suffixing it with underscore (_).
@@ -132,9 +161,7 @@ By default, it cycles infinitely until muted
 # Velocity and Gain/Volume
 
 Control velocity and gain of notes using the v## or g## flags respectfully
-All velocity and gain values go from 0-9 in every digit, like in decimal numbers
-Example: v0 in min, v9 is max.  But also: v00 is minimum, v99 is max
-Use more numbers for increased precision (Careful, v9 is 100% where as v09 is ~9.1%)
+Example: v0 in min, v9 is 90%.  But also: v00 is minimum, v99 is 99% (v by itself is full)
 
 Interpolation not yet impl
     

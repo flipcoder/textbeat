@@ -23,6 +23,11 @@ import random
 VERSION = '0.1'
 SCALE_NAMES = []
 
+NUM_CHANNELS = 15
+NUM_CHANNELS_PER_DEVICE = 15
+CHANNELS_ACTIVE = 1
+DRUM_CHANNEL = 9
+
 random.seed()
 
 class Scale:
@@ -51,14 +56,14 @@ SCALES = {
 # modes and scale aliases
 MODES = {
     'jazzminor': ('melodicminor',1),
-    'majorscale': ('diatonic',1),
+    'major': ('diatonic',1),
     'ionian': ('diatonic',1),
     'dorian': ('diatonic',2),
     'phyrigan': ('diatonic',3),
     'lydian': ('diatonic',4),
     'mixolydian': ('diatonic',5),
     'aeolian': ('diatonic',6),
-    'minorscale': ('diatonic',6),
+    'minor': ('diatonic',6),
     'locrian': ('diatonic',7),
 }
 for k,v in MODES.iteritems():
@@ -112,7 +117,7 @@ CHORDS = {
     "wa": "3 4 5", # maj add4
     "wa7": "3 4 5 7", # maj7 add4
     "wa-7": "b3 4 5 7", # m7 add4
-    "lyd": "3 b5", # lydian chord, maj7b5no7
+    "lydian": "3 b5", # lydian chord, maj7b5no7
     "11": "3 5 b7 9 #11",
 }
 CHORDS_ALT = {
@@ -273,6 +278,7 @@ GM = [
     "Applause",
     "Gunshot",
 ]
+DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
 for i in xrange(len(GM)): GM[i] = GM[i].lower()
 
 def normalize_chord(c):
@@ -301,13 +307,13 @@ MIDI_CC = 0b1011
 MIDI_PROGRAM = 0b1100
 
 class Channel:
-    def __init__(self, ch, player, schedule):
+    def __init__(self, ch, midich, player, schedule):
         self.ch = ch
         self.player = player
         self.schedule = schedule
+        self.midich = midich
         self.reset()
     def reset(self):
-        self.midich = 0
         self.notes = [0] * RANGE
         self.held_notes = [False] * RANGE # held note filter
         self.mode = 1 # 0 is NONE which inherits global mode
@@ -323,6 +329,7 @@ class Channel:
         self.arp_enabled = False
         self.arp_once = False
         self.vel = 64
+        self.non_drum_channel = 0
         # self.off_vel = 64
         self.staccato = False
         self.patch_num = 0
@@ -363,9 +370,11 @@ class Channel:
         if self.mod>0:
             self.cc(1,0)
         # self.arp_enabled = False
-        self.schedule.clear_channel(ch)
+        self.schedule.clear_channel(self)
     def midi_channel(self, midich):
         self.note_all_off()
+        if midich==DRUM_CHANNEL and self.midich != DRUM_CHANNEL:
+            self.non_drum_channel = self.midich
         self.midich = midich
     def cc(self, cc, val): # control change
         status = (MIDI_CC<<4) + self.midich
@@ -376,24 +385,30 @@ class Channel:
         if isinstance(p,basestring):
             # look up instrument string in GM
             i = 0
-            inst = p
-            stop_search = False
-            for i in xrange(len(GM)):
-                continue_search = False
-                for pword in inst.split(' '):
-                    print pword
-                    print GM[i].split(' ')
-                    if pword.lower() not in GM[i].split(' '):
-                        continue_search = True
+            inst = p.replace('_',' ').replace('.',' ')
+            
+            if p in DRUM_WORDS:
+                self.midi_channel(DRUM_CHANNEL)
+                p = 0
+            else:
+                self.midi_channel(self.non_drum_channel)
+                
+                stop_search = False
+                for i in xrange(len(GM)):
+                    continue_search = False
+                    for pword in inst.split(' '):
+                        if pword.lower() not in GM[i].split(' '):
+                            continue_search = True
+                            break
+                        p = i
+                        stop_search=True
+                        
+                    if stop_search:
                         break
-                    p = i
-                    stop_search=True
-                    
-                if stop_search:
-                    break
-                if continue_search:
-                    assert i < len(GM)-1
-                    continue
+                    if continue_search:
+                        assert i < len(GM)-1
+                        continue
+
         self.patch_num = p
         status = (MIDI_PROGRAM<<4) + self.midich
         self.player.write_short(status,p)
@@ -432,7 +447,9 @@ class Event:
 class Schedule:
     def __init__(self):
         self.events = [] # time,func,ch,skippable
-        self.tp = 0.0
+        self.passed = 0.0
+        self.clock = 0.0
+        self.active = False
     # all note mute and play events should be marked skippable
     def pending(self):
         return len(self.events)
@@ -444,7 +461,18 @@ class Schedule:
         self.events = [ev for ev in self.events if ev.ch!=ch]
     def logic(self, t):
         processed = 0
-        # if self.tp > 0.0, we're resuming from kb interupt
+        
+        clock = time.clock()
+        if self.active:
+            tdelta = (clock - self.passed)
+            self.passed += tdelta
+            self.clock = clock
+            # print self.passed
+        else:
+            self.active = True
+            self.clock = clock
+            self.passed = 0.0
+        
         try:
             self.events = sorted(self.events, key=lambda e: e.t)
             for ev in self.events:
@@ -452,18 +480,18 @@ class Schedule:
                     ev.t -= 1.0
                 else:
                     # sleep until next event
-                    frac = (ev.t - self.tp)
+                    frac = (ev.t - self.passed)
                     if frac >= 0.0:
                         time.sleep(t*frac)
                         ev.func(0)
-                        self.tp += ev.t # only inc if positive
+                        self.passed += ev.t # only inc if positive
                     
                     # calc time passed
                     processed += 1
             
             # events is sorted, so we can cut baesd on processed count
-            time.sleep(t*(1.0-self.tp)) # remaining time
-            self.tp = 0.0
+            time.sleep(t*(1.0-self.passed)) # remaining time
+            self.passed = 0.0
             self.events = self.events[processed:]
         except KeyboardInterrupt, ex:
             # don't replay events
@@ -572,7 +600,7 @@ CCHAR = '<>=~.\'\`,_&^|!?*\"#'
 SCHEDULE = []
 # INIT
 SEPARATORS = []
-CHANNEL_HISTORY = ['.'] * 16
+CHANNEL_HISTORY = ['.'] * NUM_CHANNELS
 row = 0
 midi.init()
 dev = 0
@@ -592,8 +620,11 @@ PLAYER = pygame.midi.Output(dev)
 INSTRUMENT = 0
 PLAYER.set_instrument(0)
 SCHEDULE = Schedule()
-CHANNELS = [Channel(ch, PLAYER, SCHEDULE) for ch in xrange(16)] 
-
+CHANNELS = []
+mch = 0
+for i in xrange(NUM_CHANNELS_PER_DEVICE):
+    CHANNELS.append(Channel(i, mch, PLAYER, SCHEDULE))
+    mch += 2 if i==DRUM_CHANNEL else 1
 try:
     FN = None
     row = 0
@@ -640,6 +671,7 @@ try:
             for i in xrange(len(vals)):
                 val = vals[i]
                 if val.isdigit():
+                    print i
                     CHANNELS[i].patch(int(val))
                 else:
                     CHANNELS[i].patch(val)
@@ -714,26 +746,29 @@ try:
         try:
             line = buf[row]
         except IndexError:
+            row = len(buf)
             # done with file, finish playing some stuff
             
             arps_remaining = 0
-            if not FN or mode == 'sh': # finish arps in shell mode
-                for ch in CHANNELS:
+            if mode in ['sh','c','l']: # finish arps in shell mode
+                for ch in CHANNELS[:CHANNELS_ACTIVE]:
                     if ch.arp_enabled:
                         if ch.arp_cycle_limit or not ch.arp_once:
                             arps_remaining += 1
                             line = '.'
-                if not arps_remaining and mode != 'sh':
+                if not arps_remaining and mode not in ['sh','c','l']:
                     break
+                line = '.'
             
-            if not arps_remaining and not SCHEDULE.pending(): # finish schedule always
-                if mode == 'sh':
-                    for ch in CHANNELS:
+            if not arps_remaining and not SCHEDULE.pending():
+                if mode in ['sh','c','l']:
+                    for ch in CHANNELS[:CHANNELS_ACTIVE]:
                         ch.note_all_off()
                     buf += raw_input('DC> ').split(' ')
                     continue
                 else:
                     break
+            
         # cells = ' '.join(line.split(' ')).split(' ')
         # cells = line.split(' '*2)
         
@@ -751,6 +786,7 @@ try:
         
         # LINE COMMANDS
         ctrl = False
+        cells = []
 
         if line:
             # COMMENTS (;)
@@ -758,7 +794,7 @@ try:
                 row += 1
                 continue
             
-            # SEPARATORS (|)
+            # COLUMNS
             cells = []
             if not SEPARATORS:
                 cells = line.split(' ')
@@ -768,10 +804,16 @@ try:
             else:
                 s = 0
                 seplen = len(SEPARATORS)
+                last_sep = 0
                 for i in xrange(seplen):
                     if i == 0: continue# left side
-                    cells.append(line[s:SEPARATORS[i]])
-                    s = i
+                    cells.append(line[last_sep:SEPARATORS[i]].strip())
+                    # print '-'
+                    # print s
+                    # print i
+                    # print cells
+                    last_sep = i
+                cells.append(line[last_sep:].strip())
 
             # set marker
             if line[-1]==':': # suffix marker
@@ -788,44 +830,47 @@ try:
             if line.startswith('%'):
                 line = line[1:].strip() # remove % and spaces
                 for tok in line.split(' '):
-                    for var in ['T','G','N','P']:
-                        if tok.startswith(var):
-                            cmd = tok.split(' ')[0]
-                            var = var.lower() # eventually deprecate lower case
-                            op = cmd[1]
-                            val = cmd[2:]
-                            if not val or op=='.':
-                                val = op + val # append
-                                # TODO: add numbers after dots like other ops
-                                if val[0]=='.':
-                                    ct = count_seq(val)
-                                    val = pow(0.5,count)
-                                    op = '/'
-                                    num,ct = peel_uint(val[:ct])
-                                elif val[0]=='*':
-                                    op = '*'
-                                    val = pow(2.0,count_seq(val))
-                            else:
-                                val = float(val)
-                            if op=='/':
-                                if var=='G': GRID/=float(val)
-                                elif var=='N': GRID/=float(val) #!
-                                elif var=='G': TEMPO/=float(val)
-                            elif op=='*':
-                                if var=='G': GRID*=float(val)
-                                elif var=='N': GRID*=float(val) #!
-                                elif var=='T': TEMPO*=float(val)
-                            elif op=='=':
-                                if var=='G': GRID=float(val)
-                                elif var=='N': GRID=float(val)/4.0 #!
-                                elif var=='T': TEMPO=float(val)
-                                elif var=='P':
-                                    vals = val.split(',')
-                                    for i in xrange(len(vals)):
-                                        if val.strip().isdigit():
-                                            ch[i].patch(int(val))
-                                        else:
-                                            ch[i].patch(val)
+                    var = tok[0].upper()
+                    if var in 'TGNP':
+                        cmd = tok.split(' ')[0]
+                        op = cmd[1]
+                        val = cmd[2:]
+                        print "op val %s %s" % (op,val)
+                        if not op in '*/=':
+                            # implicit =
+                            val = str(op) + str(val)
+                            op='='
+                        if not val or op=='.':
+                            val = op + val # append
+                            # TODO: add numbers after dots like other ops
+                            if val[0]=='.':
+                                ct = count_seq(val)
+                                val = pow(0.5,count)
+                                op = '/'
+                                num,ct = peel_uint(val[:ct])
+                            elif val[0]=='*':
+                                op = '*'
+                                val = pow(2.0,count_seq(val))
+                        if op=='/':
+                            if var=='G': GRID/=float(val)
+                            elif var=='N': GRID/=float(val) #!
+                            elif var=='G': TEMPO/=float(val)
+                        elif op=='*':
+                            if var=='G': GRID*=float(val)
+                            elif var=='N': GRID*=float(val) #!
+                            elif var=='T': TEMPO*=float(val)
+                        elif op=='=':
+                            if var=='G': GRID=float(val)
+                            elif var=='N': GRID=float(val)/4.0 #!
+                            elif var=='T': TEMPO=float(val)
+                            elif var=='P':
+                                vals = val.split(',')
+                                for i in xrange(len(vals)):
+                                    p = vals[0]
+                                    if val.strip().isdigit():
+                                        CHANNELS[i].patch(int(p))
+                                    else:
+                                        CHANNELS[i].patch(p)
                                 
                 row += 1
                 continue
@@ -855,14 +900,17 @@ try:
                     row = MARKERS[bm]
                     continue
             
+        clm = 0
         for cell in cells:
 
             ignore = False
             ch = CHANNELS[ch_idx]
+            CHANNELS_ACTIVE = max(CHANNELS_ACTIVE, ch_idx)
+            print ch_idx
             # if INSTRUMENT != ch.instrument:
             #     PLAYER.set_instrument(ch.instrument)
             #     INSTRUMENT = ch.instrument
-            
+
             cell = cell.strip()
             # print cell
             
@@ -970,7 +1018,9 @@ try:
                     c = int(c)
                     # numbered notation
                     # wrap notes into 1-7 range before scale lookup
-                    note = (c-1) % notecount + 1
+                    wrap = ((c-1) / notecount)
+                    note = ((c-1) % notecount) + 1
+                    # print 'note ' + str(note)
                     
                     for i in xrange(note):
                         # dont use scale for expanded chord notes
@@ -978,7 +1028,6 @@ try:
                             n += int(DIATONIC.intervals[i-1])
                         else:
                             n += int(scale.intervals[i-1])
-                        n += (c-1) / notecount * 12
                     if inverted: # inverted counter
                         if flip_inversion:
                             # print (chord_note_count-1)-inverted
@@ -996,6 +1045,7 @@ try:
                         else:
                             # print 'inv: %s' % (inversion/chord_note_count)
                             n += 12 * (inversion/chord_note_count)
+                    n += 12 * wrap
                     
                     tok = tok[ct:]
                     if not expanded: cell = cell[ct:]
@@ -1120,7 +1170,6 @@ try:
                             
                             if is_chord:
                                 # assert not accidentals # accidentals with no note name?
-                                if n == 0: n = 1
                                 notes.append(n)
                                 chord_root = n
                                 ignore = False # reenable default root if chord was w/o note name
@@ -1161,7 +1210,7 @@ try:
             # if notes:
             #     print notes
             
-            base = 4 + OCTAVE_BASE * 12
+            base =  OCTAVE_BASE * 12 - 1
             p = base + octave * 12 # default
             
             cell = cell.strip() # ignore spaces
@@ -1320,7 +1369,8 @@ try:
                         if dots==1:
                             events.append(Event(num, lambda _: ch.note_all_off(), ch))
                         else:
-                            events.append(Event(num*pow(2.0,float(dots)), lambda _: ch.note_all_off(), ch))
+                            # events.append(Event(num*pow(2.0,float(dots-1)), lambda _: ch.note_all_off(), ch))
+                            events.append(Event(float(dots), lambda _: ch.note_all_off(), ch))
                     else:
                         cell = cell[dots:]
                 elif c=='.':
@@ -1395,7 +1445,7 @@ try:
                 print ' '
                 if mode != 'sh':
                     try:
-                        for ch in CHANNELS:
+                        for ch in CHANNELS[:CHANNELS_ACTIVE]:
                             ch.note_all_off(True)
                         raw_input(' === PAUSED === ')
                     except:
@@ -1411,6 +1461,8 @@ except Exception, ex:
     print ' '
     print traceback.format_exc(ex)
 
+# TODO: turn all midi note off
+i = 0
 for ch in CHANNELS:
     ch.note_all_off(True)
     ch.player = None

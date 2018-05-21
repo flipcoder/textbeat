@@ -14,29 +14,12 @@ I plan to make a vim plugin for this as well to follow the song and hear individ
 
 Currently I test on Linux using the Helm softsynth
 
-## Features
+# Overview
 
-- Implemented
-    - Numbered, lettered, and roman numeral notation
-    - Built-in chord and voicing aliases
-    - Velocity, Transposition, Vibrato
-    - Note holding
-    - Chord and Voicing support
-    - Markers w/ Callstack (use :name to set, and @name to jump, @@ to return)
-    - MIDI CC events
-    - Chord Arpeggiator
-- Planned
-    - Scales and key signature (not yet impl)
+Each column is a "channel" and they default to separate midi channel numbers.
+Channels sequence notes.  You'll usually play at least 1 channel per instrument.
 
-## Tutorial
-
-INCOMPLETE
-    
-Each column is called a channel (not to be confused with midi channel).
-Channels sequence notes.  
 By default, any note event in a channel will mute previous notes on that channel
-
-Separate each column by at least 2 spaces.
 
 Numbered note notation is encouraged as it can better support
 transposition and can take advantage of the scale/mode system (not yet impl).

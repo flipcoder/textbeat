@@ -1474,7 +1474,7 @@ try:
                     strum = 1.0
                     sustain = False
                     schedule = True
-                elif c=='t': # tuplet
+                # elif c=='t': # tuplet
                     
                 else:
                     print cell + " ???"

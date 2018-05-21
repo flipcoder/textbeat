@@ -1,5 +1,5 @@
 # Decadence
-Use your text editor as a music tracker
+Plaintext music tracker and shell
 
 Copyright (c) 2018 Grady O'Connell
 
@@ -8,15 +8,17 @@ Status: Just started. Still prototyping.
 I wanted to track music in my text editor because I'm quite fast with it.
 The available options weren't good enough.
 This is my attempt at making a column-oriented, music tracker that works from
-a text editor.
+a text editor and includes an interactie midi shell.
 
 I plan to make a vim plugin for this as well to follow the song and hear individual sections (see integration.vim for temporary usage)
+
+Currently I test on Linux using the Helm softsynth
 
 ## Features
 
 - Implemented
-    - Numbered and lettered note notation
-    - Built-in chords
+    - Numbered, lettered, and roman numeral notation
+    - Built-in chord and voicing aliases
     - Velocity, Transposition, Vibrato
     - Note holding
     - Chord and Voicing support
@@ -44,7 +46,7 @@ The following will play the C major scale using numbered notation:
 ; Major Scale -- this is a comment, write whatever you want here!
 
 ; 120bpm subdivided into 2 (i.e., eighth notes)
-%tempo=120 grid=2
+%t120 g2
 
 1
 2
@@ -98,7 +100,6 @@ A (-) character will then mute them all.
 
 ```
 ; Let's hold some notes
-%tempo
 1_
 3_
 5_
@@ -117,7 +118,7 @@ the notes in a single channel.
 Let's try some chords:
 
 ```
-%tempo=120 grid=2
+%t120 g2
 1maj
 2m
 3m
@@ -201,23 +202,41 @@ Global commands:
 
 Variables:
 
-- tempo: current tempo of project
-- grid: subdivisions / note value
+- t: tempo in BPM
+- g: grid
+- n: note value (set grid using note value)
 
 Channel commands:
 
+- >: shift octave up (persists)
+    - number provided for octave count, default 1
+- <: shift octave down (persists)
+    - number provided for octave count, default 1
+- ': play in octave above
+    - number provided for octave count, default 1
+- ,: play in octave below
+    - number provided for octave count, default 1
 - m: assign channel to a midi channel
     - midi channels exceeding max value will be multiplexed to different outputs
 - p: program assign
 - c: control change (midi CC param)
-    - use 
-- x: bank select
+    - setting CC5 to 25 would be c5:25
+- x: bank select (not impl)
 - Articulation (customizable effect)
-    - ~: vibrato
-    - /: bend up to note
-    - \: bend down to down
+    - ~: vibrato, currently set to mod wheel
 - ": repeat last cell (ignoring dots, blanks, mutes)
-- .: staccato (as a suffix)
+- *: set note length
+    - defaults to one beat when used
+    - repeating symbol doubles note length
+    - add a number to do multiplies (i.e. .5)
+- .: half note length
+    - halfs note value with each dot
+    - add extra dot for using w/o note event (i.e. during arpeggiator), since lone dots dont mean anything
+    - add a number to do multiplies (i.e. C.2)
+- !: accent a note (or set velocity)
+    - repeat for louder notes
+- ?: play note quietly (or set velocity)
+    - repeat for quieter notes
 
 That's all I have so far!
 

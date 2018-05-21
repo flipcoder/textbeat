@@ -67,7 +67,8 @@ for k,v in MODES.iteritems():
 # for lookup, normalize name first, add root
 # number chords can't be used with note numbers
 CHORDS = {
-    # intervals that don't match chord names
+    # intervals that don't match chord names,
+    # using these with numbered notation requires '
     "m2": "b2",
     "2": "2",
     "m3": "b3",
@@ -78,11 +79,17 @@ CHORDS = {
     # chords and voicings
     "maj": "3 5",
     "maj7": "3 5 7",
-    "maj9": "3 5 9",
+    "maj9": "3 5 7 9",
     "maj7b5": "3 b5 7",
+    "maj9": "3 5 7 9",
+    "majadd9": "3 5 9",
+    "maj9b5": "3 b5 7 9",
     "m": "b3 5",
     "m7": "b3 5 b7",
+    "m9": "b3 5 7 9",
+    "madd9": "3 b5 9",
     "m7b5": "3b b5 7",
+    "m9b5": "b3 b5 7 9",
     "aug": "3 #5",
     "dom7": "3 5 b7",
     "dom7b5": "3 b5 b7",
@@ -93,6 +100,7 @@ CHORDS = {
     "sus7": "4 5 7b",
     "6": "3 5 6",
     "9": "3 5 b7 9",
+    "11": "",
     "13": "3 5 b7 9 13",
     "pow": "5 8",
     "q": "4 b7", # quartal
@@ -105,6 +113,7 @@ CHORDS = {
     "wa7": "3 4 5 7", # maj7 add4
     "wa-7": "b3 4 5 7", # m7 add4
     "lyd": "3 b5", # lydian chord, maj7b5no7
+    "11": "3 5 b7 9 #11",
 }
 CHORDS_ALT = {
     "+": "aug",
@@ -112,8 +121,12 @@ CHORDS_ALT = {
     "p5": "5",
     "augmented": "aug",
     "-": "m",
+    "M": "maj",
     "major": "maj",
     "ma7": "maj7",
+    "ma9": "maj9",
+    "Madd9": "majadd9",
+    "mdd9": "madd9",
     "major7": "maj7",
     "M7": "maj7",
     "M7b5": "maj7b5",
@@ -123,17 +136,144 @@ CHORDS_ALT = {
     "min7": "m7",
     "minor7": "m7",
     "7": "dom7",
-    "P": "pow",
-    "power": "pow",
-    "9": "ninth",
-    "9th": "ninth",
-    "11": "eleventh",
-    "11th": "eleventh",
+    "p": "pow",
+    "11th": "11",
     "o": "dim",
     "o7": "dim7",
-    "07": "3b b5 7",
-    "o7": "3b b5 7",
+    "7o": "dim7",
 }
+
+GM = [
+    "Acoustic Grand Piano",
+    "Bright Acoustic Piano",
+    "Electric Grand Piano",
+    "Honky-tonk Piano",
+    "Electric Piano 1",
+    "Electric Piano 2",
+    "Harpsichord",
+    "Clavi",
+    "Celesta",
+    "Glockenspiel",
+    "Music Box",
+    "Vibraphone",
+    "Marimba",
+    "Xylophone",
+    "Tubular Bells",
+    "Dulcimer",
+    "Drawbar Organ",
+    "Percussive Organ",
+    "Rock Organ",
+    "Church Organ",
+    "Reed Organ",
+    "Accordion",
+    "Harmonica",
+    "Tango Accordion",
+    "Acoustic Guitar (nylon)",
+    "Acoustic Guitar (steel)",
+    "Electric Guitar (jazz)",
+    "Electric Guitar (clean)",
+    "Electric Guitar (muted)",
+    "Overdriven Guitar",
+    "Distortion Guitar",
+    "Guitar harmonics",
+    "Acoustic Bass",
+    "Electric Bass (finger)",
+    "Electric Bass (pick)",
+    "Fretless Bass",
+    "Slap Bass 1",
+    "Slap Bass 2",
+    "Synth Bass 1",
+    "Synth Bass 2",
+    "Violin",
+    "Viola",
+    "Cello",
+    "Contrabass",
+    "Tremolo Strings",
+    "Pizzicato Strings",
+    "Orchestral Harp",
+    "Timpani",
+    "String Ensemble 1",
+    "String Ensemble 2",
+    "SynthStrings 1",
+    "SynthStrings 2",
+    "Choir Aahs",
+    "Voice Oohs",
+    "Synth Voice",
+    "Orchestra Hit",
+    "Trumpet",
+    "Trombone",
+    "Tuba",
+    "Muted Trumpet",
+    "French Horn",
+    "Brass Section",
+    "SynthBrass 1",
+    "SynthBrass 2",
+    "Soprano Sax",
+    "Alto Sax",
+    "Tenor Sax",
+    "Baritone Sax",
+    "Oboe",
+    "English Horn",
+    "Bassoon",
+    "Clarinet",
+    "Piccolo",
+    "Flute",
+    "Recorder",
+    "Pan Flute",
+    "Blown Bottle",
+    "Shakuhachi",
+    "Whistle",
+    "Ocarina",
+    "Lead 1 (square)",
+    "Lead 2 (sawtooth)",
+    "Lead 3 (calliope)",
+    "Lead 4 (chiff)",
+    "Lead 5 (charang)",
+    "Lead 6 (voice)",
+    "Lead 7 (fifths)",
+    "Lead 8 (bass + lead)",
+    "Pad 1 (new age)",
+    "Pad 2 (warm) ",
+    "Pad 3 (polysynth)",
+    "Pad 4 (choir)",
+    "Pad 5 (bowed)",
+    "Pad 6 (metallic)",
+    "Pad 7 (halo)",
+    "Pad 8 (sweep)",
+    "FX 1 (rain)",
+    "FX 2 (soundtrack)",
+    "FX 3 (crystal)",
+    "FX 4 (atmosphere)",
+    "FX 5 (brightness)",
+    "FX 6 (goblins)",
+    "FX 7 (echoes)",
+    "FX 8 (sci-fi)",
+    "Sitar",
+    "Banjo",
+    "Shamisen",
+    "Koto",
+    "Kalimba",
+    "Bag pipe",
+    "Fiddle",
+    "Shanai",
+    "Tinkle Bell",
+    "Agogo",
+    "Steel Drums",
+    "Woodblock",
+    "Taiko Drum",
+    "Melodic Tom",
+    "Synth Drum",
+    "Reverse Cymbal",
+    "Guitar Fret Noise",
+    "Breath Noise",
+    "Seashore",
+    "Bird Tweet",
+    "Telephone Ring",
+    "Helicopter",
+    "Applause",
+    "Gunshot",
+]
+
 def normalize_chord(c):
     try:
         c = CHORDS_ALT[c]
@@ -227,13 +367,22 @@ class Channel:
         self.note_all_off()
         self.midich = midich
     def cc(self, cc, val): # control change
-        status = (MIDI_CC<<4) + ch.midich
+        status = (MIDI_CC<<4) + self.midich
         # print "MIDI (%s,%s)" % (bin(MIDI_CC),val)
         self.player.write_short(status,cc,val)
         self.mod = val
     def patch(self, p):
+        if isinstance(p,basestring):
+            # look up instrument string in GM
+            i = 0
+            for i in xrange(len(GM)):
+                for pword in p.split(' '):
+                    if pword.lower() not in GM[i].split(' '):
+                        continue
+                p = i
+                break
         self.patch_num = p
-        status = (MIDI_CC<<4) + ch.midich
+        status = (MIDI_PROGRAM<<4) + self.midich
         self.player.write_short(status,p)
     def arp(self, notes, count=0, pattern=[1]):
         self.arp_enabled = True
@@ -407,6 +556,31 @@ CALLSTACK = [StackFrame(-1)]
 # control chars that are definitely not note or chord names
 CCHAR = '<>=~.\'\`,_&^|!?*\"#'
 
+SCHEDULE = []
+# INIT
+SEPARATORS = []
+CHANNEL_HISTORY = ['.'] * 16
+row = 0
+midi.init()
+dev = 0
+for i in xrange(midi.get_count()):
+    port = pygame.midi.get_device_info(i)
+    # print port
+    # timidity
+    if port[1].lower()=='timidity port 0':
+        dev = i
+    # qsynth
+    elif port[1].lower().startswith('synth input port'):
+        dev = i
+    # helm will autoconnect
+
+# PLAYER = pygame.midi.Output(pygame.midi.get_default_output_id())
+PLAYER = pygame.midi.Output(dev)
+INSTRUMENT = 0
+PLAYER.set_instrument(0)
+SCHEDULE = Schedule()
+CHANNELS = [Channel(ch, PLAYER, SCHEDULE) for ch in xrange(16)] 
+
 try:
     FN = None
     row = 0
@@ -444,6 +618,18 @@ try:
                 # look ahead and eat next token
                 GRID = float(sys.argv[i+1])/4.0 # split token: -n 4
                 skip += 1
+        elif arg.startswith('-p'):
+            if len(arg)>2:
+                vals = arg[2:].split(',')
+            else:
+                vals = sys.argv[i+1].split(',')
+                skip += 1
+            for i in xrange(len(vals)):
+                val = vals[i]
+                if val.isdigit():
+                    CHANNELS[i].patch(int(val))
+                else:
+                    CHANNELS[i].patch(val)
         # request_grid = True
         elif arg == '-s':
             mode = 's'
@@ -502,16 +688,6 @@ try:
                 except KeyError:
                     print 'invalid entry point'
                     quitflag = True
-    # INIT
-    SEPARATORS = []
-    CHANNEL_HISTORY = ['.'] * 16
-    row = 0
-    midi.init()
-    PLAYER = pygame.midi.Output(pygame.midi.get_default_output_id())
-    INSTRUMENT = 0
-    PLAYER.set_instrument(INSTRUMENT)
-    SCHEDULE = Schedule()
-    CHANNELS = [Channel(ch, PLAYER, SCHEDULE) for ch in xrange(16)]
     
     if mode=='sh':
         print 'decadence v'+str(VERSION)
@@ -541,7 +717,7 @@ try:
                 if mode == 'sh':
                     for ch in CHANNELS:
                         ch.note_all_off()
-                    buf += raw_input('DC> ').split(';')
+                    buf += raw_input('DC> ').split(' ')
                     continue
                 else:
                     break
@@ -556,11 +732,14 @@ try:
                 if line[i]=='|':
                     SEPARATORS.append(i)
        
+        print line
         line = line.strip()
         
         ch_idx = 0
         
         # LINE COMMANDS
+        ctrl = False
+
         if line:
             # COMMENTS (;)
             if line[0] == ';':
@@ -593,34 +772,48 @@ try:
                 MARKERS[line[1:]] = row
                 row += 1
             
-            # TODO: check for global cmds here
+            # TODO: global 'silent' commands (doesn't take time)
             if line.startswith('%'):
-                line = line[1:]
+                line = line[1:].strip() # remove % and spaces
                 for tok in line.split(' '):
-                    for var in ['t','g','n']:
+                    for var in ['T','G','N','P']:
                         if tok.startswith(var):
-                            op = tok[0]
-                            tok = tok[1:]
-                            if op=='/':
-                                val = tok.split(' ')[0]
-                                tok = tok[len(val):]
-                                if var=='g': GRID/=float(val)
-                                elif var=='n': GRID/=float(val) #!
-                                elif var=='g': TEMPO/=float(val)
-                            elif op=='*':
-                                val = tok.split(' ')[0]
-                                tok = tok[len(val):]
-                                if var=='g': GRID*=float(val)
-                                elif var=='n': GRID*=float(val) #!
-                                elif var=='t': TEMPO*=float(val)
+                            cmd = tok.split(' ')[0]
+                            var = var.lower() # eventually deprecate lower case
+                            op = cmd[1]
+                            val = cmd[2:]
+                            if not val or op=='.':
+                                val = op + val # append
+                                # TODO: add numbers after dots like other ops
+                                if val[0]=='.':
+                                    ct = count_seq(val)
+                                    val = pow(0.5,count)
+                                    op = '/'
+                                    num,ct = peel_uint(val[:ct])
+                                elif val[0]=='*':
+                                    op = '*'
+                                    val = pow(2.0,count_seq(val))
                             else:
-                                if op=='=':
-                                    tok=tok[1:]
-                                val = tok.split(' ')[0]
-                                tok = tok[len(val):]
-                                if var=='g': GRID=float(val)
-                                elif var=='n': GRID=float(val)/4.0
-                                elif var=='t': TEMPO=float(val)
+                                val = float(val)
+                            if op=='/':
+                                if var=='G': GRID/=float(val)
+                                elif var=='N': GRID/=float(val) #!
+                                elif var=='G': TEMPO/=float(val)
+                            elif op=='*':
+                                if var=='G': GRID*=float(val)
+                                elif var=='N': GRID*=float(val) #!
+                                elif var=='T': TEMPO*=float(val)
+                            elif op=='=':
+                                if var=='G': GRID=float(val)
+                                elif var=='N': GRID=float(val)/4.0 #!
+                                elif var=='T': TEMPO=float(val)
+                                elif var=='P':
+                                    vals = val.split(',')
+                                    for i in xrange(len(vals)):
+                                        if val.strip().isdigit():
+                                            ch[i].patch(int(val))
+                                        else:
+                                            ch[i].patch(val)
                                 
                 row += 1
                 continue
@@ -650,8 +843,6 @@ try:
                     row = MARKERS[bm]
                     continue
             
-        ctrl = False
-
         for cell in cells:
 
             ignore = False
@@ -661,6 +852,7 @@ try:
             #     INSTRUMENT = ch.instrument
             
             cell = cell.strip()
+            # print cell
             
             if '\"' in cell:
                 cell = cell.replace("\"", CHANNEL_HISTORY[ch_idx])
@@ -697,7 +889,7 @@ try:
             noteloop = True
             expanded = False # inside chord? if so, don't advance cell itr
             events = []
-            inversion = 0 # chord inversion
+            inversion = 1 # chord inversion
             flip_inversion = False
             inverted = 0 # notes pending inversion
             chord_note_count = 0 # include root
@@ -706,7 +898,7 @@ try:
             
             while noteloop:
                 roman = 0 # -1 lower, 1 upper, 0 none
-                number_chords = False
+                number_notes = False
                 
                 if not chord_notes: # processing cell note
                     tok = cell
@@ -715,9 +907,9 @@ try:
                     chord_notes = chord_notes[1:]
                     chord_note_index += 1
                     # fix negative inversions
-                    if inversion < 0:
-                        print inversion
-                        print chord_note_count
+                    if inversion < 0: # not yet working
+                        # print inversion
+                        # print chord_note_count
                         octave += inversion/chord_note_count
                         inversion = inversion%chord_note_count
                         inverted = -inverted
@@ -754,7 +946,6 @@ try:
                     lower = (c.lower()==c)
                     c = ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii'].index(c.lower())
                     roman = -1 if lower else 1
-                    number_chords = True
                 else:
                     num,ct = peel_int(tok)
                     c = num
@@ -768,6 +959,7 @@ try:
                     # numbered notation
                     # wrap notes into 1-7 range before scale lookup
                     note = (c-1) % notecount + 1
+                    
                     for i in xrange(note):
                         # dont use scale for expanded chord notes
                         if expanded:
@@ -777,22 +969,26 @@ try:
                         n += (c-1) / notecount * 12
                     if inverted: # inverted counter
                         if flip_inversion:
-                            print (chord_note_count-1)-inverted
+                            # print (chord_note_count-1)-inverted
                             inverted -= 1
                         else:
                             n += 12
                             inverted -= 1
-                    if inversion:
-                        if flip_inversion:
-                            print 'note ' + str(note)
-                            print 'down inv: %s' % (inversion/chord_note_count+1)
-                            n -= 12 * (inversion/chord_note_count+1)
+                    assert inversion != 0
+                    if inversion!=1:
+                        if flip_inversion: # not working yet
+                            # print 'note ' + str(note)
+                            # print 'down inv: %s' % (inversion/chord_note_count+1)
+                            # n -= 12 * (inversion/chord_note_count+1)
+                            pass
                         else:
-                            print 'inv: %s' % (inversion/chord_note_count)
+                            # print 'inv: %s' % (inversion/chord_note_count)
                             n += 12 * (inversion/chord_note_count)
                     
                     tok = tok[ct:]
                     if not expanded: cell = cell[ct:]
+                    
+                    number_notes = not roman
                     
                     if tok and tok[0]==':':
                         tok = tok[1:] # allow chord sep
@@ -822,8 +1018,8 @@ try:
                             n += 1
                             tok = tok[:1]
                             if not expanded: cell = cell[:1]
+                        # print n
                         # accidentals = True # dont need this
-                    
                     c = tok[0]
 
                     # note names, don't use these in chord defn
@@ -832,7 +1028,6 @@ try:
                         note = ' CDEFGAB'.index(c)
                         for i in xrange(note):
                             n += int(DIATONIC.intervals[i-1])
-                        number_chords = True
                         tok = tok[1:]
                         if not expanded: cell = cell[1:]
                     except ValueError:
@@ -856,28 +1051,34 @@ try:
                             else:
                                 break
                         
-                        print chordname
                         if roman:
-                            if chordname:
-                                if chordname[0] in '67mM':
-                                    chordname = 'm' + chordname
+                            # print chordname
+                            if chordname and not chordname[1:] in 'bcdef':
+                                if roman == -1: # minor
+                                    if chordname[0] in '6719':
+                                        chordname = 'm' + chordname
                             else:
-                                if chordname[0] in 'Mm':
-                                    chordname = 'maj' if roman else 'm'
-
+                                chordname = 'maj' if roman else 'm' + chordname
+                        
                         # this will continue looping to process notes
                         
                         if chordname:
-                            
                             # accumulate how many chars to be processed
-                            if len(tok) > cut:
-                                if tok[cut] == '#':
-                                    # print tok[cut+1:]
-                                    num,ct = peel_int(tok[cut+1:])
-                                    if ct and num!=0:
-                                        cut += ct + 1
-                                        inversion = num
-                                        inverted = inversion # keep count of pending notes to invert
+                            try:
+                                inv_letter = ' abcdef'.index(chordname[-1])
+                            
+                                # num,ct = peel_int(tok[cut+1:])
+                                # if ct and num!=0:
+                                # cut += ct + 1
+                                if inv_letter>1:
+                                    inversion = max(1,inv_letter)
+                                    inverted = max(0,inversion-1) # keep count of pending notes to invert
+                                    # cut+=1
+                                    chordname = chordname[:-1]
+                                    
+                            except ValueError:
+                                pass
+                            
                             try:
                                 chord_notes = expand_chord(chordname)
                                 chord_note_count = len(chord_notes)+1 # + 1 for root
@@ -962,10 +1163,9 @@ try:
 
             # if cell and cell[0]=='|':
             #     if not expanded: cell = cell[1:]
-            
-            if cell: cell[0].lower() + cell[1:] # lower
-            
-            while len(cell) >= 1:
+             
+            while len(cell) >= 1: # recompute len before check
+                cl = len(cell)
                 # All tokens here must be listed in CCHAR
                 
                 ## + and - symbols are changed to mean minor and aug chords
@@ -975,6 +1175,13 @@ try:
                 #     shift = int(c) if c.isdigit() else 0
                 #     mn = n + base + (octave+shift) * 12
                 c = cell[0]
+                c2 = None
+                if cl:
+                    c2 = cell[:2]
+                
+                if c: c = c.lower()
+                if c2: c2 = c2.lower()
+                
                 # if c == '-' or c == '+' or c.isdigit(c):
                 #     cell = cell[1:] # deprecated, ignore
                     # continue
@@ -1057,7 +1264,7 @@ try:
                 #     vel = int((float(num) / 100)*127)
                 #     ch.vel = vel
                 #     # print vel
-                elif c=='c': # MIDI CC
+                elif c=='cc': # MIDI CC
                     # get number
                     cell = cell[1:]
                     cc,ct = peel_int(cell)
@@ -1068,8 +1275,8 @@ try:
                     cell = cell[len(num):]
                     ccval = int(num)
                     ch.cc(cc,ccval)
-                elif c=='p': # program/patch change
-                    cell = cell[1:]
+                elif cl>=2 and c=='pc': # program/patch change
+                    cell = cell[2:]
                     p,ct = peel_int(cell)
                     assert ct
                     cell = cell[len(num):]
@@ -1088,9 +1295,9 @@ try:
                         # & restarts arp (if no note)
                         ch.arp_enabled = True
                         ch.arp_idx = 0
-                elif c=='m': # midi channel
-                    num,ct = peel_uint(cell)
-                    cell = cell[1+ct:]
+                elif cl>=2 and cell[:2]=='ch': # midi channel
+                    num,ct = peel_uint(cell[2:])
+                    cell = cell[2+ct:]
                     ch.midi_channel(num)
                 elif c=='*':
                     dots = count_seq(cell)
@@ -1098,17 +1305,21 @@ try:
                         cell = cell[dots:]
                         num,ct = peel_float(cell, 1.0)
                         cell = cell[ct:]
-                        events.append(Event(num*pow(2.0,float(dots)), lambda _: ch.note_all_off(), ch))
+                        if dots==1:
+                            events.append(Event(num, lambda _: ch.note_all_off(), ch))
+                        else:
+                            events.append(Event(num*pow(2.0,float(dots)), lambda _: ch.note_all_off(), ch))
                     else:
                         cell = cell[dots:]
                 elif c=='.':
                     dots = count_seq(cell)
-                    if notes:
+                    if len(c)>1 and notes:
                         cell = cell[dots:]
                         if ch.arp_enabled:
                             dots -= 1
                         if dots:
-                            num,ct = peel_float(cell, 1.0)
+                            num,ct = peel_int_s(cell, 1.0)
+                            num = int('0.' + num)
                             cell = cell[ct:]
                             events.append(Event(num*pow(0.5,float(dots)), lambda _: ch.note_all_off(), ch))
                     else:
@@ -1122,13 +1333,13 @@ try:
                     schedule = True
                 elif c=='|':
                     cell = cell[1:] # ignore
-                elif len(cell)>=2 and cell[:2]=='!!': # loud accent
+                elif c2=='!!': # loud accent
                     vel = 127
                     cell = cell[2:]
                 elif c=='!': # accent
                     vel = min(127,int(ch.vel+0.5*(127-ch.vel)))
                     cell = cell[1:]
-                elif len(cell)>=2 and cell[:2]=='??': # very quiet
+                elif c2=='??': # very quiet
                     vel = max(0,int(ch.vel-0.25*(127-ch.vel)))
                     cell = cell[2:]
                 elif c=='?': # quiet

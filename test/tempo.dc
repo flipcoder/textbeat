@@ -1,11 +1,15 @@
 C
 D
 E
-%tempo/=2
+%t.5
 C
 D
 E
-%tempo*=4
+%t*.9
+C
+D
+E
+%t*2
 C
 D
 E

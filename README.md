@@ -216,12 +216,12 @@ Channel commands:
     - number provided for octave count, default 1
 - ,: play in octave below
     - number provided for octave count, default 1
-- m: assign channel to a midi channel
+- ch: assign channel to a midi channel
     - midi channels exceeding max value will be multiplexed to different outputs
-- p: program assign
-- c: control change (midi CC param)
+- pc: program assign
+- cc: control change (midi CC param)
     - setting CC5 to 25 would be c5:25
-- x: bank select (not impl)
+- bs: bank select (not impl)
 - Articulation (customizable effect)
     - ~: vibrato, currently set to mod wheel
 - ": repeat last cell (ignoring dots, blanks, mutes)

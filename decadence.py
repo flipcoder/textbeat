@@ -273,6 +273,7 @@ GM = [
     "Applause",
     "Gunshot",
 ]
+for i in xrange(len(GM)): GM[i] = GM[i].lower()
 
 def normalize_chord(c):
     try:
@@ -375,12 +376,24 @@ class Channel:
         if isinstance(p,basestring):
             # look up instrument string in GM
             i = 0
+            inst = p
+            stop_search = False
             for i in xrange(len(GM)):
-                for pword in p.split(' '):
+                continue_search = False
+                for pword in inst.split(' '):
+                    print pword
+                    print GM[i].split(' ')
                     if pword.lower() not in GM[i].split(' '):
-                        continue
-                p = i
-                break
+                        continue_search = True
+                        break
+                    p = i
+                    stop_search=True
+                    
+                if stop_search:
+                    break
+                if continue_search:
+                    assert i < len(GM)-1
+                    continue
         self.patch_num = p
         status = (MIDI_PROGRAM<<4) + self.midich
         self.player.write_short(status,p)
@@ -631,8 +644,8 @@ try:
                 else:
                     CHANNELS[i].patch(val)
         # request_grid = True
-        elif arg == '-s':
-            mode = 's'
+        elif arg == '-l':
+            mode = 'l'
         elif arg == '-c':
             mode = 'c'
         else:
@@ -640,9 +653,9 @@ try:
             break
         next_arg = i+1
     
-    if mode=='c':
+    if mode=='l':
         buf = ' '.join(sys.argv[next_arg:]).split(';')
-    elif mode=='s':
+    elif mode=='c':
         buf = ' '.join(sys.argv[next_arg:]).split(' ')
     else: # mode n
         if len(sys.argv)>=2:
@@ -724,9 +737,8 @@ try:
         # cells = ' '.join(line.split(' ')).split(' ')
         # cells = line.split(' '*2)
         
-        if line == '|':
-            SEPARATORS = [] # clear
         if line.strip().startswith('|'):
+            SEPARATORS = [] # clear
             # column setup!
             for i in xrange(1,len(line)):
                 if line[i]=='|':
@@ -1002,22 +1014,22 @@ try:
                     # flats, sharps after note names?
                     if tok:
                         lt = len(tok)
-                        if lt > 2 and tok[1:3] =='bb':
+                        if lt >= 3 and tok[1:3] =='bb':
                             n -= 2
-                            tok = tok[:2]
-                            if not expanded: cell = cell[:2]
-                        elif lt > 1 and tok[1] == 'b':
+                            tok = tok[0] + tok[3:]
+                            cell = cell[0:1] + cell[3:]
+                        elif lt >= 2 and tok[1] == 'b':
                             n -= 1
-                            tok = tok[:1]
-                            if not expanded: cell = cell[:1]
-                        elif lt > 2 and tok[1:3] =='##':
+                            tok = tok[0] + tok[2:]
+                            if not expanded: cell = cell[0] + cell[2:]
+                        elif lt > 3 and tok[1:3] =='##':
                             n += 2
-                            tok = tok[:2]
-                            if not expanded: cell = cell[:2]
-                        elif lt > 1 and tok[1] =='#':
+                            tok = tok[0] + tok[3:]
+                            cell = cell[0:1] + cell[3:]
+                        elif lt >= 2 and tok[1] =='#':
                             n += 1
-                            tok = tok[:1]
-                            if not expanded: cell = cell[:1]
+                            tok = tok[0] + tok[2:]
+                            if not expanded: cell = cell[0] + cell[2:]
                         # print n
                         # accidentals = True # dont need this
                     c = tok[0]

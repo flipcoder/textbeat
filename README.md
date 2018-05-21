@@ -191,6 +191,19 @@ not yet impl
 
 # Commands
 
+Command line parameters (use -):
+
+- c: issue command
+- l: play a single line (string)
+
+Command line AND global (% line) variables:
+- t: start tempo
+- g: start grid
+- n: start note value
+- p: set midi patches
+    - command-separated list of patches across channels
+    - GM instruments names fuzzy match (Example: Piano,Organ,Flute)
+
 Global commands:
 
 - %: set vars
@@ -199,12 +212,9 @@ Global commands:
 - @: go to mark
 - @@: pop mark, go back to last
 - @@@: exit
-
-Variables:
-
-- t: tempo in BPM
-- g: grid
-- n: note value (set grid using note value)
+- |: set separators
+    - allows you to draw separate each column by a fixed size
+    - allows you to have spaces in note events on the same channel
 
 Channel commands:
 
@@ -219,12 +229,13 @@ Channel commands:
 - ch: assign channel to a midi channel
     - midi channels exceeding max value will be multiplexed to different outputs
 - pc: program assign
+    - Set program to a given number
+    - Global var (%) p is usually prefered for string matching
 - cc: control change (midi CC param)
     - setting CC5 to 25 would be c5:25
 - bs: bank select (not impl)
-- Articulation (customizable effect)
-    - ~: vibrato, currently set to mod wheel
-- ": repeat last cell (ignoring dots, blanks, mutes)
+- ~: vibrato, currently set to mod wheel
+- ": repeat last cell (ignoring dots, blanks, mutes, modified repeats don't repeat)
 - *: set note length
     - defaults to one beat when used
     - repeating symbol doubles note length

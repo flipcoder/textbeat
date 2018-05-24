@@ -1,0 +1,22 @@
+; testing t tuplets not working yet
+
+%p=drums,drums
+
+<2   <2
+1    2t
+ .   2
+ .   2
+ .
+1    2t
+ .   2
+ .   2
+ .
+1    2t 
+ .   2
+ .   2
+ .
+1    2t
+ .   2
+ .   2
+ .
+  

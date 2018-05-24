@@ -1,3 +1,31 @@
-%g2
-Cmaj\
-Dmaj
+%p=drums,piano
+%g4
+<2 
+1   Cmaj\
+%g3
+    I
+    V
+1   ii
+    %s=dorian
+    I
+    V
+1   ii 
+%s1
+    I
+    V
+1   %g2
+    iio7...
+    iio7...
+    4,3
+1   iio7...
+    iio7...
+    4,3
+%g1
+    1<2     Cm
+    .
+    .
+    .
+    .
+    .
+    .
+    .

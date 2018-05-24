@@ -16,17 +16,103 @@ Currently I test on Linux using the Helm and qsynth
 
 NOTE: I'll probably rewrite this in C++ once I'm done prototyping, as python isn't the best choice for audio :)
 
+# Commands
+
+Command line parameters (use -):
+    
+- (default) starts midi shell
+- (filename): plays file
+- c: play a given sequence
+    - Passing "1 2 3 4 5" would play those note one after another
+- l: play a multi-channel line
+    - Not too useful w/o file context atm
+- +: play range, comma-separated (+start,end)
+    - Line numbers and marker names work
+
+Command line AND global (% line) variables:
+- t: start tempo
+- g: start grid
+- n: start note value
+- p: set midi patches
+    - command-separated list of patches across tracks
+    - GM instruments names fuzzy match (Example: Piano,Organ,Flute)
+- --sharps: Prefer sharps
+- --flats: Prefer flats (currently default)
+- --device=DEVICE: Set midi-device (partial match supported)
+
+Global commands:
+
+- %: set vars
+- ;: comment
+- :: set marker (requires name)
+- @: go back to last marker, or start
+- @@: pop mark, go back to last area
+- @start: return to start
+- @end: end song
+- R: set scale (relative)
+    - Scale and mode names suppored
+- S: set scale (parallel)
+    - Scale and mode names suppored
+- P: set patch(s) across channels (comma-separated)
+    - Matches GM midi names
+    - Supports midi patch numbers
+    - General MIDI name matching
+
+Track commands:
+
+```
+- >: shift octave up (persists)
+    - number provided for octave count, default 1
+- <: shift octave down (persists)
+    - number provided for octave count, default 1
+- ': play in octave above
+    - number provided for octave count, default 1
+- ,: play in octave below
+    - number provided for octave count, default 1
+- ch: assign track to a midi channel
+    - midi channels exceeding max value will be multiplexed to different outputs
+- pc: program assign
+    - Set program to a given number
+    - Global var (%) p is usually prefered for string matching
+- cc: control change (midi CC param)
+    - setting CC5 to 25 would be c5:25
+- bs: bank select (not impl)
+- ~: vibrato, currently set to mod wheel
+- ": repeat last cell (ignoring dots, blanks, mutes, modified repeats don't repeat)
+- *: set note length
+    - defaults to one beat when used (default is hold until mute)
+    - repeating symbol doubles note length
+    - add a number to do multiplies (i.e. .5)
+- .: half note length
+    - halfs note value with each dot
+    - add extra dot for using w/o note event (i.e. during arpeggiator), since lone dots dont mean anything
+    - add a number to do multiplies (i.e. C.2)
+- !: accent a note (or set velocity)
+    - repeat for louder notes
+- ?: play note quietly (or set velocity)
+    - repeat or pass value for quieter notes
+- T: tuplet: (not yet implemented)
+- ): delay: set note delay
+- \: bend: (not yet implemented)
+- &: arpeggio: plays the given chord in a sequence
+    - infinite sequence unless number given
+    - more params coming soon
+- $: strum
+    - plays the chord in a sequence, held by default
+    - notes automatically fit into 1 grid beat
+```
+
 # Overview
 
 If you're familiar with trackers, you should pick this up quite easily.
 Music flows vertically, with separate columns that are separated by whitespace or setting separators.
 
-Each column is a "channel" and they default to separate midi channel numbers.
-Channels sequence notes.  You'll usually play at least 1 channel per instrument.
-This doesn't mean you're limited to just one note per channel though,
+Each column is represents a track and they default to separate midi channel numbers.
+Tracks sequence notes.  You'll usually play at least 1 track per instrument.
+This doesn't mean you're limited to just one note per track though,
 you can keep notes held down and play chords as you wish, using the right note effects.
 
-By default, any note event in a channel will mute previous notes on that channel
+By default, any note event in a track will mute previous notes on that track
 
 Numbered notes, note letter names, and roman numerals are supported.
 
@@ -65,9 +151,9 @@ You can add a number at the end of these to increase the shift (For example, >2 
 
 ## Holding Muting
 
-Notes will continue playing automatically, until they're muted or another note is played in the same channel.
+Notes will continue playing automatically, until they're muted or another note is played in the same track.
 
-You can mute all notes in a channel with -
+You can mute all notes in a track with -
 
 To control releasing of notes, use dash (-).  The period (.) is simply a placeholder, so notes continue to be played through them.
 ```
@@ -105,7 +191,7 @@ The opposite of this is the dot (.) which halves note values
 ```
 
 
-Notes that are played in the same channel as other notes mute previous notes.
+Notes that are played in the same track as other notes mute previous notes.
 In order to overide this, hold a note by suffixing it with underscore (_).
 
 A (-) character will then mute them all.
@@ -124,8 +210,8 @@ You'll notice completely blank lines are ignored, so be careful to always have a
 
 ## Chord
 
-You can choose to play notes separately in channels, or use chords to put all
-the notes in a single channel.
+You can choose to play notes separately in tracks, or use chords to put all
+the notes in a single track.
 
 Let's try some chords:
 
@@ -182,9 +268,9 @@ Tilda(~) is another command, but sets mod wheel value
 It is intended to be used for vibrato.
 Vibrato functionality will change to pitch wheel oscillation in the future
 
-# Channels
+# Tracks
 
-Columns are separate channels, line them up for more than one instrument
+Columns are separate tracks, line them up for more than one instrument
 
 ```
 1<2  1
@@ -198,66 +284,6 @@ Columns are separate channels, line them up for more than one instrument
 # Markers
 
 not yet impl
-
-# Commands
-
-Command line parameters (use -):
-
-- c: issue command
-- l: play a single line (string)
-
-Command line AND global (% line) variables:
-- t: start tempo
-- g: start grid
-- n: start note value
-- p: set midi patches
-    - command-separated list of patches across channels
-    - GM instruments names fuzzy match (Example: Piano,Organ,Flute)
-
-Global commands:
-
-- %: set vars
-- ;: comment
-- :: set marker (requires name)
-- @: go to mark
-- @@: pop mark, go back to last
-- @@@: exit
-- |: set separators
-    - allows you to draw separate each column by a fixed size
-    - allows you to have spaces in note events on the same channel
-
-Channel commands:
-
-- >: shift octave up (persists)
-    - number provided for octave count, default 1
-- <: shift octave down (persists)
-    - number provided for octave count, default 1
-- ': play in octave above
-    - number provided for octave count, default 1
-- ,: play in octave below
-    - number provided for octave count, default 1
-- ch: assign channel to a midi channel
-    - midi channels exceeding max value will be multiplexed to different outputs
-- pc: program assign
-    - Set program to a given number
-    - Global var (%) p is usually prefered for string matching
-- cc: control change (midi CC param)
-    - setting CC5 to 25 would be c5:25
-- bs: bank select (not impl)
-- ~: vibrato, currently set to mod wheel
-- ": repeat last cell (ignoring dots, blanks, mutes, modified repeats don't repeat)
-- *: set note length
-    - defaults to one beat when used
-    - repeating symbol doubles note length
-    - add a number to do multiplies (i.e. .5)
-- .: half note length
-    - halfs note value with each dot
-    - add extra dot for using w/o note event (i.e. during arpeggiator), since lone dots dont mean anything
-    - add a number to do multiplies (i.e. C.2)
-- !: accent a note (or set velocity)
-    - repeat for louder notes
-- ?: play note quietly (or set velocity)
-    - repeat for quieter notes
 
 That's all I have so far!
 

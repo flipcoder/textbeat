@@ -49,7 +49,8 @@ I currently test on Linux using qsynth.  Helm also works.
 ```
 
 # Global commands:
-    
+
+```
 - %: set vars
 - ;: comment
 - :: set marker (requires name)
@@ -65,7 +66,6 @@ I currently test on Linux using qsynth.  Helm also works.
     - Matches GM midi names
     - Supports midi patch numbers
     - General MIDI name matching
-    
 ```
 
 # Track commands

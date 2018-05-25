@@ -18,6 +18,8 @@ NOTE: I'll probably rewrite this in C++ once I'm done prototyping, as python isn
 
 # Commands
 
+```
+
 Command line parameters (use -):
     
 - (default) starts midi shell
@@ -28,7 +30,7 @@ Command line parameters (use -):
     - Not too useful w/o file context atm
 - +: play range, comma-separated (+start,end)
     - Line numbers and marker names work
-
+    
 Command line AND global (% line) variables:
 - t: start tempo
 - g: start grid
@@ -39,6 +41,13 @@ Command line AND global (% line) variables:
 - --sharps: Prefer sharps
 - --flats: Prefer flats (currently default)
 - --device=DEVICE: Set midi-device (partial match supported)
+
+Chord/Notes:
+- Note numbers, letters, roman numerals w/ sharps, flats and doubles
+- Chord and common voicing names
+- Slash chords and layering (eg. 1maj/b7 and )
+    - Spread additional octaves by adding extra /
+- Drop voicings (not yet impl)
 
 Global commands:
 
@@ -60,15 +69,12 @@ Global commands:
 
 Track commands:
 
-```
-- >: shift octave up (persists)
-    - number provided for octave count, default 1
-- <: shift octave down (persists)
-    - number provided for octave count, default 1
 - ': play in octave above
     - number provided for octave count, default 1
 - ,: play in octave below
     - number provided for octave count, default 1
+- >: inversion (repeatable)
+- <: lower inversion (repeatable)
 - ch: assign track to a midi channel
     - midi channels exceeding max value will be multiplexed to different outputs
 - pc: program assign
@@ -88,7 +94,10 @@ Track commands:
     - add extra dot for using w/o note event (i.e. during arpeggiator), since lone dots dont mean anything
     - add a number to do multiplies (i.e. C.2)
 - !: accent a note (or set velocity)
-    - repeat for louder notes
+    - set velocity by provided percentage
+    - !! for louder notes
+    - !! for louder accent
+    - !! w/ number set future velocity
 - ?: play note quietly (or set velocity)
     - repeat or pass value for quieter notes
 - T: tuplet: (not yet implemented)
@@ -100,6 +109,7 @@ Track commands:
 - $: strum
     - plays the chord in a sequence, held by default
     - notes automatically fit into 1 grid beat
+    
 ```
 
 # Overview

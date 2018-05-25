@@ -1,2 +1,4 @@
 pygame
 colorama
+numpy
+ctcsound

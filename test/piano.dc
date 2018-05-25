@@ -1,11 +1,11 @@
-%t120 g.25 ppiano,piano,slap
+%t120 g.25 ppiano,piano,slap,slap
 
 __
 ionian/4/4
 ionian/2/2
-<2                  
+,2                  
 %g4
-///2             4.          v20        .
+///2             4.          120        .
                  3_
                  
                  3_

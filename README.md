@@ -72,9 +72,11 @@ I currently test on Linux using qsynth.  Helm also works.
 
 ```
 - ': play in octave above
-    - number provided for octave count, default 1
+    - repeat for each additional octave (''')
+    - for octave shift to persist, use a number instead of repeats ('3)
 - ,: play in octave below
-    - number provided for octave count, default 1
+    - number provided for octave count, default 1 (,,,)
+    - for octave shift to persist, use a number instead of repeats (,3)
 - >: inversion (repeatable)
 - <: lower inversion (repeatable)
 - ch: assign track to a midi channel
@@ -90,7 +92,7 @@ I currently test on Linux using qsynth.  Helm also works.
 - *: set note length
     - defaults to one beat when used (default is hold until mute)
     - repeating symbol doubles note length
-    - add a number to do multiplies (i.e. .5)
+    - add a number for multiply percentage (*50)
 - .: half note length
     - halfs note value with each dot
     - add extra dot for using w/o note event (i.e. during arpeggiator), since lone dots dont mean anything
@@ -111,6 +113,10 @@ I currently test on Linux using qsynth.  Helm also works.
 - $: strum
     - plays the chord in a sequence, held by default
     - notes automatically fit into 1 grid beat
+
+Note: Percentage values specified are formated like numbers after a decimal point:
+Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
+
 ```
 
 # The Basics

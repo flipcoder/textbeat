@@ -1,18 +1,19 @@
 # Decadence
-Plaintext music tracker and shell
+Plaintext music tracker and midi shell
 
 Copyright (c) 2018 Grady O'Connell
 
-Status: Just started. Still prototyping.
+This is an early prototype of a plaintext music tracker.
 
 I wanted to track music in my text editor because I'm quite fast with it.
 The available options weren't good enough.
 This is my attempt at making a column-oriented, music tracker that works from
-a text editor and includes an interactie midi shell.
+a text editor and includes an interactive midi shell.
 
-I plan to make a vim plugin for this as well to follow the song and hear individual sections (see integration.vim for temporary usage)
+There is VERY basic vim mappings for playback, but its limited.
+My plan is getting full integration and playback control very soon.
 
-Currently I test on Linux using the Helm and qsynth
+Currently I test on Linux using the Helm, qsynth.  I'm going to integrate Csound.
 
 NOTE: I'll probably rewrite this in C++ once I'm done prototyping, as python isn't the best choice for audio :)
 
@@ -100,7 +101,7 @@ Track commands:
     - !! w/ number set future velocity
 - ?: play note quietly (or set velocity)
     - repeat or pass value for quieter notes
-- T: tuplet: (not yet implemented)
+- T: tuplet: triplets by default, provide ratio A:B for subdivisions
 - ): delay: set note delay
 - \: bend: (not yet implemented)
 - &: arpeggio: plays the given chord in a sequence
@@ -112,9 +113,9 @@ Track commands:
     
 ```
 
-# Overview
+# The Basics
 
-If you're familiar with trackers, you should pick this up quite easily.
+If you're familiar with trackers, you may pick this up quite easily.
 Music flows vertically, with separate columns that are separated by whitespace or setting separators.
 
 Each column is represents a track and they default to separate midi channel numbers.
@@ -148,7 +149,7 @@ The following will play the C major scale using numbered notation:
 
 The tempo is in BPM, and the grid is based in subdivisions.
 Musicians can think of grid as fractions of quarter note,
-Grid is the beat subdivision.
+The grid is the beat/quarter-note subdivision.
 
 Both Tempo and Grid can be decimal numbers as well.
 
@@ -157,7 +158,7 @@ Both Tempo and Grid can be decimal numbers as well.
 Notice the bottom line has an extra apostrophe character (').  This plays the note in the next octave
 For an octave below, use a comma (,).
 If you prefer to have these octave shifts persist, the < and > symbols can be used instead.
-You can add a number at the end of these to increase the shift (For example, >2 puts 2 octaves above and persists).
+You can use a number value instead to make the octave changes persistent.
 
 ## Holding Muting
 
@@ -214,7 +215,6 @@ A (-) character will then mute them all.
 7_
 -
 ```
-
 
 You'll notice completely blank lines are ignored, so be careful to always have a dot if you want the row to take time to play
 
@@ -293,7 +293,77 @@ Columns are separate tracks, line them up for more than one instrument
 ```
 # Markers
 
-not yet impl
+still working on this feature, almost ready
 
-That's all I have so far!
+':' sets marker and '@' loops to it.
 
+```
+:markername
+@makername
+```
+
+Repeat counting, callstack, etc. coming shortly.  Code almost done.
+
+# Tuplets
+
+(Almost fully implemented)
+
+Very early support for this. See tuplet.dc example.
+The 't' command spreads a set of notes across a tuplet grid,
+starting at the first occurence of t in that group.
+Ratios provided will control expansion.  Default is 3:4.
+If no denominator is given, it will default to the next power of two
+(so 3:4, 5:8, 7:8, 11:16).
+So in other words if you need a 5:6, you'll need to write t5:6. :)
+The ratio of the beat saves.  You only need to specify it once per group.
+For nested tripets, group those by adding an extra 't'.
+
+Consider the 2 tracks:
+
+```
+1     1t
+2     2t
+3     3t
+4
+1     1t
+2     2t
+3     3t
+4
+```
+
+The spacing is not even between the sets, but the 't' value stretches them
+to make them even in a default ratio of 3:4
+
+# What's the plan?
+
+Not everything is listed here because I just started this project.
+More to come soon!
+
+Things I'm adding soon:
+
+```
+- Output to MIDI file
+- A better scheduler to increase timing consistency
+- Csound integration
+    - Csound is decent for dabbling around when wanting somethnig better than GM
+    - This is a good one because it doesn't require vsts and we can throw in our own instrument presets
+- Text-to-speech and singing (Espeak/Festival)
+    - I added this but had issues with timing and playback device issues
+    - Once I fix, I'll add it back in
+- Improved chord interpretation
+```
+
+Features I'm adding eventually:
+
+```
+- Some form of VST support or connection with a VST rack system
+- A way to display midi controller -> commands
+- Midi controller recording to a track or file position
+- Chord analysis
+- (And finally...) Recording and encoding audio output of a project
+```
+
+I may rewrite in C++ if I really end up needing the speed, but I might be able
+to make this work by moving the time-critical things to separate processes.
+
+>:)

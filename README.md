@@ -17,12 +17,9 @@ Currently I test on Linux using the Helm, qsynth.  I'm going to integrate Csound
 
 NOTE: I'll probably rewrite this in C++ once I'm done prototyping, as python isn't the best choice for audio :)
 
-# Commands
+# Command line parameters (use -):
 
 ```
-
-Command line parameters (use -):
-    
 - (default) starts midi shell
 - (filename): plays file
 - c: play a given sequence
@@ -31,8 +28,6 @@ Command line parameters (use -):
     - Not too useful w/o file context atm
 - +: play range, comma-separated (+start,end)
     - Line numbers and marker names work
-    
-Command line AND global (% line) variables:
 - t: start tempo
 - g: start grid
 - n: start note value
@@ -40,18 +35,23 @@ Command line AND global (% line) variables:
     - command-separated list of patches across tracks
     - GM instruments names fuzzy match (Example: Piano,Organ,Flute)
 - --sharps: Prefer sharps
+- --solfege: Use solfege in output (input not yet supported)
 - --flats: Prefer flats (currently default)
 - --device=DEVICE: Set midi-device (partial match supported)
+```
 
-Chord/Notes:
+# Chord/Notes
+
+```
 - Note numbers, letters, roman numerals w/ sharps, flats and doubles
 - Chord and common voicing names
 - Slash chords and layering (eg. 1maj/b7 and )
     - Spread additional octaves by adding extra /
 - Drop voicings (not yet impl)
+```
 
-Global commands:
-
+# Global commands:
+    
 - %: set vars
 - ;: comment
 - :: set marker (requires name)
@@ -67,9 +67,12 @@ Global commands:
     - Matches GM midi names
     - Supports midi patch numbers
     - General MIDI name matching
+    
+```
 
-Track commands:
+# Track commands
 
+```
 - ': play in octave above
     - number provided for octave count, default 1
 - ,: play in octave below
@@ -110,7 +113,6 @@ Track commands:
 - $: strum
     - plays the chord in a sequence, held by default
     - notes automatically fit into 1 grid beat
-    
 ```
 
 # The Basics
@@ -363,7 +365,8 @@ Features I'm adding eventually:
 - (And finally...) Recording and encoding audio output of a project
 ```
 
-I may rewrite in C++ if I really end up needing the speed, but I might be able
-to make this work by moving the time-critical things to separate processes.
+I eventually will rewrite this in C++ to achieve better speed.
+Until then, I'll make use of python's multiprocessing and possibly
+separate processes to achieve as much as I can do for timing critical stuff.
 
 >:)

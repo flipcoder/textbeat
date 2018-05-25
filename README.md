@@ -194,11 +194,16 @@ You can also add a fractional component to multiply this.
 The opposite of this is the dot (.) which halves note values
 
 ```
-; set note length to fraction
+; set note based on percentage (this means 30%)
 1*3
 
 ; set note based on percentage (33%)
 1*33
+
+; set note based on percentage (33.3%)
+1*333
+
+; etc...
 ```
 
 
@@ -238,6 +243,7 @@ Let's try some chords:
 ```
 
 There are lots of chords and voicing (check the .py file under CHORDS and CHORDS_ALT) and I'll be adding a lot more.
+All scales and modes are usable as chords, so arpeggiation and strumming is usable with those as well.
 
 # Arpeggios and Strumming
 
@@ -253,6 +259,11 @@ Be sure to rest in your song long enough to hear it cycle.
 
 After the &, you can put a number to denote the number of cycles.
 By default, it cycles infinitely until muted
+
+The dollar sign is similar, but walks an entire chord/scale within a single grid space:
+```
+ionian$
+```
 
 # Velocity and Gain/Volume
 

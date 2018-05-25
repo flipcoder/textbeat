@@ -221,8 +221,6 @@ A (-) character will then mute them all.
 -
 ```
 
-You'll notice completely blank lines are ignored, so be careful to always have a dot if you want the row to take time to play
-
 ## Chord
 
 You can choose to play notes separately in tracks, or use chords to put all

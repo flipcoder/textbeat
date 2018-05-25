@@ -13,9 +13,7 @@ a text editor and includes an interactive midi shell.
 There is VERY basic vim mappings for playback, but its limited.
 My plan is getting full integration and playback control very soon.
 
-Currently I test on Linux using the Helm, qsynth.  I'm going to integrate Csound.
-
-NOTE: I'll probably rewrite this in C++ once I'm done prototyping, as python isn't the best choice for audio :)
+I currently test on Linux using qsynth.  Helm also works.
 
 # Command line parameters (use -):
 

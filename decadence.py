@@ -953,6 +953,8 @@ def pauseDC():
 
 TEMPO = 90.0
 GRID = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
+COLUMNS = 0
+COLUMN_SHIFT = 2
 SHOWTEXT = True # nice output (-v), only shell and cmd modes by default
 SUSTAIN = False # start sustained
 NOMUTE = False # nomute=True disables midi muting on program exit
@@ -1260,7 +1262,7 @@ while not quitflag:
                     if tok[0]==' ':
                         tok = tok[1:]
                     var = tok[0].upper()
-                    if var in 'TGNPSRM':
+                    if var in 'TGNPSRMC':
                         cmd = tok.split(' ')[0]
                         op = cmd[1]
                         try:
@@ -1297,6 +1299,13 @@ while not quitflag:
                             if var=='G': GRID=float(val)
                             elif var=='N': GRID=float(val)/4.0 #!
                             elif var=='T': TEMPO=float(val)
+                            elif var=='C':
+                                vals = val.split(',')
+                                COLUMNS = int(vals[0])
+                                try:
+                                    COLUMN_SHIFT = int(vals[1])
+                                except:
+                                    pass
                             elif var=='P':
                                 vals = val.split(',')
                                 for i in xrange(len(vals)):
@@ -1377,6 +1386,9 @@ while not quitflag:
         # this is not indented in blank lines because even blank lines have this logic
         if SHELL:
             cells = filter(None,line.split(' '))
+        elif COLUMNS:
+            cells = ' '*COLUMN_SHIFT + fullline
+            cells = [cells[i:i + COLUMNS] for i in xrange(0, len(cells), COLUMNS)]
         elif not SEPARATORS:
             # AUTOGENERATE CELL SEPARATORS
             cells = fullline.split(' ')

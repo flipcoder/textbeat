@@ -12,6 +12,7 @@ import subprocess
 import pipes
 import tempfile
 import itertools
+import sets
 from multiprocessing import Process,Pipe
 # from ConfigParser import SafeConfigParser
 from prompt_toolkit import prompt
@@ -146,12 +147,6 @@ def fsnap(a,b,ep=EPSILON):
 def forr(a,b,bad=False):
     return a if (fcmp(a) if bad==False else a) else b
 
-# https://stackoverflow.com/questions/18833759/python-prime-number-checker
-def is_prime(n):
-    if n % 2 == 0 and n > 2: 
-        return False
-    return all(n % i for i in range(3, int(math.sqrt(n)) + 1, 2))
-
 FLATS=False
 NOTENAMES=True # show note names instead of numbers
 SOLFEGE=False
@@ -175,7 +170,7 @@ SOLFEGE_NOTES ={
     'ti': '7',
 }
 
-def notename(n, nn=NOTENAMES, ff=FLATS, sf=SOLFEGE):
+def note_name(n, nn=NOTENAMES, ff=FLATS, sf=SOLFEGE):
     assert type(n) == int
     if sf:
         if ff:
@@ -196,15 +191,15 @@ class Scale:
         self.name = name
         self.intervals = intervals
         self.modes = [''] * 12
-    def addmode(self, name, index):
+    def add_mode(self, name, index):
         assert index > 0
         self.modes[index-1] = name
-    def addmodei(self, name, index): # chromaticc index
+    def add_mode_i(self, name, index): # chromaticc index
         assert index > 0
         self.modes[index-1] = name
     def mode(self, index):
         return self.mode[index]
-    def modename(self, idx):
+    def mode_name(self, idx):
         assert idx != 0 # modes are 1-based
         m = self.modes[idx-1]
         if not m:
@@ -239,7 +234,7 @@ MODES = {
     # 'minor scale': ('diatonic',6),
 }
 for k,v in MODES.iteritems():
-    SCALES[v[0]].addmode(k,v[1])
+    SCALES[v[0]].add_mode(k,v[1])
 
 # for lookup, normalize name first, add root
 # number chords can't be used with note numbers
@@ -297,11 +292,6 @@ CHORDS = {
     "mu-7": "2 b3 5 7",
     "mu-7b5": "2 3 b5 7",
     "mu7b5": "2 3 b5 7",
-    "wa": "3 4 5", # maj add4
-    "wa7": "3 4 5 7", # maj7 add4
-    "wa-7": "b3 4 5 7", # m7 add4
-    "wa7b5": "3 4 b5 7",
-    "wa-7b5": "b3 4 b5 7",
     "majb5": "3 b5", # lydian chord
 }
 CHORDS_ALT = {
@@ -349,7 +339,7 @@ for sclname, scl in SCALES.iteritems():
         if m:
             inter = list(inter[m:]) + list(inter[:m])
         for x in inter:
-            sclnotes.append(notename(idx, False))
+            sclnotes.append(note_name(idx, False))
             try:
                 idx += int(x)
             except ValueError:
@@ -358,9 +348,9 @@ for sclname, scl in SCALES.iteritems():
         sclnotes = ' '.join(sclnotes[1:])
         if m==0:
             CHORDS[sclname] = sclnotes
-        # print scl.modename(m+1)
+        # print scl.mode_name(m+1)
         # print sclnotes
-        CHORDS[scl.modename(m+1)] = sclnotes
+        CHORDS[scl.mode_name(m+1)] = sclnotes
 
 # certain chords parse incorrectly with note letters
 BAD_CHORDS = []
@@ -572,9 +562,6 @@ class Track:
         self.midich = midich # tracks primary midi channel
         self.initial_channel = midich
         self.non_drum_channel = midich
-        self.note_spacing = 1.0
-        self.tuplet_count = 0
-        self.tuplet_offset = 0.0
         self.reset()
     def reset(self):
         self.notes = [0] * RANGE
@@ -601,10 +588,18 @@ class Track:
         self.transpose = 0
         self.pitch = 0.0
         self.tuplets = False
+        self.note_spacing = 1.0
+        self.tuplet_count = 0
+        self.tuplet_offset = 0.0 
+        self.use_sustain_pedal = False # whether to use midi sustain instead of track
+        self.sustain_pedal_state = False # current midi pedal state
         self.schedule.clear_channel(self)
+        self.flags = sets.Set()
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in xrange(16)]), lambda x: x[1])
+    def add_flags(self, f):
+        self.flags |= f
     def mute(self):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
@@ -616,7 +611,10 @@ class Track:
             if SHOWMIDI: print FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0)
             self.player.write_short(status, 123, 0)
     def note_on(self, n, v=-1, sustain=False):
-        if self.sustain:
+        if self.use_sustain_pedal:
+            if sustain and self.sustain != sustain:
+                self.cc(MIDI_SUSTAIN_PEDAL, sustain)
+        elif not sustain:  # sustain=False is overridden by track sustain
             sustain = self.sustain
         if v == -1:
             v = self.vel
@@ -640,6 +638,7 @@ class Track:
                 self.player.note_off(n,v,ch)
                 self.notes[n] = 0
                 self.sustain_notes[n] = 0
+            self.cc(MIDI_SUSTAIN_PEDAL, True)
     def release_all(self, mute_sus=False, v=-1):
         if v == -1:
             v = self.vel
@@ -687,16 +686,17 @@ class Track:
             if SHOWMIDI: print FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2)
             self.player.write_short(status,val,val2)
     def cc(self, cc, val): # control change
-        status = (MIDI_CC<<4) + self.midich
-        # print "MIDI (%s,%s)" % (bin(MIDI_CC),val)
-        if SHOWMIDI: print FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val)
-        self.player.write_short(status,cc,val)
+        if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
+        for ch in self.channels:
+            status = (MIDI_CC<<4) + ch
+            if SHOWMIDI: print FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val)
+            self.player.write_short(status,cc,val)
         self.mod = val
     def patch(self, p, stackidx=0):
         if isinstance(p,basestring):
             # look up instrument string in GM
             i = 0
-            inst = p.replace('_',' ').replace('.',' ')
+            inst = p.replace('_',' ').replace('.',' ').lower()
             
             if p in DRUM_WORDS:
                 self.midi_channel(DRUM_CHANNEL)
@@ -706,20 +706,33 @@ class Track:
                     self.midi_channel(self.non_drum_channel)
                 
                 stop_search = False
-                for i in xrange(len(GM_LOWER)):
-                    continue_search = False
-                    for pword in inst.split(' '):
-                        if pword.lower() not in GM_LOWER[i].split(' '):
-                            continue_search = True
-                            break
-                        p = i
-                        stop_search=True
-                        
-                    if stop_search:
+                gmwords = GM_LOWER
+                for w in inst.split(' '):
+                    gmwords = filter(lambda x: w in x, gmwords)
+                    lengw = len(gmwords)
+                    if lengw==1:
+                        print 'found'
                         break
-                    if continue_search:
-                        assert i < len(GM_LOWER)-1
-                        continue
+                    elif lengw==0:
+                        print 'no match'
+                        assert False
+                assert len(gmwords) > 0
+                print FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0]
+                p = GM_LOWER.index(gmwords[0])
+                # for i in xrange(len(GM_LOWER)):
+                #     continue_search = False
+                #     for pword in inst.split(' '):
+                #         if pword.lower() not in gmwords:
+                #             continue_search = True
+                #             break
+                #         p = i
+                #         stop_search=True
+                        
+                    # if stop_search:
+                    #     break
+                    # if continue_search:
+                    #     assert i < len(GM_LOWER)-1
+                    #     continue
 
         self.patch_num = p
         # print 'PATCH SET - ' + unicode(p)
@@ -761,7 +774,7 @@ class Track:
             if not self.tuplet_count:
                 self.tuplets = False
         else:
-            self.tuplet_offset = 0.0
+            self.tuplet_stop()
         if feq(delay,1.0):
             return 0.0
         # print delay
@@ -956,6 +969,7 @@ CALLSTACK = [StackFrame(-1)]
 
 # control chars that are definitely not note or chord names
 CCHAR = ' <>=~.\'`,_&^|!?*\"#$(){}[]'
+CCHAR_START = 'T' # control chars
 
 SCHEDULE = []
 # INIT
@@ -1182,12 +1196,12 @@ while not quitflag:
                         ch.release_all()
                     
                     # SHELL PROMPT
-                    # print orr(TRACKS[0].scale,SCALE).modename(orr(TRACKS[0].mode,MODE))
+                    # print orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE))
                     cur_oct = TRACKS[0].octave
                     # cline = FG.GREEN + 'DC> '+FG.BLUE +\
                     info = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
-                        notename(TRACKS[0].transpose) + ' ' +\
-                        orr(TRACKS[0].scale,SCALE).modename(orr(TRACKS[0].mode,MODE,-1))+\
+                        note_name(TRACKS[0].transpose) + ' ' +\
+                        orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
                         ')> '
                     bufline = prompt(info,
                         history=HISTORY, vi_mode=VIMODE)
@@ -1241,6 +1255,10 @@ while not quitflag:
             if line.startswith('%'):
                 line = line[1:].strip() # remove % and spaces
                 for tok in line.split(' '):
+                    if not tok:
+                        break
+                    if tok[0]==' ':
+                        tok = tok[1:]
                     var = tok[0].upper()
                     if var in 'TGNPSRM':
                         cmd = tok.split(' ')[0]
@@ -1250,6 +1268,7 @@ while not quitflag:
                         except:
                             val = ''
                         # print "op val %s %s" % (op,val)
+                        if op == ':': op = '='
                         if not op in '*/=-+':
                             # implicit =
                             val = unicode(op) + unicode(val)
@@ -1286,6 +1305,9 @@ while not quitflag:
                                         TRACKS[i].patch(int(p))
                                     else:
                                         TRACKS[i].patch(p)
+                            elif var=='F': # flags
+                                for i in xrange(len(vals)):
+                                    TRACKS[i].add_flags(val.split(','))
                             elif var=='R' or var=='S':
                                 if val:
                                     val = val.lower()
@@ -1517,7 +1539,7 @@ while not quitflag:
                     if ct and not ambiguous:
                         lower = (c.lower()==c)
                         c = ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii'].index(c.lower())
-                        noteletter = notename(c-1,NOTENAMES,FLATS)
+                        noteletter = note_name(c-1,NOTENAMES,FLATS)
                         roman = -1 if lower else 1
                     else:
                         # use normal numbered note
@@ -1665,38 +1687,39 @@ while not quitflag:
                             
                             # cut chord name from text after it
                             for char in tok:
-                                if char not in CCHAR:
-                                    chordname += char
-                                    try:
-                                        # TODO: addchords
-                                        
-                                        # TODO note removal (Maj7no5)
-                                        if chordname[-2:]=='no':
-                                            numberpart = tok[cut+1:]
-                                            # second check will throws
-                                            if numberpart in '#b' or (int(numberpart) or True):
-                                                # if tok[]
-                                                print 'no'
-                                                prefix,ct = peel_any(tok[cut:],'#b')
-                                                if ct: cut += ct
-                                                
-                                                num,ct = peel_uint(tok[cut+1:])
-                                                if ct:
-                                                    cut += ct
-                                                    cut -= 2 # remove "no"
-                                                    chordname = chordname[:-2] # cut "no
-                                                    nonotes.append(unicode(prefix)+unicode(num)) # ex: b5
-                                                    break
-                                    except IndexError:
-                                        print 'chordname length ' + unicode(len(chordname))
-                                        pass # chordname length
-                                    except ValueError:
-                                        print 'bad cast ' + char
-                                        pass # bad int(char)
-                                    cut += 1
-                                else:
-                                    # found control char, we're donde
+                                if cut==0 and char in CCHAR_START:
                                     break
+                                if char in CCHAR:
+                                    break;
+                                chordname += char
+                                try:
+                                    # TODO: addchords
+                                    
+                                    # TODO note removal (Maj7no5)
+                                    if chordname[-2:]=='no':
+                                        numberpart = tok[cut+1:]
+                                        # second check will throws
+                                        if numberpart in '#b' or (int(numberpart) or True):
+                                            # if tok[]
+                                            print 'no'
+                                            prefix,ct = peel_any(tok[cut:],'#b')
+                                            if ct: cut += ct
+                                            
+                                            num,ct = peel_uint(tok[cut+1:])
+                                            if ct:
+                                                cut += ct
+                                                cut -= 2 # remove "no"
+                                                chordname = chordname[:-2] # cut "no
+                                                nonotes.append(unicode(prefix)+unicode(num)) # ex: b5
+                                                break
+                                except IndexError:
+                                    print 'chordname length ' + unicode(len(chordname))
+                                    pass # chordname length
+                                except ValueError:
+                                    print 'bad cast ' + char
+                                    pass # bad int(char)
+                                cut += 1
+                                i += 1
                                 # else:
                                     # try:
                                     #     if tok[cut+1]==AMBIGUOUS_CHORDS[chordname]:
@@ -1713,7 +1736,7 @@ while not quitflag:
                             
                             # print chordname
                             # don't include tuplet in chordname
-                            if chordname.endswith('t'):
+                            if chordname.endswith('T'):
                                 chordname = chordname[:-1]
                                 cut -= 1
                             
@@ -1878,7 +1901,7 @@ while not quitflag:
 
             vel = ch.vel
             mute = False
-            sustain = False
+            sustain = ch.sustain
            
             delay = 0.0
             showtext = []
@@ -1972,19 +1995,21 @@ while not quitflag:
                     ch.cc(1,127)
                     cell = cell[1:]
                     # row_events += 1d
-                # HOLD
-                elif c2=='__': # persist sustain (pedal)
-                    sustain = True # use sustain flag in note on func
+                # SUSTAIN
+                elif cell.startswith('__-'):
+                    ch.mute()
+                    sustain = ch.sustain = True
+                    cell = cell[3:]
+                elif c2=='__':
+                    sustain = ch.sustain = True
                     cell = cell[2:]
-                    # assert notes # sustaining w/o note?
-                elif c2=='-_': # persist sustain (pedal)
+                elif c2=='_-':
                     sustain = False
                     cell = cell[2:]
                 elif c=='_':
-                    ch.sustain = True # persist
+                    sustain = True
                     cell = cell[1:]
-                    # assert notes # sustaining w/o note?
-                elif c=='v': # volume
+                elif c=='%': # volume
                     # mult g* or g/
                     cell = cell[1:]
                     # get number
@@ -2119,17 +2144,22 @@ while not quitflag:
                     cell = cell[1:]
                     if SHOWTEXT:
                         showtext.append('soften(??)')
-                elif c=='$': # strum
+                elif c=='$': # strum/spread/tremolo
                     sq = count_seq(cell)
                     cell = cell[sq:]
                     strum = -1.0 if sq==2 else 1.0
-                    sustain = False
+                    if len(notes)==1: # tremolo
+                        notes = notes + notes
                     # print 'strum'
                     if SHOWTEXT:
                         showtext.append('strum($)')
                 elif c=='&':
                     count = count_seq(cell)
                     num,ct = peel_uint(cell[count:],0)
+                    if num:
+                        notes = list(itertools.chain.from_iterable(itertools.repeat(\
+                            x, num) for x in notes\
+                        ))
                     cell = cell[ct+count:]
                     if not notes:
                         # & restarts arp (if no note)
@@ -2172,7 +2202,6 @@ while not quitflag:
                         ch.tuplet_count = int(num)
                         cell = cell[ct:]
                     else:
-                        print '...t'
                         cell = cell[1:]
                         pass
                 elif c=='@':
@@ -2223,23 +2252,20 @@ while not quitflag:
 
             if SHOWTEXT:
                 pass
-                # print FG.MAGENTA + ', '.join(map(lambda n: notename(p+n), notes))
+                # print FG.MAGENTA + ', '.join(map(lambda n: note_name(p+n), notes))
                 # chordoutput = chordname
                 # if chordoutput and noletter:
-                #     coordoutput = notename(chord_root+base) + chordoutput
+                #     coordoutput = note_name(chord_root+base) + chordoutput
                 # print FG.CYAN + chordoutput + " ("+ \
-                #     (', '.join(map(lambda n,base=base: notename(base+n),notes)))+")"
+                #     (', '.join(map(lambda n,base=base: note_name(base+n),notes)))+")"
                 # print showtext
                 # showtext = []
                 # if chordname and not ignore:
-                #     noteletter = notename(n+base)
+                #     noteletter = note_name(n+base)
                 #     print FG.CYAN + noteletter + chordname+ " ("+ \
-                #         (', '.join(map(lambda n,base=base: notename(base+n),allnotes)))+")"
+                #         (', '.join(map(lambda n,base=base: note_name(base+n),allnotes)))+")"
 
-            if ch.tuplets:
-                delay += ch.tuplet_next()
-            else:
-                ch.tuplet_stop()
+            delay += ch.tuplet_next()
             
             i = 0
             for n in notes:

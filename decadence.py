@@ -269,8 +269,8 @@ CHORDS = {
     "m9b5": "b3 b5 7 9",
     "+": "3 #5", # remove until fixed
     "+7": "3 #5",
-    "o7": "3 5 b7",
-    "o7b5": "3 b5 b7",
+    "dom7": "3 5 b7",
+    "dom7b5": "3 b5 b7",
     "dim": "b3 b5",
     "dim7": "b3 b5 bb7",
     "sus": "4 5",
@@ -954,7 +954,7 @@ def pauseDC():
 TEMPO = 90.0
 GRID = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
 COLUMNS = 0
-COLUMN_SHIFT = 2
+COLUMN_SHIFT = 0
 SHOWTEXT = True # nice output (-v), only shell and cmd modes by default
 SUSTAIN = False # start sustained
 NOMUTE = False # nomute=True disables midi muting on program exit
@@ -992,7 +992,7 @@ SCHEDULE = Schedule()
 TRACKS = []
 mch = 0
 SHELL = False
-SHELL = False
+DAEMON = False
 GUI = False
 
 for i in xrange(1,len(sys.argv)):
@@ -1008,7 +1008,7 @@ for i in xrange(1,len(sys.argv)):
             TEMPO = float(sys.argv[i+1]) # split token: -t 100
             skip += 1
     # request_tempo = True
-    elif arg.startswith('-g'):
+    elif arg.startswith('-x'):
         if len(arg)>2:
             GRID = float(arg[2:]) # same token: -g100
         else:
@@ -1182,7 +1182,7 @@ while not quitflag:
             # done with file, finish playing some stuff
             
             arps_remaining = 0
-            if SHELL or dcmode in ['c','l']: # finish arps in shell mode
+            if SHELL or DAEMON or dcmode in ['c','l']: # finish arps in shell mode
                 for ch in TRACKS[:TRACKS_ACTIVE]:
                     if ch.arp_enabled:
                         if ch.arp_cycle_limit or not ch.arp_once:
@@ -1193,23 +1193,27 @@ while not quitflag:
                 line = '.'
             
             if not arps_remaining and not SCHEDULE.pending():
-                if SHELL:
+                if SHELL or DAEMON:
                     for ch in TRACKS[:TRACKS_ACTIVE]:
                         ch.release_all()
                     
-                    # SHELL PROMPT
-                    # print orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE))
-                    cur_oct = TRACKS[0].octave
-                    # cline = FG.GREEN + 'DC> '+FG.BLUE +\
-                    info = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
-                        note_name(TRACKS[0].transpose) + ' ' +\
-                        orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
-                        ')> '
-                    bufline = prompt(info,
-                        history=HISTORY, vi_mode=VIMODE)
-                    # if bufline.endswith('.dc'):
-                        # play file?
-                    buf += filter(None, bufline.split(' '))
+                    if SHELL:
+                        # SHELL PROMPT
+                        # print orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE))
+                        cur_oct = TRACKS[0].octave
+                        # cline = FG.GREEN + 'DC> '+FG.BLUE +\
+                        info = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
+                            note_name(TRACKS[0].transpose) + ' ' +\
+                            orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
+                            ')> '
+                        bufline = prompt(info,
+                            history=HISTORY, vi_mode=VIMODE)
+                        # if bufline.endswith('.dc'):
+                            # play file?
+                        buf += filter(None, bufline.split(' '))
+                    elif DAEMON:
+                        pass
+                        # wait on socket
                     continue
                 
                 else:
@@ -1262,7 +1266,7 @@ while not quitflag:
                     if tok[0]==' ':
                         tok = tok[1:]
                     var = tok[0].upper()
-                    if var in 'TGNPSRMC':
+                    if var in 'TGNPSRMCX':
                         cmd = tok.split(' ')[0]
                         op = cmd[1]
                         try:
@@ -1289,16 +1293,25 @@ while not quitflag:
                                 val = pow(2.0,count_seq(val))
                         if op=='/':
                             if var=='G': GRID/=float(val)
+                            elif var=='X': GRID/=float(val)
                             elif var=='N': GRID/=float(val) #!
                             elif var=='T': TEMPO/=float(val)
                         elif op=='*':
                             if var=='G': GRID*=float(val)
+                            elif var=='X': GRID*=float(val)
                             elif var=='N': GRID*=float(val) #!
                             elif var=='T': TEMPO*=float(val)
                         elif op=='=':
                             if var=='G': GRID=float(val)
+                            elif var=='X': GRID=float(val)
                             elif var=='N': GRID=float(val)/4.0 #!
-                            elif var=='T': TEMPO=float(val)
+                            elif var=='T':
+                                vals = val.split('x')
+                                TEMPO=float(vals[0])
+                                try:
+                                    GRID = float(vals[1])
+                                except:
+                                    pass
                             elif var=='C':
                                 vals = val.split(',')
                                 COLUMNS = int(vals[0])
@@ -1384,11 +1397,18 @@ while not quitflag:
             
         
         # this is not indented in blank lines because even blank lines have this logic
+        gutter = ''
         if SHELL:
             cells = filter(None,line.split(' '))
         elif COLUMNS:
-            cells = ' '*COLUMN_SHIFT + fullline
+            cells = fullline
+            # shift column pos right if any
+            cells = ' ' * max(0,-COLUMN_SHIFT) + cells
+            # shift columns right, creating left-hand gutter
+            # cells = cells[-1*min(0,COLUMN_SHIFT):] # create gutter (if negative shift)
+            # separate into chunks based on column width
             cells = [cells[i:i + COLUMNS] for i in xrange(0, len(cells), COLUMNS)]
+            print cells
         elif not SEPARATORS:
             # AUTOGENERATE CELL SEPARATORS
             cells = fullline.split(' ')
@@ -1506,6 +1526,7 @@ while not quitflag:
             cell = slash[0][:]
             slashidx = 0
             addbottom = False # add note at bottom instead
+            # slash = cell[0:min(cell.find(n) for n in '/|')]
             
             while True:
                 n = 1
@@ -2147,12 +2168,12 @@ while not quitflag:
                     if SHOWTEXT:
                         showtext.append('accent(!!)')
                 elif c2=='??': # very quiet
-                    vel = max(0,int(ch.vel-0.25*(127-ch.vel)))
+                    vel = max(0,int(ch.vel*0.25))
                     cell = cell[2:]
                     if SHOWTEXT:
                         showtext.append('soften(??)')
                 elif c=='?': # quiet
-                    vel = max(0,int(ch.vel-0.5*(127-ch.vel)))
+                    vel = max(0,int(ch.vel*0.5))
                     cell = cell[1:]
                     if SHOWTEXT:
                         showtext.append('soften(??)')

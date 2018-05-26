@@ -7,10 +7,10 @@ This is an early prototype of a plaintext music tracker.
 
 I wanted to track music in my text editor because I'm quite fast with it.
 The available options weren't good enough.
-This is my attempt at making a column-oriented, music tracker that works from
-a text editor and includes an interactive midi shell.
+This is my attempt at making a column-oriented (vertical) music tracker
+that works from a text editor and includes an interactive midi shell.
 
-There is VERY basic vim mappings for playback, but its limited.
+There are VERY basic vim mappings for playback, but its limited.
 My plan is getting full integration and playback control very soon.
 
 I currently test on Linux using qsynth.  Helm also works.

@@ -14,6 +14,8 @@ Vim plug-in: [vim-decadence](https://github.com/flipcoder/vim-decadence) repo.
 
 I currently test on Linux using qsynth.  Helm also works.
 
+This is constantly being updated, so this readme may contain some old information (sorry)!
+
 # Command line parameters (use -):
 
 ```
@@ -273,19 +275,19 @@ ionian$
 
 # Velocity and Gain/Volume
 
-Control velocity and gain of notes using the v## or g## flags respectfully
-Example: v0 in min, v9 is 90%.  But also: v00 is minimum, v99 is 99% (v by itself is full)
+Control velocity and volume of notes using the %v## or !## flags respectfully
+Example: %v0 in min, %v9 is 90%.  But also: %v00 is minimum, %v99 is 99% (%v by itself is full)
 
 Interpolation not yet impl
     
 ```
-1maj%9
+1maj%v9
 -
-1maj%6
+1maj%v6
 -
-1maj%4
+1maj%v4
 -
-1maj%2
+1maj%v2
 -
 ```
 

@@ -13,6 +13,7 @@ import pipes
 import tempfile
 import itertools
 import sets
+import signal
 from multiprocessing import Process,Pipe
 # from ConfigParser import SafeConfigParser
 from prompt_toolkit import prompt
@@ -31,6 +32,15 @@ try:
     import ctcsound
 except ImportError:
     pass
+
+QUITFLAG = False
+class SignalError(BaseException):
+    pass
+def quitnow(signum,frame):
+    print "!!!!!!"
+    raise SignalError()
+signal.signal(signal.SIGTERM, quitnow)
+signal.signal(signal.SIGINT, quitnow)
 
 # HISTORY = InMemoryHistory()
 HISTORY = FileHistory(os.path.join(os.path.expanduser('~'),'.decadence_history'))
@@ -255,9 +265,12 @@ CHORDS = {
     
     # chords and voicings
     "maj": "3 5",
+    "maj#4": "3 #4 5",
+    "majb5": "3 b5", # lydian chord
     "maj7": "3 5 7",
     "maj9": "3 5 7 9",
     "maj7b5": "3 b5 7",
+    "maj7#4": "3 #4 5 7",
     "maj9": "3 5 7 9",
     "majadd9": "3 5 9",
     "maj9b5": "3 b5 7 9",
@@ -292,7 +305,6 @@ CHORDS = {
     "mu-7": "2 b3 5 7",
     "mu-7b5": "2 3 b5 7",
     "mu7b5": "2 3 b5 7",
-    "majb5": "3 b5", # lydian chord
 }
 CHORDS_ALT = {
     "r": "1",
@@ -579,6 +591,7 @@ class Track:
         self.arp_enabled = False
         self.arp_once = False
         self.arp_delay = 0.0
+        self.arp_sustain = False
         self.arp_note_spacing = 1.0
         self.vel = 100
         self.non_drum_channel = self.initial_channel
@@ -739,7 +752,7 @@ class Track:
         status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
         if SHOWMIDI: print FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p)
         self.player.write_short(status,p)
-    def arp(self, notes, count=0, pattern=[1]):
+    def arp(self, notes, count=0, sustain=False, pattern=[1]):
         self.arp_enabled = True
         self.arp_notes = notes
         self.arp_cycle_limit = count
@@ -748,6 +761,7 @@ class Track:
         self.arp_pattern_idx = 0
         self.arp_idx = 0 # use inversions to move this start point (?)
         self.arp_once = False
+        self.arp_sustain = False
     def arp_stop(self):
         self.arp_enabled = False
         self.release_all()
@@ -847,6 +861,8 @@ class Schedule:
             # don't replay events
             self.events = self.events[processed:]
             raise ex
+        except:
+            QUITFLAG = True
 
 def count_seq(seq, match=''):
     if not seq:
@@ -894,6 +910,10 @@ def peel_roman_s(s, d=None):
     return (r,len(r))
 
 def peel_int(s, d=None):
+    a,b = peel_int_s(s,d)
+    return (int(a),b)
+
+def peel_int_s(s, d=None):
     r = ''
     for ch in s:
         if ch.isdigit():
@@ -903,7 +923,7 @@ def peel_int(s, d=None):
         else:
             break
     if r == '-': return (0,0)
-    if not r: return (d,0) if d!=None else (0,0)
+    if not r: return (d,'') if d!=None else (0,'')
     return (int(r),len(r))
 
 def peel_float(s, d=None):
@@ -970,7 +990,7 @@ MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
 
 # control chars that are definitely not note or chord names
-CCHAR = ' <>=~.\'`,_&^|!?*\"#$(){}[]'
+CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]'
 CCHAR_START = 'T' # control chars
 
 SCHEDULE = []
@@ -982,7 +1002,6 @@ FN = None
 
 row = 0
 stoprow = 0
-quitflag = False
 dcmode = 'n' # n normal c command s sequence
 next_arg = 1
 # request_tempo = False
@@ -1086,11 +1105,18 @@ else: # mode n
                     ls = line.strip()
                     
                     # place marker
-                    if ls and ls[0]==':':
+                    if ls.startswith(':'):
                         bm = ls[1:]
                         # only store INITIAL marker positions
                         if not bm in MARKERS:
                             MARKERS[bm] = lc
+                    elif ls.startswith('|') and ls.endswith(':'):
+                        bm = ls[1:-1]
+                        # only store INITIAL marker positions
+                        if not bm in MARKERS:
+                            MARKERS[bm] = lc
+
+                        
                 lc += 1
                 buf += [line]
     else:
@@ -1142,7 +1168,7 @@ for i in xrange(len(sys.argv)):
                 row = MARKERS[vals[0]]
             except KeyError:
                 print 'invalid entry point'
-                quitflag = True
+                QUITFLAG = True
         try:
             stoprow = int(vals[1])
         except ValueError:
@@ -1151,7 +1177,7 @@ for i in xrange(len(sys.argv)):
                 stoprow = MARKERS[vals[0]]
             except KeyError:
                 print 'invalid stop point'
-                quitflag = True
+                QUITFLAG = True
         except IndexError:
             pass # no stop param
 
@@ -1169,7 +1195,7 @@ if SHELL:
     print 'Read the manual and look at examples. Have fun!'
 
 header = True # set this to false as we reached cell data
-while not quitflag:
+while not QUITFLAG:
     try:
         line = '.'
         try:
@@ -1258,7 +1284,7 @@ while not quitflag:
                 continue
             
             # TODO: global 'silent' commands (doesn't take time)
-            if line.startswith('%'):
+            if line.startswith('V'):
                 line = line[1:].strip() # remove % and spaces
                 for tok in line.split(' '):
                     if not tok:
@@ -1371,20 +1397,24 @@ while not quitflag:
                 continue
             
             # jumps
+            if line.startswith(':') and line.endswith("|"):
+                jumpline = line[1:-1]
+            else:
+                jumpline = line[1:]
             if line[0]=='@':
-                if len(line)<=1:
+                if len(jumpline)==0:
                     row = 0
                     continue
-                if len(line)>1 and line[1:] == '@': # @@ return/pop callstack
+                if len(jumpline)>=1 and jumpline == '@': # @@ return/pop callstack
                     frame = CALLSTACK[-1]
                     CALLSTACK = CALLSTACK[:-1]
                     row = frame.row
                     continue
-                line = line[1:].split('*') # * repeats
-                bm = line[0] # marker name
+                jumpline = jumpline.split('*') # * repeats
+                bm = jumpline[0] # marker name
                 count = 0
-                if len(line)>1:
-                    count = int(line[1]) if len(line)>1 else 1
+                if len(jumpline)>=1:
+                    count = int(jumpline) if len(jumpline)>=1 else 1
                 frame = CALLSTACK[-1]
                 frame.count = count
                 if count: # repeats remaining
@@ -1717,13 +1747,21 @@ while not quitflag:
                             cut = 0
                             nonotes = []
                             chordname = ''
+                            reverse = False
+                            addhigherroot = False
                             
                             # cut chord name from text after it
                             for char in tok:
                                 if cut==0 and char in CCHAR_START:
                                     break
                                 if char in CCHAR:
-                                    break;
+                                    break
+                                if char == '\\':
+                                    reverse = True
+                                    break
+                                if char == '^':
+                                    addhigherroot = True
+                                    break
                                 chordname += char
                                 try:
                                     # TODO: addchords
@@ -1781,7 +1819,7 @@ while not quitflag:
                                             chordname = 'm' + chordname
                                 else:
                                     chordname = 'maj' if roman>0 else 'm' + chordname
-                            
+
                             if chordname:
                                 # print chordname
                                 if chordname in BAD_CHORDS:
@@ -1839,7 +1877,11 @@ while not quitflag:
                             
                             if is_chord:
                                 # assert not accidentals # accidentals with no note name?
-                                slashnotes[0].append(n + chord_root - 1 - slashidx*12)
+                                if reverse:
+                                    chord_notes = chord_notes[::-1] + ['1']
+                                else:
+                                    chord_notes = ['1'] + chord_notes
+                                # slashnotes[0].append(n + chord_root - 1 - slashidx*12)
                                 chord_root = n
                                 ignore = False # reenable default root if chord was w/o note name
                                 continue
@@ -2024,6 +2066,21 @@ while not quitflag:
                     ch.octave = octave
                     # row_events += 1
                 # VIBRATO
+                elif cl>1 and cell.startswith('~'): # bend
+                    if c=='/' or c=='\\':
+                        num,ct = peel_int_s(cell[2:])
+                        num *= 1 if c=='/' else -1
+                        cell = cell[2:]
+                        if ct:
+                            sign = 1
+                            if num<0:
+                                num=num[1:]
+                                sign = -1
+                            vel = min(127,sign*int(float('0.'+num)*127.0))
+                        else:
+                            vel = min(127,int(curv + 0.5*(127.0-curv)))
+                        cell = cell[ct+1:]
+                        ch.pitch(vel)
                 elif c == '~': # vibrato -- eventually using pitch wheel
                     ch.cc(1,127)
                     cell = cell[1:]
@@ -2042,9 +2099,9 @@ while not quitflag:
                 elif c=='_':
                     sustain = True
                     cell = cell[1:]
-                elif c=='%': # volume
-                    # mult g* or g/
-                    cell = cell[1:]
+                elif cell.startswith('%v'): # volume
+                    pass
+                    cell = cell[2:]
                     # get number
                     num = ''
                     for char in cell:
@@ -2088,16 +2145,6 @@ while not quitflag:
                     cell = cell[len(num):]
                     # ch.cc(0,p)
                     ch.patch(p)
-                # extend range up another octave (this will be moved upward to work in slash chords)
-                elif c=='^':
-                    cell = cell[1:]
-                    minnote = min(notes)
-                    maxnote = max(notes)
-                    span = (maxnote-minnote)/12 + 1
-                    onotes = []
-                    for o in xrange(1,count):
-                        onotes += map(lambda n=n,o=o,span=span: n+o*span*12, notes)
-                    notes = notes + onotes
                 elif c2=='ch': # midi channel
                     num,ct = peel_uint(cell[2:])
                     cell = cell[2+ct:]
@@ -2177,12 +2224,16 @@ while not quitflag:
                     cell = cell[1:]
                     if SHOWTEXT:
                         showtext.append('soften(??)')
+                # elif cell.startswith('$$') or (c=='$' and lennotes==1):
                 elif c=='$': # strum/spread/tremolo
                     sq = count_seq(cell)
                     cell = cell[sq:]
-                    strum = -1.0 if sq==2 else 1.0
+                    num,ct = peel_uint_s(cell,'0')
+                    cell = cell[ct:]
+                    num = float('0.'+num)
+                    strum = 1.0
                     if len(notes)==1: # tremolo
-                        notes = notes + notes
+                        notes = [notes[i:i + sq] for i in xrange(0, len(notes), sq)]
                     # print 'strum'
                     if SHOWTEXT:
                         showtext.append('strum($)')
@@ -2202,24 +2253,12 @@ while not quitflag:
                         arpnotes = True
                     if SHOWTEXT:
                         showtext.append('arpeggio(&)')
-                elif c=='\\': # bend
-                    num,ct = peel_int_s(cell[1:])
-                    if ct:
-                        sign = 1
-                        if num<0: 
-                            num=num[1:]
-                            sign = -1
-                        vel = min(127,sign*int(float('0.'+num)*127.0))
-                    else:
-                        vel = min(127,int(curv + 0.5*(127.0-curv)))
-                    cell = cell[ct+1:]
-                    ch.pitch(vel)
                 elif c=='t': # tuplet
                     if not ch.tuplets:
                         ch.tuplets = True
                         pow2i = 0.0
                         cell = cell[1:]
-                        num,ct = peel_uint(cell,3)
+                        num,ct = peel_uint(cell,'3')
                         cell = cell[ct:]
                         ct2=0
                         denom = 0
@@ -2261,7 +2300,7 @@ while not quitflag:
             p = base
             
             if arpnotes:
-                ch.arp(notes, num)
+                ch.arp(notes, num, sustain)
                 arpnext = ch.arp_next()
                 notes = [arpnext[0]]
                 delay = arpnext[1]
@@ -2324,21 +2363,24 @@ while not quitflag:
                     break
             except KeyboardInterrupt:
                 # print FG.RED + traceback.format_exc()
-                quitflag = True
+                QUITFLAG = True
                 break
             except:
                 print FG.RED + traceback.format_exc()
                 if not SHELL and not pauseDC():
-                    quitflag = True
+                    QUITFLAG = True
                     break
 
-        if quitflag:
+        if QUITFLAG:
             break
         
         row += 1
     
     except KeyboardInterrupt:
         # print FG.RED + traceback.format_exc()
+        break
+    except SignalError:
+        QUITFLAG = True
         break
     except:
         print FG.RED + traceback.format_exc()

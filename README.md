@@ -10,8 +10,7 @@ The available options weren't good enough.
 This is my attempt at making a column-oriented (vertical) music tracker
 that works from a text editor and includes an interactive midi shell.
 
-There are VERY basic vim mappings for playback, but its limited.
-My plan is getting full integration and playback control very soon.
+Vim plug-in: [vim-decadence](https://github.com/flipcoder/vim-decadence) repo.
 
 I currently test on Linux using qsynth.  Helm also works.
 
@@ -27,8 +26,12 @@ I currently test on Linux using qsynth.  Helm also works.
 - +: play range, comma-separated (+start,end)
     - Line numbers and marker names work
 - t: start tempo
-- g: start grid
+- x: start grid
 - n: start note value
+- c: columns
+    - specify width and optional shift, instead of using auto-detect
+    - positive shift values create a "gutter" to the left
+    - negative values eat into the size of the first column
 - p: set midi patches
     - command-separated list of patches across tracks
     - GM instruments names fuzzy match (Example: Piano,Organ,Flute)
@@ -118,7 +121,6 @@ Note: Percentage values specified are formated like numbers after a decimal poin
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
 
 ```
-
 # The Basics
 
 If you're familiar with trackers, you may pick this up quite easily.
@@ -141,7 +143,7 @@ The following will play the C major scale using numbered notation:
 
 ; 120bpm subdivided into 2 (i.e., eighth notes)
 
-%t120 g2
+%t120 x2
 
 1
 2
@@ -264,7 +266,7 @@ Be sure to rest in your song long enough to hear it cycle.
 After the &, you can put a number to denote the number of cycles.
 By default, it cycles infinitely until muted
 
-The dollar sign is similar, but walks an entire chord/scale within a single grid space:
+The dollar sign is similar, but walks an entire chord or scale within a single grid space:
 ```
 ionian$
 ```
@@ -277,13 +279,13 @@ Example: v0 in min, v9 is 90%.  But also: v00 is minimum, v99 is 99% (v by itsel
 Interpolation not yet impl
     
 ```
-1majv9
+1maj%9
 -
-1majv6
+1maj%6
 -
-1majv4
+1maj%4
 -
-1majv2
+1maj%2
 -
 ```
 

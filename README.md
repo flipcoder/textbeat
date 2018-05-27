@@ -10,7 +10,7 @@ The available options weren't good enough.
 This is my attempt at making a column-oriented (vertical) music tracker
 that works from a text editor and includes an interactive midi shell.
 
-Vim plug-in: [vim-decadence](https://github.com/flipcoder/vim-decadence) repo.
+Vim plug-in: [vim-decadence](https://github.com/flipcoder/vim-decadence)
 
 I currently test on Linux using qsynth.  Helm also works.
 

@@ -1,6 +1,8 @@
 # Decadence
 Plaintext music tracker and midi shell
 
+Open-source under MIT License (see LICENSE file for information)
+
 Copyright (c) 2018 Grady O'Connell
 
 This is an early prototype of a plaintext music tracker.

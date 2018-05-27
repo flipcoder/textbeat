@@ -37,7 +37,6 @@ QUITFLAG = False
 class SignalError(BaseException):
     pass
 def quitnow(signum,frame):
-    print "!!!!!!"
     raise SignalError()
 signal.signal(signal.SIGTERM, quitnow)
 signal.signal(signal.SIGINT, quitnow)

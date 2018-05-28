@@ -377,7 +377,6 @@ Things I'm adding soon:
 Features I'm adding eventually:
 
 ```
-- Some form of VST support or connection with a VST rack system
 - A way to display midi controller -> commands
 - Midi controller recording to a track or file position
 - Chord analysis

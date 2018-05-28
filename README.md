@@ -8,15 +8,23 @@ Copyright (c) 2018 Grady O'Connell
 This is an early prototype of a plaintext music tracker.
 
 I wanted to track music in my text editor because I'm quite fast with it.
-The available options weren't good enough.
+The available options weren't to my liking.
 This is my attempt at making a column-oriented (vertical) music tracker
 that works from a text editor and includes an interactive midi shell.
 
 Vim plug-in: [vim-decadence](https://github.com/flipcoder/vim-decadence)
 
-I currently test on Linux using qsynth.  Helm also works.
-
 This is constantly being updated, so this readme may contain some old information (sorry)!
+
+# Usage
+
+You can use this with General Midi out-of-the-box on windows but who wants to write music like that?  We need VSTs!
+
+For windows, you'll need a virtual midi driver, such as [loopMIDI](http://www.tobias-erichsen.de/software/loopmidi.html) and a VST host or DAW.
+
+If you're on Linux, you can use soundfonts through qsynth or use a software instrument like helm or dexed.  VSTs should work here as well.
+
+If you feed the MIDI into a DAW you'll be able to record the output through the DAW itself.
 
 # Command line parameters (use -):
 
@@ -377,7 +385,6 @@ Things I'm adding soon:
 Features I'm adding eventually:
 
 ```
-- Some form of VST support or connection with a VST rack system
 - A way to display midi controller -> commands
 - Midi controller recording to a track or file position
 - Chord analysis

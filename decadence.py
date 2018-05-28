@@ -870,7 +870,7 @@ def count_seq(seq, match=''):
         match = seq[0]
         seq = seq[1:]
     r = 1
-    for c in seq[1:]:
+    for c in seq:
         if c != match:
             break
         r+=1
@@ -2239,14 +2239,15 @@ while not QUITFLAG:
                 elif c=='&':
                     count = count_seq(cell)
                     num,ct = peel_uint(cell[count:],0)
-                    if num:
+                    if count>=2:
                         notes = list(itertools.chain.from_iterable(itertools.repeat(\
-                            x, num) for x in notes\
+                            x, count) for x in notes\
                         ))
                     cell = cell[ct+count:]
                     if not notes:
                         # & restarts arp (if no note)
                         ch.arp_enabled = True
+                        ch.arp_count = num
                         ch.arp_idx = 0
                     else:
                         arpnotes = True

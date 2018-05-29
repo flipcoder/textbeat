@@ -71,7 +71,7 @@ class BackgroundProcess:
         devnull = open(os.devnull, 'w')
         while True:
             msg = self.con.recv()
-            # print msg
+            # log(msg)
             if msg[0]==BGCMD.SAY:
                 tmp = self.cache(msg[1])
                 # super slow, better option needed
@@ -83,7 +83,7 @@ class BackgroundProcess:
             elif msg[0]==BGCMD.CLEAR:
                 self.words.clear()
             else:
-                print 'BAD COMMAND: ' + msg[0]
+                log('BAD COMMAND: ' + msg[0])
             self.processses = filter(lambda p: p.poll()==None, self.processes)
         self.con.close()
         for tmp in self.words:
@@ -109,10 +109,19 @@ BCPROC = None
 # BGPROC = Process(target=bgproc_run, args=(child,))
 # BGPROC.start()
 
-msgs = []
+PRINT=True
+LOG=False
+FOLLOW=False
+
+def follow(count):
+    if FOLLOW:
+        print '\n' * max(0,count-1)
+
 def log(msg):
-    global msgs
-    msgs.append(msg)
+    # global msgs
+    # msgs.append(msg)
+    if PRINT:
+        print msg
 
 VERSION = '0.1'
 NUM_TRACKS = 15 # skip drum channel
@@ -298,12 +307,19 @@ CHORDS = {
     "pow": "5 8",
     "q": "4 b7", # quartal
     "qt": "5 9", # quintal
+
     "mu": "2 3 5", # maj add2
     "mu7": "2 3 5 7",
     "mu-": "2 b3 5",
     "mu-7": "2 b3 5 7",
     "mu-7b5": "2 3 b5 7",
     "mu7b5": "2 3 b5 7",
+    "wu": "3 4 5", # majadd4
+    "wu7": "3 4 5 7", # maj7add4
+    "wu7b5": "2 3 b5 7",
+    "wu-": "b3 4 5", # madd4
+    "wu-7": "b3 4 5 7",
+    "wu-7b5": "b3 4 b5 7",
 }
 CHORDS_ALT = {
     "r": "1",
@@ -359,8 +375,8 @@ for sclname, scl in SCALES.iteritems():
         sclnotes = ' '.join(sclnotes[1:])
         if m==0:
             CHORDS[sclname] = sclnotes
-        # print scl.mode_name(m+1)
-        # print sclnotes
+        # log(scl.mode_name(m+1))
+        # log(sclnotes)
         CHORDS[scl.mode_name(m+1)] = sclnotes
 
 # certain chords parse incorrectly with note letters
@@ -524,9 +540,9 @@ def normalize_chord(c):
 
 def expand_chord(c):
     # if c=='rand':
-    #     print CHORDS.values()
+    #     log(CHORDS.values())
     #     r = random.choice(CHORDS.values())
-    #     print r
+    #     log(r)
     #     return r
     return CHORDS[normalize_chord(c)].split(' ')
 
@@ -615,12 +631,12 @@ class Track:
     def mute(self):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
-            if SHOWMIDI: print FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0)
+            if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
             self.player.write_short(status, 120, 0)
     def panic(self):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
-            if SHOWMIDI: print FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0)
+            if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
             self.player.write_short(status, 123, 0)
     def note_on(self, n, v=-1, sustain=False):
         if self.use_sustain_pedal:
@@ -635,8 +651,8 @@ class Track:
         for ch in self.channels:
             self.notes[n] = v
             self.sustain_notes[n] = sustain
-            # print "on " + unicode(n)
-            if SHOWMIDI: print FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch)
+            # log("on " + unicode(n))
+            if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch))
             self.player.note_on(n,v,ch)
     def note_off(self, n, v=-1):
         if v == -1:
@@ -644,9 +660,9 @@ class Track:
         if n < 0 or n >= RANGE:
             return
         if self.notes[n]:
-            # print "off " + unicode(n)
+            # log("off " + unicode(n))
             for ch in self.channels:
-                if SHOWMIDI: print FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch)
+                if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
                 self.player.note_off(n,v,ch)
                 self.notes[n] = 0
                 self.sustain_notes[n] = 0
@@ -661,11 +677,11 @@ class Track:
                 mutesus_cond =  not self.sustain_notes[n]
             if self.notes[n] and mutesus_cond:
                 for ch in self.channels:
-                    if SHOWMIDI: print FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch)
+                    if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
                     self.player.note_off(n,v,ch)
                     self.notes[n] = 0
                     self.sustain_notes[n] = 0
-                # print "off " + unicode(n)
+                # log("off " + unicode(n))
         # self.notes = [0] * RANGE
         if self.mod>0:
             self.cc(1,0)
@@ -695,13 +711,13 @@ class Track:
         val = val&0x7f
         for ch in self.channels:
             status = (MIDI_PITCH<<4) + self.midich
-            if SHOWMIDI: print FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2)
+            if SHOWMIDI: log(FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2))
             self.player.write_short(status,val,val2)
     def cc(self, cc, val): # control change
         if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
-            if SHOWMIDI: print FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val)
+            if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
             self.player.write_short(status,cc,val)
         self.mod = val
     def patch(self, p, stackidx=0):
@@ -723,13 +739,13 @@ class Track:
                     gmwords = filter(lambda x: w in x, gmwords)
                     lengw = len(gmwords)
                     if lengw==1:
-                        print 'found'
+                        log('found')
                         break
                     elif lengw==0:
-                        print 'no match'
+                        log('no match')
                         assert False
                 assert len(gmwords) > 0
-                print FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0]
+                log(FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0])
                 p = GM_LOWER.index(gmwords[0])
                 # for i in xrange(len(GM_LOWER)):
                 #     continue_search = False
@@ -747,9 +763,9 @@ class Track:
                     #     continue
 
         self.patch_num = p
-        # print 'PATCH SET - ' + unicode(p)
+        # log('PATCH SET - ' + unicode(p))
         status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
-        if SHOWMIDI: print FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p)
+        if SHOWMIDI: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
         self.player.write_short(status,p)
     def arp(self, notes, count=0, sustain=False, pattern=[1]):
         self.arp_enabled = True
@@ -790,7 +806,7 @@ class Track:
             self.tuplet_stop()
         if feq(delay,1.0):
             return 0.0
-        # print delay
+        # log(delay)
         return delay
     def tuplet_stop(self):
         self.tuplets = False
@@ -833,7 +849,7 @@ class Schedule:
         #     self.started = True
         #     self.clock = clock
         #     self.passed = 0.0
-        # print self.clock
+        # log(self.clock)
 
         try:
             self.events = sorted(self.events, key=lambda e: e.t)
@@ -1058,6 +1074,11 @@ for i in xrange(1,len(sys.argv)):
         skip += 1
     elif arg == '--vi':
         VIMODE = True
+    elif arg == '--follow':
+        FOLLOW = True
+        PRINT = False
+    elif arg == '--noprint':
+        PRINT = False
     elif arg == '-v':
         SHOWTEXT = True
     elif arg == '-l':
@@ -1153,7 +1174,7 @@ PLAYER = pygame.midi.Output(dev)
 INSTRUMENT = 0
 PLAYER.set_instrument(0)
 for i in xrange(NUM_CHANNELS_PER_DEVICE):
-    # print "%s -> %s" % (i,mch)
+    # log("%s -> %s" % (i,mch))
     TRACKS.append(Track(i, mch, PLAYER, SCHEDULE))
     mch += 2 if i==DRUM_CHANNEL else 1
 
@@ -1176,7 +1197,7 @@ for i in xrange(len(sys.argv)):
             try:
                 row = MARKERS[vals[0]]
             except KeyError:
-                print 'invalid entry point'
+                log('invalid entry point')
                 QUITFLAG = True
         try:
             stoprow = int(vals[1])
@@ -1185,23 +1206,23 @@ for i in xrange(len(sys.argv)):
                 # we cannot cut buf now, since seq might be non-linear
                 stoprow = MARKERS[vals[0]]
             except KeyError:
-                print 'invalid stop point'
+                log('invalid stop point')
                 QUITFLAG = True
         except IndexError:
             pass # no stop param
 
 if SHELL:
-    print FG.BLUE + 'decadence v'+unicode(VERSION)
-    print 'Copyright (c) 2018 Grady O\'Connell'
-    print 'https://github.com/flipcoder/decadence'
+    log(FG.BLUE + 'decadence v'+unicode(VERSION))
+    log('Copyright (c) 2018 Grady O\'Connell')
+    log('https://github.com/flipcoder/decadence')
     if PORTNAME:
-        print FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',)
+        log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',))
         if TRACKS[0].midich == DRUM_CHANNEL:
-            print FG.GREEN + 'GM Percussion'
+            log(FG.GREEN + 'GM Percussion')
         else:
-            print FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[TRACKS[0].patch_num]
-    print ''
-    print 'Read the manual and look at examples. Have fun!'
+            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[TRACKS[0].patch_num])
+    log('')
+    log('Read the manual and look at examples. Have fun!')
 
 header = True # set this to false as we reached cell data
 while not QUITFLAG:
@@ -1234,7 +1255,7 @@ while not QUITFLAG:
                     
                     if SHELL:
                         # SHELL PROMPT
-                        # print orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE))
+                        # log(orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE)))
                         cur_oct = TRACKS[0].octave
                         # cline = FG.GREEN + 'DC> '+FG.BLUE +\
                         info = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
@@ -1254,7 +1275,7 @@ while not QUITFLAG:
                 else:
                     break
             
-        print FG.MAGENTA + line
+        log(FG.MAGENTA + line)
         
         # cells = line.split(' '*2)
         
@@ -1265,7 +1286,7 @@ while not QUITFLAG:
         #         if line[i]=='|':
         #             SEPARATORS.append(i)
         
-        # print BG.RED + line
+        # log(BG.RED + line)
         fullline = line[:]
         line = line.strip()
         
@@ -1276,6 +1297,7 @@ while not QUITFLAG:
         if line:
             # COMMENTS (;)
             if line[0] == ';':
+                follow(1)
                 row += 1
                 continue
             
@@ -1283,17 +1305,19 @@ while not QUITFLAG:
             if line[-1]==':': # suffix marker
                 # allow override of markers in case of reuse
                 MARKERS[line[:-1]] = row
+                follow(1)
                 row += 1
                 continue
                 # continue
             elif line[0]==':': #prefix marker
                 # allow override of markers in case of reuse
                 MARKERS[line[1:]] = row
+                follow(1)
                 row += 1
                 continue
             
             # TODO: global 'silent' commands (doesn't take time)
-            if line.startswith('V'):
+            if line.startswith('%'):
                 line = line[1:].strip() # remove % and spaces
                 for tok in line.split(' '):
                     if not tok:
@@ -1308,7 +1332,7 @@ while not QUITFLAG:
                             val = cmd[2:]
                         except:
                             val = ''
-                        # print "op val %s %s" % (op,val)
+                        # log("op val %s %s" % (op,val))
                         if op == ':': op = '='
                         if not op in '*/=-+':
                             # implicit =
@@ -1387,7 +1411,7 @@ while not QUITFLAG:
                                         inter = SCALE.intervals
                                         TRANSPOSE = 0
                                         
-                                        print MODE-1
+                                        log(MODE-1)
                                         if var=='R':
                                             for i in xrange(MODE-1):
                                                 inc = 0
@@ -1397,11 +1421,12 @@ while not QUITFLAG:
                                                     pass
                                                 TRANSPOSE += inc
                                     except ValueError:
-                                        print 'no such scale'
+                                        log('no such scale')
                                         assert False
                                 else:
                                     TRANSPOSE = 0
                                     
+                follow(1)
                 row += 1
                 continue
             
@@ -1447,7 +1472,7 @@ while not QUITFLAG:
             # cells = cells[-1*min(0,COLUMN_SHIFT):] # create gutter (if negative shift)
             # separate into chunks based on column width
             cells = [cells[i:i + COLUMNS] for i in xrange(0, len(cells), COLUMNS)]
-            print cells
+            log(cells)
         elif not SEPARATORS:
             # AUTOGENERATE CELL SEPARATORS
             cells = fullline.split(' ')
@@ -1456,9 +1481,9 @@ while not QUITFLAG:
                 if cell:
                     if pos:
                         SEPARATORS.append(pos)
-                    # print cell
+                    # log(cell)
                 pos += len(cell) + 1
-            # print  "SEPARATORS " + unicode(SEPARATORS)
+            # log( "SEPARATORS " + unicode(SEPARATORS))
             cells = filter(None,cells)
             # if fullline.startswith(' '):
             #     cells = ['.'] + cells # dont filter first one
@@ -1467,7 +1492,7 @@ while not QUITFLAG:
             # SPLIT BASED ON SEPARATORS
             s = 0
             seplen = len(SEPARATORS)
-            # print seplen
+            # log(seplen)
             pos = 0
             for i in xrange(seplen):
                 cells.append(fullline[pos:SEPARATORS[i]].strip())
@@ -1561,7 +1586,7 @@ while not QUITFLAG:
             cell_before_slash=cell[:]
             sz_before_slash=len(cell)
             slash = cell.split('/') # slash chords
-            # print slash
+            # log(slash)
             tok = slash[0]
             cell = slash[0][:]
             slashidx = 0
@@ -1649,7 +1674,7 @@ while not QUITFLAG:
                         # wrap notes into 1-7 range before scale lookup
                         wrap = ((c-1) / notecount)
                         note = ((c-1) % notecount)+1
-                        # print 'note ' + unicode(note)
+                        # log('note ' + unicode(note))
                         
                         for i in xrange(1,note):
                             # dont use scale for expanded chord notes
@@ -1665,29 +1690,29 @@ while not QUITFLAG:
                                 n += int(idx)
                         if inverted: # inverted counter
                             if flip_inversion:
-                                # print (chord_note_count-1)-inverted
+                                # log((chord_note_count-1)-inverted)
                                 inverted -= 1
                             else:
-                                # print 'inversion?'
-                                # print n
+                                # log('inversion?')
+                                # log(n)
                                 n += 12
                                 inverted -= 1
                         assert inversion != 0
                         if inversion!=1:
                             if flip_inversion: # not working yet
-                                # print 'note ' + unicode(note)
-                                # print 'down inv: %s' % (inversion/chord_note_count+1)
+                                # log('note ' + unicode(note))
+                                # log('down inv: %s' % (inversion/chord_note_count+1))
                                 # n -= 12 * (inversion/chord_note_count+1)
                                 pass
                             else:
-                                # print 'inv: %s' % (inversion/chord_note_count)
+                                # log('inv: %s' % (inversion/chord_note_count))
                                 n += 12 * (inversion/chord_note_count)
-                        # print '---'
-                        # print n
-                        # print 'n slash %s,%s' %(n,slashidx)
+                        # log('---')
+                        # log(n)
+                        # log('n slash %s,%s' %(n,slashidx))
                         n += 12 * (wrap - slashidx)
                         
-                        # print tok
+                        # log(tok)
                         tok = tok[ct:]
                         if not expanded: cell = cell[ct:]
                         
@@ -1697,7 +1722,7 @@ while not QUITFLAG:
                             tok = tok[1:] # allow chord sep
                             if not expanded: cell = cell[1:]
                         
-                        # print 'note: %s' % n
+                        # log('note: %s' % n)
                 
                     # NOTE LETTERS
                     elif c.upper() in '#ABCDEFG' and not ambiguous:
@@ -1757,7 +1782,7 @@ while not QUITFLAG:
                     is_chord = False
                     if not expanded:
                         if tok or roman:
-                            # print tok
+                            # log(tok)
                             cut = 0
                             nonotes = []
                             chordname = ''
@@ -1786,7 +1811,6 @@ while not QUITFLAG:
                                         # second check will throws
                                         if numberpart in '#b' or (int(numberpart) or True):
                                             # if tok[]
-                                            print 'no'
                                             prefix,ct = peel_any(tok[cut:],'#b')
                                             if ct: cut += ct
                                             
@@ -1798,10 +1822,10 @@ while not QUITFLAG:
                                                 nonotes.append(unicode(prefix)+unicode(num)) # ex: b5
                                                 break
                                 except IndexError:
-                                    print 'chordname length ' + unicode(len(chordname))
+                                    log('chordname length ' + unicode(len(chordname)))
                                     pass # chordname length
                                 except ValueError:
-                                    print 'bad cast ' + char
+                                    log('bad cast ' + char)
                                     pass # bad int(char)
                                 cut += 1
                                 i += 1
@@ -1819,13 +1843,13 @@ while not QUITFLAG:
                             # except:
                             #     pass
                             
-                            # print chordname
+                            # log(chordname)
                             # don't include tuplet in chordname
                             if chordname.endswith('T'):
                                 chordname = chordname[:-1]
                                 cut -= 1
                             
-                            # print chordname
+                            # log(chordname)
                             if roman: # roman chordnames are sometimes empty
                                 if chordname and not chordname[1:] in 'bcdef':
                                     if roman == -1: # minor
@@ -1835,7 +1859,7 @@ while not QUITFLAG:
                                     chordname = 'maj' if roman>0 else 'm' + chordname
 
                             if chordname:
-                                # print chordname
+                                # log(chordname)
                                 if chordname in BAD_CHORDS:
                                     # certain chords may parse wrong w/ note letters
                                     # example: aug, in this case, 'ug' is the bad chord name
@@ -1880,13 +1904,13 @@ while not QUITFLAG:
                                             except:
                                                 assert False
                                         except KeyError:
-                                            print 'key error'
+                                            log('key error')
                                             break
                                     else:
                                         # noteloop = True
                                         # assert False
                                         # invalid chord
-                                        print FG.RED + 'Invalid Chord: ' + chordname
+                                        log(FG.RED + 'Invalid Chord: ' + chordname)
                                         break
                             
                             if is_chord:
@@ -1903,16 +1927,16 @@ while not QUITFLAG:
                                 ignore = False # reenable default root if chord was w/o note name
                                 continue
                             else:
-                                # print 'not chord, treat as note'
+                                # log('not chord, treat as note')
                                 pass
                             #     assert False # not a chord, treat as note
                             #     break
                         else: # blank chord name
-                            # print 'blank chord name'
+                            # log('blank chord name')
                             # expanded = False
                             pass
                     else: # not tok and not expanded
-                        # print 'not tok and not expanded'
+                        # log('not tok and not expanded')
                         pass
                 # else and not chord_notes:
                 #     # last note in chord, we're done
@@ -1974,7 +1998,7 @@ while not QUITFLAG:
             # TODO: arp doesn't work if channel not visible/present, move this
             if ch.arp_enabled:
                 if notes: # incoming notes?
-                    # print notes
+                    # log(notes)
                     # interupt arp
                     ch.arp_stop()
                 else:
@@ -1987,7 +2011,7 @@ while not QUITFLAG:
                     #   schedule=True
 
             # if notes:
-            #     print notes
+            #     log(notes)
             
             cell = cell.strip() # ignore spaces
 
@@ -2003,7 +2027,7 @@ while not QUITFLAG:
             # if cell and cell[0]=='|':
             #     if not expanded: cell = cell[1:]
 
-            # print cell
+            # log(cell)
 
             # ESPEAK / FESTIVAL support wip
             # if cell.startswith('\"') and cell.count('\"')==2:
@@ -2021,7 +2045,7 @@ while not QUITFLAG:
                 
                 ## + and - symbols are changed to mean minor and aug chords
                 # if c == '+':
-                #     print "+"
+                #     log("+")
                 #     c = cell[1]
                 #     shift = int(c) if c.isdigit() else 0
                 #     mn = n + base + (octave+shift) * 12
@@ -2055,7 +2079,7 @@ while not QUITFLAG:
                     notes = notes[sign*1:] + notes[:1*sign]
                     # when used w/o note/chord, track history should update
                     # TRACK_HISTORY[cell_idx] = fullcell_sub
-                    # print notes
+                    # log(notes)
                     if ch.arp_enabled:
                         ch.arp_notes = ch.arp_notes[1:] + ch.arp_notes[:1]
                     cell = cell[1+ct:]
@@ -2143,7 +2167,7 @@ while not QUITFLAG:
                 #     cell = cell[len(num):]
                 #     vel = int((float(num) / 100)*127)
                 #     ch.vel = vel
-                #     # print vel
+                #     # log(vel)
                 elif c=='cc': # MIDI CC
                     # get number
                     cell = cell[1:]
@@ -2251,7 +2275,7 @@ while not QUITFLAG:
                     strum = 1.0
                     if len(notes)==1: # tremolo
                         notes = [notes[i:i + sq] for i in xrange(0, len(notes), sq)]
-                    # print 'strum'
+                    # log('strum')
                     if SHOWTEXT:
                         showtext.append('strum($)')
                 elif c=='&':
@@ -2308,9 +2332,9 @@ while not QUITFLAG:
                     break
                 else:
                     if dcmode in 'cl':
-                        print FG.BLUE + line
+                        log(FG.BLUE + line)
                     indent = ' ' * (len(fullcell)-len(cell))
-                    print FG.RED + indent +  "^ Unexpected " + cell[0] + " here"
+                    log(FG.RED + indent +  "^ Unexpected " + cell[0] + " here")
                     cell = []
                     ignore = True
                     break
@@ -2330,7 +2354,7 @@ while not QUITFLAG:
                 #     pass
                     # schedule=True
 
-            if notes or mute:
+            if notes or not NOMUTE:
                 ch.release_all()
 
             for ev in events:
@@ -2345,18 +2369,18 @@ while not QUITFLAG:
                 delta = (1.0/(ln*forr(duration,1.0))) #t between notes
 
             if SHOWTEXT:
-                # print FG.MAGENTA + ', '.join(map(lambda n: note_name(p+n), notes))
+                # log(FG.MAGENTA + ', '.join(map(lambda n: note_name(p+n), notes)))
                 # chordoutput = chordname
                 # if chordoutput and noletter:
                 #     coordoutput = note_name(chord_root+base) + chordoutput
-                # print FG.CYAN + chordoutput + " ("+ \
+                # log(FG.CYAN + chordoutput + " ("+ \)
                 #     (', '.join(map(lambda n,base=base: note_name(base+n),notes)))+")"
-                # print showtext
+                # log(showtext)
                 showtext = []
                 if chordname and not ignore:
                     noteletter = note_name(n+base)
                     # for cn in chordnames:
-                    #     print FG.CYAN + noteletter + cn + " ("+ \
+                    #     log(FG.CYAN + noteletter + cn + " ("+ \)
                     #         (', '.join(map(lambda n,base=base: note_name(base+n),allnotes)))+")"
 
             delay += ch.tuplet_next()
@@ -2384,30 +2408,34 @@ while not QUITFLAG:
                 else:
                     break
             except KeyboardInterrupt:
-                # print FG.RED + traceback.format_exc()
+                # log(FG.RED + traceback.format_exc())
                 QUITFLAG = True
                 break
             except:
-                print FG.RED + traceback.format_exc()
+                log(FG.RED + traceback.format_exc())
+                if SHELL:
+                    QUITFLAG = True
+                    break
                 if not SHELL and not pauseDC():
                     QUITFLAG = True
                     break
 
         if QUITFLAG:
             break
-        
-        row += 1
-    
+         
     except KeyboardInterrupt:
-        # print FG.RED + traceback.format_exc()
+        # log(FG.RED + traceback.format_exc())
         break
     except SignalError:
         QUITFLAG = True
         break
     except:
-        print FG.RED + traceback.format_exc()
+        log(FG.RED + traceback.format_exc())
         if not SHELL and not pauseDC():
             break
+
+    follow(1)
+    row += 1
 
 # TODO: turn all midi note off
 i = 0

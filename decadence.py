@@ -112,6 +112,7 @@ BCPROC = None
 PRINT=True
 LOG=False
 FOLLOW=False
+LINT=False
 
 def follow(count):
     if FOLLOW:
@@ -1074,6 +1075,8 @@ for i in xrange(1,len(sys.argv)):
         skip += 1
     elif arg == '--vi':
         VIMODE = True
+    elif arg == '--lint':
+        LINT = True
     elif arg == '--follow':
         FOLLOW = True
         PRINT = False
@@ -2354,7 +2357,7 @@ while not QUITFLAG:
                 #     pass
                     # schedule=True
 
-            if notes or not NOMUTE:
+            if notes:
                 ch.release_all()
 
             for ev in events:

@@ -1012,6 +1012,7 @@ mch = 0
 SHELL = False
 DAEMON = False
 GUI = False
+PORTNAME = ''
 
 for i in xrange(1,len(sys.argv)):
     if skip:
@@ -1052,7 +1053,9 @@ for i in xrange(1,len(sys.argv)):
                 TRACKS[i].patch(int(val))
             else:
                 TRACKS[i].patch(val)
-    # request_grid = True
+    elif arg.startswith('--dev'):
+        PORTNAME = sys.argv[i+1]
+        skip += 1
     elif arg == '--vi':
         VIMODE = True
     elif arg == '-v':
@@ -1115,7 +1118,6 @@ else: # mode n
                         if not bm in MARKERS:
                             MARKERS[bm] = lc
 
-                        
                 lc += 1
                 buf += [line]
     else:
@@ -1125,18 +1127,26 @@ else: # mode n
 
 midi.init()
 dev = 0
-portname = None
 for i in xrange(midi.get_count()):
     port = pygame.midi.get_device_info(i)
     portname = port[1]
-    # print port
     # timidity
-    if portname.lower()=='timidity port 0':
-        dev = i
-    # qsynth
-    elif portname.lower().startswith('synth input port'):
-        dev = i
-    # helm will autoconnect
+    devs = [
+        'timidity port 0',
+        'synth input port',
+        'loopmidi'
+        # helm will autoconnect
+    ]
+    if PORTNAME:
+        if portname.lower().startswith(PORTNAME.lower()):
+            PORTNAME = portname
+            dev = i
+            break
+    for name in devs:
+        if portname.lower().startswith(name):
+            PORTNAME = portname
+            dev = i
+            break
 
 # PLAYER = pygame.midi.Output(pygame.midi.get_default_output_id())
 PLAYER = pygame.midi.Output(dev)
@@ -1184,8 +1194,8 @@ if SHELL:
     print FG.BLUE + 'decadence v'+unicode(VERSION)
     print 'Copyright (c) 2018 Grady O\'Connell'
     print 'https://github.com/flipcoder/decadence'
-    if portname:
-        print FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (portname if portname else 'Unknown',)
+    if PORTNAME:
+        print FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',)
         if TRACKS[0].midich == DRUM_CHANNEL:
             print FG.GREEN + 'GM Percussion'
         else:

@@ -989,7 +989,7 @@ MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
 
 # control chars that are definitely not note or chord names
-CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]'
+CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%'
 CCHAR_START = 'T' # control chars
 
 SCHEDULE = []
@@ -1546,6 +1546,7 @@ while not QUITFLAG:
             strum = 0.0
             noteletter = '' # track this just in case (can include I and V)
             chordname = ''
+            chordnames = []
             
             cell_before_slash=cell[:]
             sz_before_slash=len(cell)
@@ -1556,6 +1557,10 @@ while not QUITFLAG:
             slashidx = 0
             addbottom = False # add note at bottom instead
             # slash = cell[0:min(cell.find(n) for n in '/|')]
+            
+            # chordnameslist = []
+            # chordnoteslist = []
+            # chordrootslist = []
             
             while True:
                 n = 1
@@ -1881,6 +1886,9 @@ while not QUITFLAG:
                                 else:
                                     chord_notes = ['1'] + chord_notes
                                 # slashnotes[0].append(n + chord_root - 1 - slashidx*12)
+                                # chordnameslist.append(chordname)
+                                # chordnoteslist.append(chord_notes)
+                                # chordrootslist.append(chord_root)
                                 chord_root = n
                                 ignore = False # reenable default root if chord was w/o note name
                                 continue
@@ -2284,6 +2292,10 @@ while not QUITFLAG:
                 #     if not notes:
                 #         cell = []
                 #         continue # ignore marker
+                elif c=='%':
+                    # ctrl line
+                    cell = []
+                    break
                 else:
                     if dcmode in 'cl':
                         print FG.BLUE + line
@@ -2323,7 +2335,6 @@ while not QUITFLAG:
                 delta = (1.0/(ln*forr(duration,1.0))) #t between notes
 
             if SHOWTEXT:
-                pass
                 # print FG.MAGENTA + ', '.join(map(lambda n: note_name(p+n), notes))
                 # chordoutput = chordname
                 # if chordoutput and noletter:
@@ -2331,11 +2342,12 @@ while not QUITFLAG:
                 # print FG.CYAN + chordoutput + " ("+ \
                 #     (', '.join(map(lambda n,base=base: note_name(base+n),notes)))+")"
                 # print showtext
-                # showtext = []
-                # if chordname and not ignore:
-                #     noteletter = note_name(n+base)
-                #     print FG.CYAN + noteletter + chordname+ " ("+ \
-                #         (', '.join(map(lambda n,base=base: note_name(base+n),allnotes)))+")"
+                showtext = []
+                if chordname and not ignore:
+                    noteletter = note_name(n+base)
+                    # for cn in chordnames:
+                    #     print FG.CYAN + noteletter + cn + " ("+ \
+                    #         (', '.join(map(lambda n,base=base: note_name(base+n),allnotes)))+")"
 
             delay += ch.tuplet_next()
             

@@ -1,3 +1,4 @@
+; arp once
 1ma7&1
 .
 .
@@ -6,6 +7,7 @@
 .
 .
 .
+; arp twice
 2ma7&2
 .
 .
@@ -22,3 +24,5 @@
 .  
 .  
 .  
+; end of song, play first arp note note end
+3m7&

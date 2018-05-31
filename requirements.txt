@@ -2,4 +2,3 @@ pygame
 colorama
 numpy
 ctcsound
-prompt_toolkit

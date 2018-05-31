@@ -1,37 +1,54 @@
 #!/usr/bin/env python2
-from __future__ import unicode_literals
-import os
-import sys
-import pygame
-import pygame.midi as midi
-import traceback
-import time
-import random
+from __future__ import unicode_literals, print_function, generators
+import os, sys, time, random, itertools, signal, sets, tempfile, traceback
+import time, subprocess, pipes
+import pygame, pygame.midi as midi
 import colorama
-import subprocess
-import pipes
-import tempfile
-import itertools
-import sets
-import signal
 from multiprocessing import Process,Pipe
-# from ConfigParser import SafeConfigParser
-from prompt_toolkit import prompt
-from prompt_toolkit.styles import style_from_dict
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.token import Token
-
-style = style_from_dict({
-    Token:          '#ff0066',
-    Token.DC:       '#00aa00',
-    Token.Info:     '#000088',
-})
-
 try:
-    import ctcsound
+    import readline
 except ImportError:
-    pass
+    try:
+        import gnureadline as readline
+    except ImportError:
+        import pyreadline as readline
+# try:
+#     import ctcsound
+# except ImportError:
+#     pass
+# import logging
+
+# LOG_FN = os.path.join(os.path.expanduser('~'),'.decadence_log')
+HISTORY_FN = os.path.join(os.path.expanduser('~'),'.decadence_history')
+# logging.basicConfig(filename=LOG_FN,level=logging.DEBUG)
+
+def get_history_items():
+    return [ readline.get_history_item(i) \
+        for i in xrange(1, readline.get_current_history_length() + 1) \
+    ]
+class HistoryCompleter():
+    def __init__(self):
+        self.matches = []
+    def complete(self, text, state):
+        response = None
+        if state == 0:
+            history = get_history_items()
+            if text:
+                self.matches = sorted(h \
+                    for h in history \
+                    if h and h.startswith(text))
+            else:
+                self.matches = []
+        try:
+            return self.matches[state]
+        except IndexError:
+            pass
+        return None
+if os.path.exists(HISTORY_FN):
+    open(HISTORY_FN,'a+').close()
+readline.read_history_file(HISTORY_FN)
+completer = HistoryCompleter()
+readline.set_completer(completer.complete)
 
 QUITFLAG = False
 class SignalError(BaseException):
@@ -41,8 +58,6 @@ def quitnow(signum,frame):
 signal.signal(signal.SIGTERM, quitnow)
 signal.signal(signal.SIGINT, quitnow)
 
-# HISTORY = InMemoryHistory()
-HISTORY = FileHistory(os.path.join(os.path.expanduser('~'),'.decadence_history'))
 VIMODE = False
 
 class BGCMD:
@@ -53,6 +68,7 @@ class BGCMD:
     CLEAR = 3
 
 # Currently not used, caches text to speech stuff in a way compatible with jack
+# current super slow, need to write stabilizer first
 class BackgroundProcess:
     def __init__(self, con):
         self.con = con
@@ -116,13 +132,11 @@ LINT=False
 
 def follow(count):
     if FOLLOW:
-        print '\n' * max(0,count-1)
+        print('\n' * max(0,count-1))
 
 def log(msg):
-    # global msgs
-    # msgs.append(msg)
     if PRINT:
-        print msg
+        print(msg)
 
 VERSION = '0.1'
 NUM_TRACKS = 15 # skip drum channel
@@ -237,8 +251,11 @@ SCALES = {
     'pentatonic': Scale('pentatonic', '23223'),
     'blues': Scale('blues', '32p132'),
     'melodicminor': Scale('melodicminor', '2122221'),
-    # Scale('harmonic minor', '')
-    # Scale('harmonic major', '')
+    'harmonicminor': Scale('harmonicminor', '2122132'),
+    'harmonicmajor': Scale('harmonicmajor', '2212131'),
+    'doubleharmonic': Scale('doubleharmonic', '1312131'),
+    'neapolitan': Scale('neapolitan', '1222221'),
+    'neapolitanminor': Scale('neapolitanminor', '1222131'),
 }
 # modes and scale aliases
 MODES = {
@@ -249,8 +266,65 @@ MODES = {
     'mixolydian': ('diatonic',5),
     'aeolian': ('diatonic',6),
     'locrian': ('diatonic',7),
-    # 'major scale': ('diatonic',1),
-    # 'minor scale': ('diatonic',6),
+
+    'blues': ('blues',1),
+    'bebop': ('bebop',1),
+    'wholetone': ('wholetone',1),
+    'chromatic': ('chromatic',1),
+
+    'yo': ('pentatonic', 1),
+    'minorpentatonic': ('pentatonic', 2),
+    'majorpentatonic': ('pentatonic', 3),
+    'egyption': ('pentatonic', 4),
+    'mangong': ('pentatonic', 5),
+
+    'harmonicminor': ('harmonicminor',1),
+    'locriann6': ('harmonicminor',2),
+    'ionianaug#5': ('harmonicminor',3),
+    'dorian#4': ('harmonicminor',4),
+    'phyrigianminor': ('harmonicminor',5),
+    'lydian#9': ('harmonicminor',6),
+    'alteredbb7': ('harmonicminor',7),
+
+    'harmonicmajor': ('harmonicmajor',1),
+    'dorianb5': ('harmonicmajor',2),
+    'phyrgianb4': ('harmonicmajor',3),
+    'lydianb3': ('harmonicmajor',4),
+    'mixolydianb2': ('harmonicmajor',5),
+    'lydianaug#2': ('harmonicmajor',6),
+    'locrianbb7': ('harmonicmajor',7),
+
+    'melodicminor': ('melodicminor',1),
+    'dorianb2': ('melodicminor',2),
+    'lydianaug': ('melodicminor',3),
+    'mixolydian#11': ('melodicminor',4),
+    'mixolydianb2': ('melodicminor',5),
+    'locriann2': ('melodicminor',6),
+    'altered': ('melodicminor',7), # superlocrian
+
+    'doubleharmonic': ('doubleharmonic',1),
+    'lydian#2#6': ('doubleharmonic',2),
+    'ultraphyrigian': ('doubleharmonic',3),
+    'hungarianminor': ('doubleharmonic',4),
+    'oriental': ('doubleharmonic',5),
+    'ionianaug': ('doubleharmonic',6),
+    'locrianbb3bb7': ('doubleharmonic',7),
+
+    'neapolitan': ('neapolitan',1),
+    'leadingwholetone': ('neapolitan',2),
+    'lydianaugdom': ('neapolitan',3),
+    'minorlydian': ('neapolitan',4),
+    'arabian': ('neapolitan',5),
+    'semilocrianb4': ('neapolitan',6),
+    'superlocrianbb3': ('neapolitan',7),
+
+    'neapolitanminor': ('neapolitanminor',1),
+    'lydian#6': ('neapolitanminor',2),
+    'mixolydianaug': ('neapolitanminor',3),
+    'hungariangypsy': ('neapolitanminor',4),
+    'locriandom': ('neapolitanminor',5),
+    'ionain#2': ('neapolitanminor',6),
+    'ultralocrianbb3': ('neapolitanminor',7),
 }
 for k,v in MODES.iteritems():
     SCALES[v[0]].add_mode(k,v[1])
@@ -609,6 +683,7 @@ class Track:
         self.arp_delay = 0.0
         self.arp_sustain = False
         self.arp_note_spacing = 1.0
+        self.arp_reverse = False
         self.vel = 100
         self.non_drum_channel = self.initial_channel
         # self.off_vel = 64
@@ -780,6 +855,7 @@ class Track:
         self.arp_sustain = False
     def arp_stop(self):
         self.arp_enabled = False
+        self.arp_reverse = True
         self.release_all()
     def arp_next(self):
         assert self.arp_enabled
@@ -1004,20 +1080,14 @@ class StackFrame:
 
 MARKERS = {}
 CALLSTACK = [StackFrame(-1)]
-
-# control chars that are definitely not note or chord names
 CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%'
 CCHAR_START = 'T' # control chars
-
 SCHEDULE = []
-# INIT
 SEPARATORS = []
 TRACK_HISTORY = ['.'] * NUM_TRACKS
-
 FN = None
-
 row = 0
-stoprow = 0
+stoprow = -1
 dcmode = 'n' # n normal c command s sequence
 next_arg = 1
 # request_tempo = False
@@ -1025,8 +1095,7 @@ next_arg = 1
 skip = 0
 SCHEDULE = Schedule()
 TRACKS = []
-mch = 0
-SHELL = False
+SHELL = True
 DAEMON = False
 GUI = False
 PORTNAME = ''
@@ -1144,6 +1213,7 @@ else: # mode n
 
                 lc += 1
                 buf += [line]
+            SHELL = False
     else:
         if dcmode == 'n':
             dcmode = ''
@@ -1176,6 +1246,7 @@ for i in xrange(midi.get_count()):
 PLAYER = pygame.midi.Output(dev)
 INSTRUMENT = 0
 PLAYER.set_instrument(0)
+mch = 0
 for i in xrange(NUM_CHANNELS_PER_DEVICE):
     # log("%s -> %s" % (i,mch))
     TRACKS.append(Track(i, mch, PLAYER, SCHEDULE))
@@ -1233,7 +1304,7 @@ while not QUITFLAG:
         line = '.'
         try:
             line = buf[row]
-            if stoprow and row == stoprow:
+            if stoprow!=-1 and row == stoprow:
                 buf = []
                 raise IndexError
         except IndexError:
@@ -1260,16 +1331,16 @@ while not QUITFLAG:
                         # SHELL PROMPT
                         # log(orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE)))
                         cur_oct = TRACKS[0].octave
-                        # cline = FG.GREEN + 'DC> '+FG.BLUE +\
-                        info = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
+                        cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
                             note_name(TRACKS[0].transpose) + ' ' +\
                             orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
                             ')> '
-                        bufline = prompt(info,
-                            history=HISTORY, vi_mode=VIMODE)
                         # if bufline.endswith('.dc'):
                             # play file?
-                        buf += filter(None, bufline.split(' '))
+                        bufline = raw_input(cline)
+                        bufline = filter(None, bufline.split(' '))
+                        bufline = map(lambda b: b.replace(';',' '), bufline)
+                        buf += bufline
                     elif DAEMON:
                         pass
                         # wait on socket
@@ -2285,9 +2356,10 @@ while not QUITFLAG:
                     count = count_seq(cell)
                     num,ct = peel_uint(cell[count:],0)
                     if count>=2:
-                        notes = list(itertools.chain.from_iterable(itertools.repeat(\
-                            x, count) for x in notes\
-                        ))
+                        self.arp_reverse = True
+                        # notes = list(itertools.chain.from_iterable(itertools.repeat(\
+                        #     x, count) for x in notes\
+                        # ))
                     cell = cell[ct+count:]
                     if not notes:
                         # & restarts arp (if no note)
@@ -2427,13 +2499,16 @@ while not QUITFLAG:
             break
          
     except KeyboardInterrupt:
-        # log(FG.RED + traceback.format_exc())
+        QUITFLAG = True
         break
     except SignalError:
         QUITFLAG = True
         break
     except:
         log(FG.RED + traceback.format_exc())
+        if SHELL:
+            QUITFLAG = True
+            break
         if not SHELL and not pauseDC():
             break
 
@@ -2460,3 +2535,4 @@ if BCPROC:
     BGPIPE.send((BGCMD.QUIT,))
     BGPROC.join()
 
+readline.write_history_file(HISTORY_FN)

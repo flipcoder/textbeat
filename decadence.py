@@ -5,50 +5,38 @@ import time, subprocess, pipes
 import pygame, pygame.midi as midi
 import colorama
 from multiprocessing import Process,Pipe
-try:
-    import readline
-except ImportError:
-    try:
-        import gnureadline as readline
-    except ImportError:
-        import pyreadline as readline
+import appdirs
+# import pyeditline
+# import pyeditline as readline
+# import pykka
 # try:
 #     import ctcsound
 # except ImportError:
 #     pass
 # import logging
+from prompt_toolkit import prompt
+from prompt_toolkit.styles import style_from_dict
+from prompt_toolkit.history import InMemoryHistory
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.token import Token
 
-# LOG_FN = os.path.join(os.path.expanduser('~'),'.decadence_log')
-HISTORY_FN = os.path.join(os.path.expanduser('~'),'.decadence_history')
+style = style_from_dict({
+    Token:          '#ff0066',
+    Token.DC:       '#00aa00',
+    Token.Info:     '#000088',
+})
+
+APPNAME = 'decadence'
+APPAUTHOR = 'flipcoder'
+DIR = appdirs.AppDirs(APPNAME,APPAUTHOR)
+# LOG_FN = os.path.join(DIR.user_log_dir,'.log')
+HISTORY_FN = os.path.join(DIR.user_config_dir, '.history')
+HISTORY = FileHistory(HISTORY_FN)
+try:
+    os.makedirs(DIR.user_config_dir)
+except OSError:
+    pass
 # logging.basicConfig(filename=LOG_FN,level=logging.DEBUG)
-
-def get_history_items():
-    return [ readline.get_history_item(i) \
-        for i in xrange(1, readline.get_current_history_length() + 1) \
-    ]
-class HistoryCompleter():
-    def __init__(self):
-        self.matches = []
-    def complete(self, text, state):
-        response = None
-        if state == 0:
-            history = get_history_items()
-            if text:
-                self.matches = sorted(h \
-                    for h in history \
-                    if h and h.startswith(text))
-            else:
-                self.matches = []
-        try:
-            return self.matches[state]
-        except IndexError:
-            pass
-        return None
-if os.path.exists(HISTORY_FN):
-    open(HISTORY_FN,'a+').close()
-readline.read_history_file(HISTORY_FN)
-completer = HistoryCompleter()
-readline.set_completer(completer.complete)
 
 QUITFLAG = False
 class SignalError(BaseException):
@@ -1243,6 +1231,7 @@ for i in xrange(midi.get_count()):
             break
 
 # PLAYER = pygame.midi.Output(pygame.midi.get_default_output_id())
+
 PLAYER = pygame.midi.Output(dev)
 INSTRUMENT = 0
 PLAYER.set_instrument(0)
@@ -1331,13 +1320,19 @@ while not QUITFLAG:
                         # SHELL PROMPT
                         # log(orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE)))
                         cur_oct = TRACKS[0].octave
-                        cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
+                        # cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
+                        #     note_name(TRACKS[0].transpose) + ' ' +\
+                        #     orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
+                        #     ')> '
+                        cline = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
                             note_name(TRACKS[0].transpose) + ' ' +\
                             orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
                             ')> '
                         # if bufline.endswith('.dc'):
                             # play file?
-                        bufline = raw_input(cline)
+                        # bufline = raw_input(cline)
+                        bufline = prompt(cline,
+                            history=HISTORY, vi_mode=VIMODE)
                         bufline = filter(None, bufline.split(' '))
                         bufline = map(lambda b: b.replace(';',' '), bufline)
                         buf += bufline
@@ -2535,4 +2530,3 @@ if BCPROC:
     BGPIPE.send((BGCMD.QUIT,))
     BGPROC.join()
 
-readline.write_history_file(HISTORY_FN)

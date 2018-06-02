@@ -1,5 +1,5 @@
 # Decadence
-Plaintext music tracker and midi shell w/ Vim integration
+Plaintext music tracker and midi shell w/ Vim integration >:)
 
 Open-source under MIT License (see LICENSE file for information)
 
@@ -17,41 +17,58 @@ The format is intended to be dense but readable once learned.
 In a traditional tracker, individual notes would take place over multiple
 channels.  For instance, a C major chord would be specified in a way a
 computer would understand it: 3 notes across 3 separate channels: C,E,G.
-In Decadence, you could choose to write "Cmaj", "1maj",
-or since we're in the key of C, "maj", "major", "M", or "I" would also work.
-In the event you have to write out notes individually, you can do that as well.
+In Decadence, you can do it as a chord in 1 channel:
+You could choose to write it as "Cmaj".
+or since we're in the key of C, "1maj", "maj", "major", "M", or "I" would also work.
+In the event you have to write out notes individually, "C|E|G" or "1|3|5" work as well.
 
 Chord voicings can get complex and specific, and decadence's format prefers density,
 So you may find yourself writing voicings spanning octaves like this:
 
 maj7#4/sus2/1
 
-The above chord spans 3 octaves: Cmaj7 w/ an added #4 on top. Then sus2.
-Then a C bass note.
-
-You may also want to arpeggiate or strum the chord, in which case you'd append
-'&' or '$' respectively.
-
-Decadence is a new project, but already can do lots of cool things: tuplets,
-strumming, arpeggiation, CC automation, vibrato, dynamics, accents, velocity,
-inversion shifting, midi channel stacking, note length, delays,
-markers, scales/modes, etc.
+The above chord voicing spans 3 octaves and contains 9 notes.
+It is a Cmaj7 chord w/ an added #4. Then an octave below that, a Csus2.
+Then at the bottom, a C bass note.  Writing this in a tracker with 1 note per channel
+would be difficult to read (at least to me).  As cryptic as it may seem to
+non-musicians, condensed chord voicings are going to make more sense to your ear
+over time than seeing random note letters fly by.
+For this reason, decadence prefers numbered note notation and key note transposition
+over arbitrary note names (even though both are valid). 
+If no number prefix is given, like in this example, it is always 1, and unless we tranpose, that means C.
 
 Note to musicians: There are a few quirks with the parser that make the chord interpretation different than
 what musicians would expect.  For example, slash chords do not imply inversions,
 but are for stacking across octaves.  Additionally, note names do no imply chords.
 For example, C/E means play a C note with an E in a lower octave, whereas a musician might
-interpret this as a specific chord voicing.  (Inversions use jazz letter suffix (majb))
+interpret this as a specific chord voicing.  (Inversions use jazz letter suffix or shift operator (majb or maj>))
 
 # Why?
 
-Plaintext = Vim = Zen
+Plaintext = Vim = Zen.
+
+Music is code.
 
 # Features
 
-- 
+Decadence is a new project, but you can already do lots of cool things:
 
-# Usage
+- Strumming
+- Arpeggiation
+- Tuplets and polyrhythms
+- CC automation
+- Vibrato
+- Dynamics
+- Accents
+- Velocity
+- Inversions
+- Midi channel stacking
+- Note length
+- Delays
+- Markers, repeats
+- Scales and modes by name
+
+# Setup
 
 You can use this with General Midi out-of-the-box on windows but who wants to write music like that?  We need VSTs!
 
@@ -86,16 +103,6 @@ If you feed the MIDI into a DAW you'll be able to record the output through the 
 - --solfege: Use solfege in output (input not yet supported)
 - --flats: Prefer flats (currently default)
 - --device=DEVICE: Set midi-device (partial match supported)
-```
-
-# Chord/Notes
-
-```
-- Note numbers, letters, roman numerals w/ sharps, flats and doubles
-- Chord and common voicing names
-- Slash chords and layering (eg. 1maj/b7 and )
-    - Spread additional octaves by adding extra /
-- Drop voicings (not yet impl)
 ```
 
 # Global commands:
@@ -176,13 +183,11 @@ Music flows vertically, with separate columns that are separated by whitespace o
 Each column is represents a track and they default to separate midi channel numbers.
 Tracks sequence notes.  You'll usually play at least 1 track per instrument.
 This doesn't mean you're limited to just one note per track though,
-you can keep notes held down and play chords as you wish, using the right note effects.
+you can keep notes held down and play chords as you wish.
+
+Each cell row in a track can contain both note data and associated effects.
 
 By default, any note event in a track will mute previous notes on that track
-
-Numbered notes, note letter names, and roman numerals are supported.
-
-I've almost got the scale/mode system in (not yet impl).
 
 The following will play the C major scale using numbered notation:
 ```
@@ -212,8 +217,7 @@ Both Tempo and Grid can be decimal numbers as well.
 
 Notice the bottom line has an extra apostrophe character (').  This plays the note in the next octave
 For an octave below, use a comma (,).
-If you prefer to have these octave shifts persist, the < and > symbols can be used instead.
-You can use a number value instead to make the octave changes persistent.
+You can use a number value instead to make the octave changes persistent (,2).
 
 ## Holding Muting
 
@@ -281,7 +285,7 @@ A (-) character will then mute them all.
 You can choose to play notes separately in tracks, or use chords to put all
 the notes in a single track.
 
-Let's try some chords:
+Let's play a scale with some chords:
 
 ```
 %t120 g2
@@ -347,7 +351,7 @@ Vibrato functionality will change to pitch wheel oscillation in the future
 Columns are separate tracks, line them up for more than one instrument
 
 ```
-1<2  1
+1,2  1
 .    4
 .    5
 .    1'

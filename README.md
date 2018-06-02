@@ -407,31 +407,28 @@ to make them even in a default ratio of 3:4
 Not everything is listed here because I just started this project.
 More to come soon!
 
-Things I'm adding soon:
+Things I'm planning on adding soon:
 
 ```
-- Output to MIDI file
-- A better scheduler to increase timing consistency
-- Csound integration
-    - Csound is decent for dabbling around when wanting somethnig better than GM
-    - This is a good one because it doesn't require vsts and we can throw in our own instrument presets
-- Text-to-speech and singing (Espeak/Festival)
-    - I added this but had issues with timing and playback device issues
-    - Once I fix, I'll add it back in
 - Improved chord interpretation
+- MIDI input/output
+- MIDI stabilization
+- Headless VST rack integration
+- Csound, Sonic Pi, libgme (chiptune lib) integration
+- Text-to-speech and singing (Espeak/Festival)
 ```
 
 Features I'm adding eventually:
 
 ```
-- A way to display midi controller -> commands
-- Midi controller recording to a track or file position
-- Chord analysis
-- (And finally...) Recording and encoding audio output of a project
+- Recording and encoding audio output of a project
+- Midi controller input and recording
+- Midi input chord analysis
 ```
 
-I eventually will rewrite this in C++ to achieve better speed.
-Until then, I'll make use of python's multiprocessing and possibly
+I may eventually rewrite this in C++ to achieve better speed.
+I'll make use of python's multiprocessing and possibly
 separate processes to achieve as much as I can do for timing critical stuff.
 
 >:)
+

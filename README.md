@@ -1,20 +1,55 @@
 # Decadence
-Plaintext music tracker and midi shell
+Plaintext music tracker and midi shell w/ Vim integration
 
 Open-source under MIT License (see LICENSE file for information)
 
 Copyright (c) 2018 Grady O'Connell
 
-This is an early prototype of a plaintext music tracker.
+Vim integration: [vim-decadence](https://github.com/flipcoder/vim-decadence)
 
-I wanted to track music in my text editor because I'm quite fast with it.
-The available options weren't to my liking.
-This is my attempt at making a column-oriented (vertical) music tracker
-that works from a text editor and includes an interactive midi shell.
+# Overview
 
-Vim plug-in: [vim-decadence](https://github.com/flipcoder/vim-decadence)
+Compose music in a plaintext format or type music directly in the shell.
+The format is vertical and column-based, similar to early music trackers, but
+with some modern features to make it more accessible and readable by musicians.
+The format is intended to be dense but readable once learned.
 
-This is constantly being updated, so this readme may contain some old information (sorry)!
+In a traditional tracker, individual notes would take place over multiple
+channels.  For instance, a C major chord would be specified in a way a
+computer would understand it: 3 notes across 3 separate channels: C,E,G.
+In Decadence, you could choose to write "Cmaj", "1maj",
+or since we're in the key of C, "maj", "major", "M", or "I" would also work.
+In the event you have to write out notes individually, you can do that as well.
+
+Chord voicings can get complex and specific, and decadence's format prefers density,
+So you may find yourself writing voicings spanning octaves like this:
+
+maj7#4/sus2/1
+
+The above chord spans 3 octaves: Cmaj7 w/ an added #4 on top. Then sus2.
+Then a C bass note.
+
+You may also want to arpeggiate or strum the chord, in which case you'd append
+'&' or '$' respectively.
+
+Decadence is a new project, but already can do lots of cool things: tuplets,
+strumming, arpeggiation, CC automation, vibrato, dynamics, accents, velocity,
+inversion shifting, midi channel stacking, note length, delays,
+markers, scales/modes, etc.
+
+Note to musicians: There are a few quirks with the parser that make the chord interpretation different than
+what musicians would expect.  For example, slash chords do not imply inversions,
+but are for stacking across octaves.  Additionally, note names do no imply chords.
+For example, C/E means play a C note with an E in a lower octave, whereas a musician might
+interpret this as a specific chord voicing.  (Inversions use jazz letter suffix (majb))
+
+# Why?
+
+Plaintext = Vim = Zen
+
+# Features
+
+- 
 
 # Usage
 

@@ -387,6 +387,7 @@ CHORDS = {
     "m6": "b3 5 6",
     "m7": "b3 5 b7",
     "m69": "b3 5 6 9",
+    "m769": "b3 5 6 7 9",
     # "madd9": "3 b5 9",
     "m7b5": "b3 b5 b7",
     "m7+": "b3 #5 b7",
@@ -396,17 +397,19 @@ CHORDS = {
     "m11+": "b3 #5 b7 9 11",
     "m11b9": "b3 5 b7 b9 11",
     "m11b13": "b3 5 b7 9 11 b13",
-    "m13b9": "3 5 b7 b9 13",
-    "m13#9": "3 5 b7 #9 13",
+    "m13": "b3 5 b7 9 11 13",
+    "m13b9": "3 5 b7 b9 11 13",
+    "m13#9": "3 5 b7 #9 11 13",
     "m13b11": "3 5 b7 #9 b11 13",
     "m13#11": "3 5 b7 #9 #11 13",
-    # "+": "3 #5",
-    # "7+": "3 #5 b7",
-    # "9+": "3 #5 b7 9",
-    # "11+": "3 #5 b7 9 11",
-    # "13+": "3 #5 b7 9 11 13",
+    "+": "3 #5",
+    "7+": "3 #5 b7",
+    "9+": "3 #5 b7 9",
+    "11+": "3 #5 b7 9 11",
+    "13+": "3 #5 b7 9 11 13",
     "7": "3 5 b7",
     "7b5": "3 b5 b7",
+    "69": "1 3 5 6 b7 9",
     "7+": "3 #5 b7",
     "7b9": "3 5 b7 b9",
     "9": "4 5 b7 9",
@@ -441,8 +444,6 @@ CHORDS = {
     "mm9": "b3 5 7 9",
     "mm11": "b3 5 7 9 11",
     "mm13": "b3 5 7 9 11 13",
-    "q": "4 b7", # quartal
-    "qt": "5 9", # quintal
 
     # maj2
     "mu": "2 3 5",
@@ -473,9 +474,11 @@ CHORDS = {
     "sus3+": "2 3 5 6", # 1->3 cw
     "sus7": "4 5 b7", # 1->b7 ccw
     "sus7+": "2 5 6 7 9", # 1->7 cw
-    "sus6": "5 6 9",
+    "sus26": "5 6 9",
     "sus9": "4 5 9",
     "sus13": "4 5 9 13",
+    "q": "4 b7", # quartal voicing
+    "qt": "5 9", # quintal voicing
 }
 CHORDS_ALT = {
     "r": "1",
@@ -490,7 +493,7 @@ CHORDS_ALT = {
     "-": "m",
     "M": "ma",
     "sus4": "sus",
-    # "maor": "ma",
+    # "major": "maj",
     "ma7": "ma7",
     "ma9": "ma9",
     "lyd": "mab5",
@@ -504,7 +507,6 @@ CHORDS_ALT = {
     # "M7b5": "ma7b5",
     # "min": "m",
     # "minor": "m",
-    "-7": "m7",
     # "min7": "m7",
     # "minor7": "m7",
     "p": "pow",
@@ -524,6 +526,8 @@ CHORDS_ALT = {
 }
 # replace and keep the rest of the name
 CHORDS_REPLACE = OrderedDict([
+    ("#5", "+"),
+    ("aug", "+"),
     ("mmaj", "mm"),
     ("major", "ma"),
     ("M", "ma"),
@@ -531,7 +535,7 @@ CHORDS_REPLACE = OrderedDict([
     ("minor", "m"),
     ("min", "m"),
     ("dom", ""), # temp
-    ("-", "m"),
+    ("R", ""),
 ])
 
 # add scales as chords
@@ -728,6 +732,14 @@ def expand_chord(c):
             c=cr
             log(c)
             break
+
+    # - is shorthand for m in the index, but only at beginning and end
+    # ex: -7b5 -> m7b5, but mu-7 -> mum7 is invalid
+    # remember notes are not part of chord name here (C-7 -> Cm7 works)
+    if c.startswith('-'):
+        c = 'm' + c[1:]
+    if c.endswith('-'):
+        c = c[:-1] + 'm'
     return CHORDS[normalize_chord(c)].split(' ')
 
 def note_value(s): # turns dot note values (. and *) into frac
@@ -782,7 +794,7 @@ class Track:
         self.scale = None
         self.instrument = 0
         self.octave = 0 # rel to OCTAVE_BASE
-        self.mod = 0 # dont read in mod, just track its change by this channel
+        self.modval = 0 # dont read in mod, just track its change by this channel
         self.sustain = False # sustain everything?
         self.arp_notes = [] # list of notes to arpegiate
         self.arp_idx = 0
@@ -821,11 +833,17 @@ class Track:
             status = (MIDI_CC<<4) + ch
             if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
             self.player.write_short(status, 120, 0)
+            if self.modval>0:
+                ch.cc(1,0)
+                self.modval = False
     def panic(self):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
             if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
             self.player.write_short(status, 123, 0)
+            if self.modval>0:
+                ch.cc(1,0)
+                self.modval = False
     def note_on(self, n, v=-1, sustain=False):
         if self.use_sustain_pedal:
             if sustain and self.sustain != sustain:
@@ -871,7 +889,7 @@ class Track:
                     self.sustain_notes[n] = 0
                 # log("off " + unicode(n))
         # self.notes = [0] * RANGE
-        if self.mod>0:
+        if self.modval>0:
             self.cc(1,0)
         # self.arp_enabled = False
         self.schedule.clear_channel(self)
@@ -901,13 +919,17 @@ class Track:
             status = (MIDI_PITCH<<4) + self.midich
             if SHOWMIDI: log(FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2))
             self.player.write_short(status,val,val2)
+            self.mod(0)
     def cc(self, cc, val): # control change
         if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
             if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
             self.player.write_short(status,cc,val)
-        self.mod = val
+        if cc==1:
+            self.modval = val
+    def mod(self, val):
+        return cc(1,val)
     def patch(self, p, stackidx=0):
         if isinstance(p,basestring):
             # look up instrument string in GM
@@ -955,8 +977,10 @@ class Track:
         status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
         if SHOWMIDI: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
         self.player.write_short(status,p)
-    def arp(self, notes, count=0, sustain=False, pattern=[1]):
+    def arp(self, notes, count=0, sustain=False, pattern=[1], reverse=False):
         self.arp_enabled = True
+        if reverse:
+            notes = notes[::-1]
         self.arp_notes = notes
         self.arp_cycle_limit = count
         self.arp_cycle = count
@@ -967,7 +991,6 @@ class Track:
         self.arp_sustain = False
     def arp_stop(self):
         self.arp_enabled = False
-        self.arp_reverse = True
         self.release_all()
     def arp_next(self):
         assert self.arp_enabled
@@ -980,7 +1003,7 @@ class Track:
                     self.arp_enabled = False
         # increment according to pattern order
         self.arp_idx = (self.arp_idx+self.arp_pattern[self.arp_pattern_idx])%len(self.arp_notes)
-        self.arp_pattern_idx = (self.arp_pattern_idx+1) % len(self.arp_pattern)
+        self.arp_pattern_idx = (self.arp_pattern_idx + 1) % len(self.arp_pattern)
         self.arp_delay = (self.arp_note_spacing+1.0) % 1.0
         return (note, self.arp_delay)
     def tuplet_next(self):
@@ -1995,6 +2018,7 @@ while not QUITFLAG:
                                     addhigherroot = True
                                     break
                                 chordname += char
+                                addnotes = []
                                 try:
                                     # TODO: addchords
                                     
@@ -2015,7 +2039,10 @@ while not QUITFLAG:
                                                 nonotes.append(unicode(prefix)+unicode(num)) # ex: b5
                                                 break
                                           
-                                    # if 'add' in chordname:
+                                    if 'add' in chordname:
+                                        addtoks = chordname.split('add')
+                                        chordname = addtoks[0]
+                                        addnotes = addtoks[1:]
                                 except IndexError:
                                     log('chordname length ' + unicode(len(chordname)))
                                     pass # chordname length
@@ -2114,6 +2141,8 @@ while not QUITFLAG:
                                     chord_notes = chord_notes[::-1] + ['1']
                                 else:
                                     chord_notes = ['1'] + chord_notes
+
+                                chord_notes += addnotes # TODO: sort
                                 # slashnotes[0].append(n + chord_root - 1 - slashidx*12)
                                 # chordnameslist.append(chordname)
                                 # chordnoteslist.append(chord_notes)
@@ -2217,6 +2246,8 @@ while not QUITFLAG:
             delay = 0.0
             showtext = []
             arpnotes = False
+            arpreverse = False
+            arppattern = [1]
             duration = 0.0
 
             # if cell and cell[0]=='|':
@@ -2302,7 +2333,7 @@ while not QUITFLAG:
                     ch.octave = octave
                     # row_events += 1
                 # VIBRATO
-                elif cl>1 and cell.startswith('~'): # bend
+                elif cl>1 and cell.startswith('~'): # vib/pitch wheel
                     if c=='/' or c=='\\':
                         num,ct = peel_int_s(cell[2:])
                         num *= 1 if c=='/' else -1
@@ -2317,10 +2348,12 @@ while not QUITFLAG:
                             vel = min(127,int(curv + 0.5*(127.0-curv)))
                         cell = cell[ct+1:]
                         ch.pitch(vel)
-                elif c == '~': # vibrato -- eventually using pitch wheel
-                    ch.cc(1,127)
+                elif c == '~': # pitch wheel
+                    ch.pitch(127)
                     cell = cell[1:]
-                    # row_events += 1d
+                elif c == '`': # mod wheel
+                    ch.mod(127)
+                    cell = cell[1:]
                 # SUSTAIN
                 elif cell.startswith('__-'):
                     ch.mute()
@@ -2475,12 +2508,11 @@ while not QUITFLAG:
                 elif c=='&':
                     count = count_seq(cell)
                     num,ct = peel_uint(cell[count:],0)
-                    if count>=2:
-                        self.arp_reverse = True
                         # notes = list(itertools.chain.from_iterable(itertools.repeat(\
                         #     x, count) for x in notes\
                         # ))
                     cell = cell[ct+count:]
+                    if count>1: arpreverse = True
                     if not notes:
                         # & restarts arp (if no note)
                         ch.arp_enabled = True
@@ -2488,6 +2520,11 @@ while not QUITFLAG:
                         ch.arp_idx = 0
                     else:
                         arpnotes = True
+
+                    if cell.startswith(':'):
+                        num,ct = peel_uint(cell[1:],1)
+                        arppattern = [num]
+                        cell = cell[1+ct:]
                     if SHOWTEXT:
                         showtext.append('arpeggio(&)')
                 elif c=='t': # tuplet
@@ -2541,7 +2578,7 @@ while not QUITFLAG:
             p = base
             
             if arpnotes:
-                ch.arp(notes, num, sustain)
+                ch.arp(notes, num, sustain, arppattern, arpreverse)
                 arpnext = ch.arp_next()
                 notes = [arpnext[0]]
                 delay = arpnext[1]

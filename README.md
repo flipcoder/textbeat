@@ -20,7 +20,6 @@ computer would understand it: 3 notes across 3 separate channels: C,E,G.
 In Decadence, you can do it as a chord in 1 channel:
 You could choose to write it as "Cmaj".
 or since we're in the key of C, "1maj", "maj", "major", "M", or "I" would also work.
-In the event you have to write out notes individually, "C|E|G" or "1|3|5" work as well.
 
 Chord voicings can get complex and specific, and decadence's format prefers density,
 So you may find yourself writing voicings spanning octaves like this:
@@ -28,8 +27,8 @@ So you may find yourself writing voicings spanning octaves like this:
 maj7#4/sus2/1
 
 The above chord voicing spans 3 octaves and contains 9 notes.
-It is a Cmaj7 chord w/ an added #4. Then an octave below that, a Csus2.
-Then at the bottom, a C bass note.  Writing this in a tracker with 1 note per channel
+It is a Cmaj7 chord w/ an added #4, followed by a lower octave Csus2.
+Then at the bottom, there is a C bass note.  Writing this in a tracker with 1 note per channel
 would be difficult to read (at least to me).  As cryptic as it may seem to
 non-musicians, condensed chord voicings are going to make more sense to your ear
 over time than seeing random note letters fly by.
@@ -57,7 +56,7 @@ Decadence is a new project, but you can already do lots of cool things:
 - Arpeggiation
 - Tuplets and polyrhythms
 - CC automation
-- Vibrato
+- Vibrato, pitch, and mod wheels
 - Dynamics
 - Accents
 - Velocity
@@ -140,11 +139,12 @@ If you feed the MIDI into a DAW you'll be able to record the output through the 
     - midi channels exceeding max value will be multiplexed to different outputs
 - pc: program assign
     - Set program to a given number
-    - Global var (%) p is usually prefered for string matching
+- Global var (%) p is usually prefered for string matching
 - cc: control change (midi CC param)
     - setting CC5 to 25 would be c5:25
 - bs: bank select (not impl)
-- ~: vibrato, currently set to mod wheel
+- ~: vibrato and pitch wheel
+- `: mod wheel
 - ": repeat last cell (ignoring dots, blanks, mutes, modified repeats don't repeat)
 - *: set note length
     - defaults to one beat when used (default is hold until mute)

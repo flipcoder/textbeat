@@ -1,6 +1,8 @@
 #!/usr/bin/env python2
 from __future__ import unicode_literals, print_function, generators
-import os, sys, time, random, itertools, signal, sets, tempfile, traceback
+import os, sys, time, random, itertools, signal, tempfile, traceback
+from sets import Set, ImmutableSet
+from collections import OrderedDict
 import time, subprocess, pipes
 import pygame, pygame.midi as midi
 import colorama
@@ -41,6 +43,9 @@ except OSError:
 QUITFLAG = False
 class SignalError(BaseException):
     pass
+class ParseError(BaseException):
+    def __init__(self, s=''):
+        super(BaseException,self).__init__(s)
 def quitnow(signum,frame):
     raise SignalError()
 signal.signal(signal.SIGTERM, quitnow)
@@ -317,107 +322,217 @@ MODES = {
 for k,v in MODES.iteritems():
     SCALES[v[0]].add_mode(k,v[1])
 
-# for lookup, normalize name first, add root
-# number chords can't be used with note numbers
+# for lookup, normalize name first, add root to result
+# number chords can't be used with note numbers "C7 but not 17
 # in the future it might be good to lint chord names in a test
 # so that they dont clash with commands and break previous songs if chnaged
 # This will be replaced for a better parser
+# TODO: need optional notes marked
 CHORDS = {
-    # intervals that don't match hord names,
+    # relative intervals that don't clash with chord names
     # using these with numbered notation requires ':'
     "1": "",
+    "#1": "#1",
     "m2": "b2",
     "2": "2",
+    "#2": "#2",
+    "b3": "b3",
     "m3": "b3",
     "3": "3",
     "4": "4",
+    "#4": "#4",
+    "b5": "b5",
     "5": "5",
-    "i6": "6",
-    
+    "#5": "#5",
+    "b6": "b6",
+    "#5": "#5",
+    "p6": "6",
+    "p7": "7",
+    "b7": "b7",
+    "#6": "#6",
+    "#8": "#8",
+    "#9": "#9",
+    # "#11": "#11", # easy confusion with 11 chord
+
     # chords and voicings
-    "maj": "3 5",
-    "maj#4": "3 #4 5",
-    "majb5": "3 b5", # lydian chord
-    "maj7": "3 5 7",
-    "maj9": "3 5 7 9",
-    "maj7b5": "3 b5 7",
-    "maj7#4": "3 #4 5 7",
-    "maj9": "3 5 7 9",
-    "majadd9": "3 5 9",
-    "maj9b5": "3 b5 7 9",
+
+    "ma": "3 5",
+    "mab5": "3 b5", # lyd
+    "ma#4": "3 #4 5", # lydadd5
+    "ma6": "3 5 6",
+    "ma69": "3 5 6 9",
+    "ma769": "3 5 6 7 9",
+    "m69": "b3 5 6 9",
+    "ma7": "3 5 7",
+    "ma7#4": "3 #4 5 7", # lyd7add5
+    "ma7b5": "3 b5 7", # lyd7
+    "ma7b9": "3 5 7 b9",
+    "ma7b13": "3 5 7 9 11 b13",
+    "ma9": "3 5 7 9",
+    # "maadd9": "3 5 9",
+    "ma9b5": "3 b5 7 9",
+    "ma9+": "3 #5 7 9",
+    "ma#11": "3 b5 7 9 #11",
+    "ma11": "3 5 7 9 11",
+    "ma11b5": "3 b5 7 9 11",
+    "ma11+": "3 #5 7 9 11",
+    "ma11b13": "3 #5 7 9 11 b13",
+    # "maadd11": "3 5 11",
+    # "maadd#11": "3 5 #11",
+    "ma13": "3 5 7 9 11 13",
+    "ma13b5": "3 b5 7 9 11 13",
+    "ma13+": "3 #5 7 9 11 13",
+    "ma13#4": "3 #4 5 7 9 11 13",
     "m": "b3 5",
+    "m6": "b3 5 6",
     "m7": "b3 5 b7",
-    "m9": "b3 5 7 9",
-    "madd9": "3 b5 9",
-    "m7b5": "3b b5 7",
-    "m9b5": "b3 b5 7 9",
-    "+": "3 #5", # remove until fixed
-    "+7": "3 #5",
-    "dom7": "3 5 b7",
-    "dom7b5": "3 b5 b7",
+    "m69": "b3 5 6 9",
+    # "madd9": "3 b5 9",
+    "m7b5": "b3 b5 b7",
+    "m7+": "b3 #5 b7",
+    "m9": "b3 5 b7 9",
+    "m9+": "b3 #5 b7 9",
+    "m11": "b3 5 b7 9 11",
+    "m11+": "b3 #5 b7 9 11",
+    "m11b9": "b3 5 b7 b9 11",
+    "m11b13": "b3 5 b7 9 11 b13",
+    "m13b9": "3 5 b7 b9 13",
+    "m13#9": "3 5 b7 #9 13",
+    "m13b11": "3 5 b7 #9 b11 13",
+    "m13#11": "3 5 b7 #9 #11 13",
+    # "+": "3 #5",
+    # "7+": "3 #5 b7",
+    # "9+": "3 #5 b7 9",
+    # "11+": "3 #5 b7 9 11",
+    # "13+": "3 #5 b7 9 11 13",
+    "7": "3 5 b7",
+    "7b5": "3 b5 b7",
+    "7+": "3 #5 b7",
+    "7b9": "3 5 b7 b9",
+    "9": "4 5 b7 9",
+    "9b5": "4 b5 b7 9",
+    "9+": "4 #5 b7 9",
+    "9#11": "4 5 b7 9 #11",
+    "11": "4 5 b7 9 11",
+    "11b5": "4 b5 b7 9 11",
+    "11+": "4 #5 b7 9 11",
+    "11b9": "4 5 b7 b9 11",
+    "13": "4 5 b7 9 11 13",
+    "13b5": "4 b5 b7 9 11 13",
+    "13#11": "4 5 b7 9 #11 13",
+    "13+": "4 #5 b7 9 13",
     "dim": "b3 b5",
     "dim7": "b3 b5 bb7",
+    "dim9": "b3 b5 bb7 9",
+    "dim11": "b3 b5 bb7 9 11",
     "sus": "4 5",
     "sus2": "2 5",
-    "sus7": "4 5 7b",
-    # "o9sus": "1 3 ",
+    "sus2": "2 5",
     "6": "3 5 6",
     "9": "3 5 b7 9",
     "11": "3 5 b7 9 #11",
     "13": "3 5 7 9 11 13",
-    "maj13": "3 5 b7 9 13",
     "15": "3 5 b7 9 #11 #15",
+
+    # informal voicings
+    "f": "5",
     "pow": "5 8",
+    "mm7": "b3 5 7",
+    "mm9": "b3 5 7 9",
+    "mm11": "b3 5 7 9 11",
+    "mm13": "b3 5 7 9 11 13",
     "q": "4 b7", # quartal
     "qt": "5 9", # quintal
 
-    "mu": "2 3 5", # maj add2
+    # maj2
+    "mu": "2 3 5",
     "mu7": "2 3 5 7",
+    "mu7#4": "2 3 #4 5 7", # lyd7, 3sus2|sus2
     "mu-": "2 b3 5",
     "mu-7": "2 b3 5 7",
     "mu-7b5": "2 3 b5 7",
     "mu7b5": "2 3 b5 7",
-    "wu": "3 4 5", # majadd4
-    "wu7": "3 4 5 7", # maj7add4
+
+    # maj4
+    "wu": "3 4 5", # maadd4
+    "wu7": "3 4 5 7", # ma7add4
     "wu7b5": "2 3 b5 7",
     "wu-": "b3 4 5", # madd4
     "wu-7": "b3 4 5 7",
     "wu-7b5": "b3 4 b5 7",
+
+    # "edge" chords: play edges of scale shape along tone ladder (i.e. darkest and brightest notes of each whole tone scale)
+    "eg": "3 4 7", # diatonic scale edges (egb=phyr, egc=lyd, egd=loc)
+    "eg-": "2 b3 7", # melodic minor edge
+    "arp": "3 4 5 7", # diatonic edge w/ 5, for inversions use "|5", eg: egb|5
+    "melo": "2 b3 5 7", # eg- w/ 5, melodic minor arp
+
+    # extended sus, i.e. play contiguous notes along circle of 5ths
+    "sq": "2 4 5", # "square", sus2|4, sus both directions, contiguous ladder (4->2)
+    "sus3": "b3 4 5 b7", # 1->b3 ccw
+    "sus3+": "2 3 5 6", # 1->3 cw
+    "sus7": "4 5 b7", # 1->b7 ccw
+    "sus7+": "2 5 6 7 9", # 1->7 cw
+    "sus6": "5 6 9",
+    "sus9": "4 5 9",
+    "sus13": "4 5 9 13",
 }
 CHORDS_ALT = {
     "r": "1",
     "M2": "2",
     "M3": "3",
     "aug": "+",
+    "ma#5": "+",
+    "ma#5": "+",
     "aug7": "+7",
     "p4": "4",
     "p5": "5",
-    "M6": "i6",
     "-": "m",
-    "M": "maj",
+    "M": "ma",
     "sus4": "sus",
-    "major": "maj",
-    "ma7": "maj7",
-    "ma9": "maj9",
-    "Madd9": "majadd9",
-    "mdd9": "madd9",
-    "major7": "maj7",
-    "Mb5": "majb5",
-    "M7": "maj7",
-    "M7b5": "maj7b5",
-    "min": "m",
-    "minor": "m",
+    # "maor": "ma",
+    "ma7": "ma7",
+    "ma9": "ma9",
+    "lyd": "mab5",
+    "lyd7": "ma7b5",
+    "plyd": "ma#4",
+    "plyd7": "ma7#4",
+    # "Madd9": "maadd9",
+    # "maor7": "ma7",
+    "Mb5": "mab5",
+    # "M7": "ma7",
+    # "M7b5": "ma7b5",
+    # "min": "m",
+    # "minor": "m",
     "-7": "m7",
-    "min7": "m7",
-    "minor7": "m7",
-    "7": "dom7",
+    # "min7": "m7",
+    # "minor7": "m7",
     "p": "pow",
-    "11th": "11",
+    # "11th": "11",
     "o": "dim",
     "o7": "dim7",
     "7o": "dim7",
-    "dom7sus4": "sus7"
+    "o9": "dim9",
+    "9o": "dim9",
+    "o11": "dim11",
+    "11o": "dim11",
+    "sus24": "sq",
+    # "mma7": "mm7",
+    # "mma9": "mm9",
+    # "mma11": "mm11",
+    # "mma13": "mm13",
 }
+# replace and keep the rest of the name
+CHORDS_REPLACE = OrderedDict([
+    ("mmaj", "mm"),
+    ("major", "ma"),
+    ("M", "ma"),
+    ("maj", "ma"),
+    ("minor", "m"),
+    ("min", "m"),
+    ("dom", ""), # temp
+    ("-", "m"),
+])
 
 # add scales as chords
 for sclname, scl in SCALES.iteritems():
@@ -607,6 +722,12 @@ def expand_chord(c):
     #     r = random.choice(CHORDS.values())
     #     log(r)
     #     return r
+    for k,v in CHORDS_REPLACE.iteritems():
+        cr = c.replace(k,v)
+        if cr != c:
+            c=cr
+            log(c)
+            break
     return CHORDS[normalize_chord(c)].split(' ')
 
 def note_value(s): # turns dot note values (. and *) into frac
@@ -643,6 +764,7 @@ MIDI_PROGRAM = 0b1100
 MIDI_PITCH = 0b1110
 
 class Track:
+    FLAGS = Set('auto_roman')
     def __init__(self, idx, midich, player, schedule):
         self.idx = idx
         # self.players = [player]
@@ -682,15 +804,17 @@ class Track:
         self.tuplets = False
         self.note_spacing = 1.0
         self.tuplet_count = 0
-        self.tuplet_offset = 0.0 
+        self.tuplet_offset = 0.0
         self.use_sustain_pedal = False # whether to use midi sustain instead of track
         self.sustain_pedal_state = False # current midi pedal state
         self.schedule.clear_channel(self)
-        self.flags = sets.Set()
+        self.flags = Set()
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in xrange(16)]), lambda x: x[1])
     def add_flags(self, f):
+        if f != f & FLAGS:
+            raise ParseError('invalid flags')
         self.flags |= f
     def mute(self):
         for ch in self.channels:
@@ -1705,8 +1829,8 @@ while not QUITFLAG:
                     # try to get roman numberal or number
                     c,ct = peel_roman_s(tok)
                     ambiguous = 0
-                    ambiguous += tok.lower().startswith('ion')
-                    ambiguous += tok.lower().startswith('dor')
+                    for amb in ('ion','dor','dom'): # I dim or D dim conflict w/ ionian and dorian
+                        ambiguous += tok.lower().startswith(amb)
                     if ct and not ambiguous:
                         lower = (c.lower()==c)
                         c = ['','i','ii','iii','iv','v','vi','vii','viii','ix','x','xi','xii'].index(c.lower())
@@ -1787,7 +1911,7 @@ while not QUITFLAG:
                         
                         # number_notes = not roman
                         
-                        if tok and tok[0]==':':
+                        if tok and tok[0]==':': # currently broken? wrong notes
                             tok = tok[1:] # allow chord sep
                             if not expanded: cell = cell[1:]
                         
@@ -1890,6 +2014,8 @@ while not QUITFLAG:
                                                 chordname = chordname[:-2] # cut "no
                                                 nonotes.append(unicode(prefix)+unicode(num)) # ex: b5
                                                 break
+                                          
+                                    # if 'add' in chordname:
                                 except IndexError:
                                     log('chordname length ' + unicode(len(chordname)))
                                     pass # chordname length
@@ -1967,8 +2093,8 @@ while not QUITFLAG:
                                             chord_note_count = len(chord_notes) # + 1 for root
                                             expanded = True
                                             try:
-                                                tok = tok[cut-1:] 
-                                                cell = cell[cut-1:] 
+                                                tok = tok[cut-1:]
+                                                cell = cell[cut-1:]
                                                 is_chord = True
                                             except:
                                                 assert False
@@ -2297,15 +2423,14 @@ while not QUITFLAG:
                         cell = cell[dots:]
                     if SHOWTEXT:
                         showtext.append('shorten(.)')
-                elif c==')': # note delay
+                elif c=='(' or c==')': # note shift (early/delay)
                     num = ''
                     cell = cell[1:]
                     s,ct = peel_uint(cell, 5)
                     if ct:
                         cell = cell[ct:]
-                    delay = float('0.'+num) if num else 0.5
-                    if SHOWTEXT:
-                        showtext.append('delay(.)')
+                    delay = -1*(c=='(')*float('0.'+num) if num else 0.5
+                    assert(delay > 0.0) # TOOD: impl early notes
                 elif c=='|':
                     cell = cell[1:] # ignore
                 elif c2=='!!': # loud accent

@@ -5,7 +5,8 @@ Open-source under MIT License (see LICENSE file for information)
 
 Copyright (c) 2018 Grady O'Connell
 
-Vim integration: [vim-decadence](https://github.com/flipcoder/vim-decadence)
+- [Project Board](https://trello.com/b/S8AsJaaA/decadence)
+- Vim integration: [vim-decadence](https://github.com/flipcoder/vim-decadence)
 
 # Overview
 

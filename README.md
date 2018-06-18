@@ -1,7 +1,8 @@
 # Decadence
 Plaintext music tracker and midi shell w/ Vim integration >:)
-
 Open-source under MIT License (see LICENSE file for information)
+
+![Decadence](https://imgur.com/N3yNWyJl.png)
 
 Copyright (c) 2018 Grady O'Connell
 
@@ -77,6 +78,7 @@ For windows, you'll need a virtual midi driver, such as [loopMIDI](http://www.to
 If you're on Linux, you can use soundfonts through qsynth or use a software instrument like helm or dexed.  VSTs should work here as well.
 
 If you feed the MIDI into a DAW you'll be able to record the output through the DAW itself.
+I'm currently looking into recording via a headless host.
 
 # Command line parameters (use -):
 
@@ -85,13 +87,13 @@ If you feed the MIDI into a DAW you'll be able to record the output through the 
 - (filename): plays file
 - c: play a given sequence
     - Passing "1 2 3 4 5" would play those note one after another
-- l: play a multi-channel line
-    - Not too useful w/o file context atm
+- l: play a single line from the file
+    - Not too useful yet, since it doesn't parse context
 - +: play range, comma-separated (+start,end)
     - Line numbers and marker names work
-- t: start tempo
-- x: start grid
-- n: start note value
+- t: tempo
+- x: grid
+- n: note value
 - c: columns
     - specify width and optional shift, instead of using auto-detect
     - positive shift values create a "gutter" to the left

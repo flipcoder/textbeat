@@ -231,19 +231,19 @@ You can mute all notes in a track with -
 To control releasing of notes, use dash (-).  The period (.) is simply a placeholder, so notes continue to be played through them.
 ```
 
-; 1 beat and then mute
+; hold note 1 until next note (dots aren't notes, just empty placeholders for example)
 1
 .
 .
 .
 
-; OR auto-mute with note value (*):
+; auto-mute by specifying note value (*):
 1*
 .
 .
 .
  
-; long note
+; manually mute with '-'
 1
 .
 .
@@ -285,8 +285,7 @@ A (-) character will then mute them all.
 
 ## Chord
 
-You can choose to play notes separately in tracks, or use chords to put all
-the notes in a single track.
+You can play notes individually or use chord names.
 
 Let's play a scale with some chords:
 
@@ -345,9 +344,8 @@ Interpolation not yet impl
 
 # Articulation
 
-Tilda(~) is another command, but sets mod wheel value
-It is intended to be used for vibrato.
-Vibrato functionality will change to pitch wheel oscillation in the future
+Tilda(~) does vibrato.
+Vibrato uses the mod wheel right now, but will eventually use pitch wheel oscillation.
 
 # Tracks
 
@@ -362,6 +360,7 @@ Columns are separate tracks, line them up for more than one instrument
 .    5'
 .    1'2
 ```
+
 # Markers
 
 still working on this feature, almost ready
@@ -376,8 +375,6 @@ still working on this feature, almost ready
 Repeat counting, callstack, etc. coming shortly.  Code almost done.
 
 # Tuplets
-
-(Almost fully implemented)
 
 Very early support for this. See tuplet.dc example.
 The 't' command spreads a set of notes across a tuplet grid,

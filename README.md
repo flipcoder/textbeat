@@ -19,8 +19,6 @@ The file format is vertical and column-based, similar to early music trackers, b
 with some modern features to make it more accessible and readable by musicians.
 The format is intended to be dense but readable once learned.
 
-# Difference with Trackers
-
 In a traditional tracker, individual notes would take place over multiple
 channels.  For instance, a C major chord would be specified in a way a
 computer would understand it: 3 notes across 3 separate channels: C,E,G.

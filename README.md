@@ -1,5 +1,7 @@
 # Decadence
-Plaintext music tracker and midi shell w/ Vim integration >:)
+Plaintext music tracker and midi shell.
+Write music in vim or your favorite text editor.
+
 Open-source under MIT License (see LICENSE file for information)
 
 ![Decadence](https://imgur.com/N3yNWyJl.png)
@@ -12,37 +14,46 @@ Copyright (c) 2018 Grady O'Connell
 # Overview
 
 Compose music in a plaintext format or type music directly in the shell.
-The format is vertical and column-based, similar to early music trackers, but
+The file format is vertical and column-based, similar to early music trackers, but
 with some modern features to make it more accessible and readable by musicians.
 The format is intended to be dense but readable once learned.
+
+# Difference with Trackers
 
 In a traditional tracker, individual notes would take place over multiple
 channels.  For instance, a C major chord would be specified in a way a
 computer would understand it: 3 notes across 3 separate channels: C,E,G.
-In Decadence, you can do it as a chord in 1 channel:
-You could choose to write it as "Cmaj".
-or since we're in the key of C, "1maj", "maj", "major", "M", or "I" would also work.
+In Decadence, you can write it in a single channel as a chord.
+You may choose to write it as "Cmaj".
+or since we're in the key of C, "1maj", "ma", "maj", "major", "M", or "I" would also work.
 
-Chord voicings can get complex and specific, and decadence's format prefers density,
-So you may find yourself writing voicings spanning octaves like this:
+Unlike with humans, chord voicings need to be specific for parsing, even if they're complex.
+
+So, you may find yourself writing a huge voicing spanning octaves like this:
 
 maj7#4/sus2/1
 
+(same thing with note names: Cmaj7#4/Csus2/C)
+
 The above chord voicing spans 3 octaves and contains 9 notes.
 It is a Cmaj7 chord w/ an added #4, followed by a lower octave Csus2.
-Then at the bottom, there is a C bass note.  Writing this in a tracker with 1 note per channel
-would be difficult to read (at least to me).  As cryptic as it may seem to
-non-musicians, condensed chord voicings are going to make more sense to your ear
-over time than seeing random note letters fly by.
+Then at the bottom, there is a C bass note.  Writing this in a tracker with 1 note per channel,
+or even in piano roll, is difficult to read and understand (at least to me).
+As cryptic as it may seem to non-musicians, condensed chord voicings are going
+to make more sense to your ear over time than seeing random note letters fly by.
+To build an association between the chords and how they sound, run decadence and type
+them in the shell.
+
+I'm a fan of thinking about music and chords in a relative way that is not dependent on key.
 For this reason, decadence prefers numbered note notation and key note transposition
-over arbitrary note names (even though both are valid). 
-If no number prefix is given, like in this example, it is always 1, and unless we tranpose, that means C.
+over arbitrary note names (even though both are valid).
+If no number prefix is given, like in the above examples, it is always 1, and unless we tranpose, that means C.
 
 Note to musicians: There are a few quirks with the parser that make the chord interpretation different than
 what musicians would expect.  For example, slash chords do not imply inversions,
 but are for stacking across octaves.  Additionally, note names do no imply chords.
 For example, C/E means play a C note with an E in a lower octave, whereas a musician might
-interpret this as a specific chord voicing.  (Inversions use jazz letter suffix or shift operator (majb or maj>))
+interpret this as a specific chord voicing.  (Inversions use shift operator (maj>))
 
 # Why?
 
@@ -71,7 +82,8 @@ Decadence is a new project, but you can already do lots of cool things:
 
 # Setup
 
-You can use this with General Midi out-of-the-box on windows but who wants to write music like that?  We need VSTs!
+You can use this with General Midi out-of-the-box on windows, which is great for learning,
+but who wants to write music like that?  We need VSTs!
 
 For windows, you'll need a virtual midi driver, such as [loopMIDI](http://www.tobias-erichsen.de/software/loopmidi.html) and a VST host or DAW.
 
@@ -110,22 +122,23 @@ I'm currently looking into recording via a headless host.
 # Global commands:
 
 ```
-- %: set vars
+- %: set var (ex. %P=piano T=120x2 S=dorian)
+    - R: set scale (relative)
+        - Names and numbers supported
+    - S: set scale (parallel)
+        - Names and numbers supported
+    - P: set patch(s) across channels (comma-separated)
+        - Matches GM midi names
+        - Supports midi patch numbers
+        - General MIDI name matching
 - ;: comment
 - :: set marker (requires name)
 - @: go back to last marker, or start
 - @@: pop mark, go back to last area
 - @start: return to start
 - @end: end song
-- R: set scale (relative)
-    - Scale and mode names suppored
-- S: set scale (parallel)
-    - Scale and mode names suppored
-- P: set patch(s) across channels (comma-separated)
-    - Matches GM midi names
-    - Supports midi patch numbers
-    - General MIDI name matching
-```
+
+Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
 
 # Track commands
 
@@ -137,12 +150,14 @@ I'm currently looking into recording via a headless host.
     - number provided for octave count, default 1 (,,,)
     - for octave shift to persist, use a number instead of repeats (,3)
 - >: inversion (repeatable)
+    - future: will be moved from track commands to chord parser
 - <: lower inversion (repeatable)
+    - future: will be moved from track commands to chord parser
 - ch: assign track to a midi channel
-    - midi channels exceeding max value will be multiplexed to different outputs
+    - midi channels exceeding max value will be spanned across outputs
 - pc: program assign
     - Set program to a given number
-- Global var (%) p is usually prefered for string matching
+    - Global var (%) p is usually prefered for string matching
 - cc: control change (midi CC param)
     - setting CC5 to 25 would be c5:25
 - bs: bank select (not impl)
@@ -174,10 +189,21 @@ I'm currently looking into recording via a headless host.
     - plays the chord in a sequence, held by default
     - notes automatically fit into 1 grid beat
 
-Note: Percentage values specified are formated like numbers after a decimal point:
+Note: Fractional values specified are formated like numbers after a decimal point:
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
 
 ```
+# Chord Parsing
+
+```
+- /: slash: layer chords across octaves (note: different from music theory interpretation)
+    - repeat slash for multiple octaves (ex. maj//1)
+- add (suffix), add note to chord (ex. maj7add11)
+- no (suffix): remove a note by number
+- |: stack: combines chords/notes manually (ex. maj|sus|#11) (not yet impl)
+- < or >: inversion suffix, repeatable (ex. maj>> means 5 1' 3' or G C' E')
+```
+
 # The Basics
 
 If you're familiar with trackers, you may pick this up quite easily.
@@ -251,9 +277,11 @@ To control releasing of notes, use dash (-).  The period (.) is simply a placeho
 
 ```
 
-Note durations can be controlled by adding * to increase value by powers of two, 
-You can also add a fractional component to multiply this.
+Note durations can be manually controlled by adding * to increase value by powers of two, 
+You can also add a fractional value to multiply this.  These types of fraction
+values are used throughout decadence.
 The opposite of this is the dot (.) which halves note values
+
 
 ```
 ; set note based on percentage (this means 30%)
@@ -268,8 +296,7 @@ The opposite of this is the dot (.) which halves note values
 ; etc...
 ```
 
-
-Notes that are played in the same track as other notes mute previous notes.
+Notes that are played in the same track as other notes mute the previous notes.
 In order to overide this, hold a note by suffixing it with underscore (_).
 
 A (-) character will then mute them all.
@@ -310,19 +337,34 @@ Chords can be walked if they are suffixed by '&'
 Be sure to rest in your song long enough to hear it cycle.
 
 ```
-1maj&
+maj&
 .
 .
 .
 ```
 
 After the &, you can put a number to denote the number of cycles.
-By default, it cycles infinitely until muted
+By default, it cycles infinitely until muted (or until the song ends)
 
-The dollar sign is similar, but walks an entire chord or scale within a single grid space:
+The dollar sign is similar, but walks an entire set of notes within a single grid space:
 ```
-ionian$
+maj$
 ```
+Scales and modes are also accessible the same way:
+
+```
+dorian$
+```
+
+To strum, use the hold (_) symbol with this.
+
+```
+maj$_
+```
+
+# Accents
+
+Use a ! or ? to accent or soften a note respectively.
 
 # Velocity and Gain/Volume
 
@@ -347,6 +389,8 @@ Interpolation not yet impl
 Tilda(~) does vibrato.
 Vibrato uses the mod wheel right now, but will eventually use pitch wheel oscillation.
 
+In the future, articulation will be programmable, per-track or per-song.
+
 # Tracks
 
 Columns are separate tracks, line them up for more than one instrument
@@ -358,12 +402,12 @@ Columns are separate tracks, line them up for more than one instrument
 .    1'
 .    4'
 .    5'
-.    1'2
+.    1''
 ```
 
 # Markers
 
-still working on this feature, almost ready
+Still working on this feature, it might be broken
 
 ':' sets marker and '@' loops to it.
 
@@ -400,7 +444,12 @@ Consider the 2 tracks:
 ```
 
 The spacing is not even between the sets, but the 't' value stretches them
-to make them even in a default ratio of 3:4
+to make them line up in a default ratio of 3:4.
+
+# What else?
+
+I'm improving this faster than I'm documenting it.  Because of that, not everything is explained.
+If you've got python chops, you peak in the code to get an idea on the upcoming features.
 
 # What's the plan?
 
@@ -426,9 +475,12 @@ Features I'm adding eventually:
 - Midi input chord analysis
 ```
 
-I may eventually rewrite this in C++ to achieve better speed.
-I'll make use of python's multiprocessing and possibly
-separate processes to achieve as much as I can do for timing critical stuff.
+I'll be making use of python's multiprocessing or
+separate processes to achieve as much as I can do for timing critical stuff
+without doing a C++ rewrite.
 
->:)
+# Can I Help?
+
+Yes!  Feel free to send [flipcoder](https://github.com/flipcoder) a message if you
+have any questions.  If enough interest, I'll set up a chat.
 

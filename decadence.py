@@ -1,4 +1,8 @@
 #!/usr/bin/env python2
+"""decadence
+Copyright (c) 2018 Grady O'Connell
+Open-source under MIT License
+"""
 from __future__ import unicode_literals, print_function, generators
 import os, sys, time, random, itertools, signal, tempfile, traceback
 from sets import Set, ImmutableSet
@@ -29,8 +33,7 @@ style = style_from_dict({
 })
 
 APPNAME = 'decadence'
-APPAUTHOR = 'flipcoder'
-DIR = appdirs.AppDirs(APPNAME,APPAUTHOR)
+DIR = appdirs.AppDirs(APPNAME)
 # LOG_FN = os.path.join(DIR.user_log_dir,'.log')
 HISTORY_FN = os.path.join(DIR.user_config_dir, '.history')
 HISTORY = FileHistory(HISTORY_FN)
@@ -730,7 +733,7 @@ def expand_chord(c):
         cr = c.replace(k,v)
         if cr != c:
             c=cr
-            log(c)
+            # log(c)
             break
 
     # - is shorthand for m in the index, but only at beginning and end
@@ -1688,7 +1691,7 @@ while not QUITFLAG:
             # cells = cells[-1*min(0,COLUMN_SHIFT):] # create gutter (if negative shift)
             # separate into chunks based on column width
             cells = [cells[i:i + COLUMNS] for i in xrange(0, len(cells), COLUMNS)]
-            log(cells)
+            # log(cells)
         elif not SEPARATORS:
             # AUTOGENERATE CELL SEPARATORS
             cells = fullline.split(' ')

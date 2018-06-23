@@ -482,6 +482,5 @@ without doing a C++ rewrite.
 
 # Can I Help?
 
-Yes!  Feel free to send [flipcoder](https://github.com/flipcoder) a message if you
-have any questions.  If enough interest, I'll set up a chat.
+Yes!  Join the [chat](https://gitter.im/flipcoder/decadence) or contact [flipcoder](https://github.com/flipcoder).
 

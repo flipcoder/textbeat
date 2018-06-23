@@ -1084,7 +1084,7 @@ class Schedule:
                 time.sleep(slp)
             self.passed = 0.0
             self.events = self.events[processed:]
-        except KeyboardInterrupt, ex:
+        except KeyboardInterrupt as ex:
             # don't replay events
             self.events = self.events[processed:]
             raise ex
@@ -2111,7 +2111,7 @@ while not QUITFLAG:
                                     tok = ""
                                     cell = cell[cut:]
                                     is_chord = True
-                                except KeyError, e:
+                                except KeyError as e:
                                     # may have grabbed a ctrl char, pop one
                                     if len(chord_notes)>1: # can pop?
                                         try:

@@ -3,3 +3,4 @@ colorama
 numpy
 ctcsound
 prompt_toolkit
+appdirs

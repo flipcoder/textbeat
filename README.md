@@ -328,7 +328,7 @@ Let's play a scale with some chords:
 1maj'
 ```
 
-There are lots of chords and voicing (check config/def.yaml) and I'll be adding a lot more.
+There are lots of chords and voicings (check config/def.yaml) and I'll be adding a lot more.
 All scales and modes are usable as chords, so arpeggiation and strumming is usable with those as well.
 
 # Arpeggios and Strumming

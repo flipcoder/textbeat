@@ -5,13 +5,17 @@ Open-source under MIT License
 """
 from __future__ import unicode_literals, print_function, generators
 import os, sys, time, random, itertools, signal, tempfile, traceback
-from sets import Set, ImmutableSet
+# from sets import ImmutableSet
+import yaml
 from collections import OrderedDict
 import time, subprocess, pipes
 import pygame, pygame.midi as midi
 import colorama
 from multiprocessing import Process,Pipe
 import appdirs
+
+from src import *
+
 # import pyeditline
 # import pyeditline as readline
 # import pykka
@@ -37,6 +41,8 @@ DIR = appdirs.AppDirs(APPNAME)
 # LOG_FN = os.path.join(DIR.user_log_dir,'.log')
 HISTORY_FN = os.path.join(DIR.user_config_dir, '.history')
 HISTORY = FileHistory(HISTORY_FN)
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+CFG_PATH = os.path.join(SCRIPT_PATH, 'config')
 try:
     os.makedirs(DIR.user_config_dir)
 except OSError:
@@ -134,47 +140,18 @@ def log(msg):
     if PRINT:
         print(msg)
 
+def load_cfg(fn):
+    with file(os.path.join(CFG_PATH, fn+'.yaml'),'r') as y:
+        return yaml.safe_load(y)
+
 VERSION = '0.1'
 NUM_TRACKS = 15 # skip drum channel
 NUM_CHANNELS_PER_DEVICE = 15 # "
 TRACKS_ACTIVE = 1
 DRUM_CHANNEL = 9
-EPSILON = 0.0001
 SHOWMIDI = False
 DRUM_OCTAVE = -2
 random.seed()
-
-def cmp(a,b):
-    return bool(a>b) - bool(a<b)
-def sgn(a):
-    return bool(a>0) - bool(a<0)
-def orr(a,b,bad=False):
-    return a if (bool(a)!=bad if bad==False else a) else b
-def indexor(a,i,d=None):
-    try:
-        return a[i]
-    except:
-        return d
-class Wrapper:
-    def __init__(self, value=None):
-        self.value = value
-    def __len__(self):
-        return len(self.value)
-
-def fcmp(a, b=0.0, ep=EPSILON):
-    v = a - b
-    av = abs(v)
-    if av > EPSILON:
-        return sgn(v)
-    return 0
-def feq(a, b=0.0, ep=EPSILON):
-    return not fcmp(a,b,ep)
-def fzero(a,ep=EPSILON):
-    return 0==fcmp(a,0.0,ep)
-def fsnap(a,b,ep=EPSILON):
-    return a if fcmp(a,b) else b
-def forr(a,b,bad=False):
-    return a if (fcmp(a) if bad==False else a) else b
 
 FLATS=False
 NOTENAMES=True # show note names instead of numbers
@@ -238,295 +215,31 @@ class Scale:
                 return self.name + " mode " + unicode(idx)
         return m
 
-DIATONIC = Scale('diatonic', '2212221')
-SCALES = {
-    'chromatic': Scale('chromatic', '1'*12),
-    'wholetone': Scale('wholetone', '2'*6),
-    'diatonic': DIATONIC,
-    'bebop': Scale('bebop', '2212p121'),
-    'pentatonic': Scale('pentatonic', '23223'),
-    'blues': Scale('blues', '32p132'),
-    'melodicminor': Scale('melodicminor', '2122221'),
-    'harmonicminor': Scale('harmonicminor', '2122132'),
-    'harmonicmajor': Scale('harmonicmajor', '2212131'),
-    'doubleharmonic': Scale('doubleharmonic', '1312131'),
-    'neapolitan': Scale('neapolitan', '1222221'),
-    'neapolitanminor': Scale('neapolitanminor', '1222131'),
-}
-# modes and scale aliases
-MODES = {
-    'ionian': ('diatonic',1),
-    'dorian': ('diatonic',2),
-    'phyrigian': ('diatonic',3),
-    'lydian': ('diatonic',4),
-    'mixolydian': ('diatonic',5),
-    'aeolian': ('diatonic',6),
-    'locrian': ('diatonic',7),
+DEFS = load_cfg('def')
+SCALES = {}
+MODES = {}
+for k,v in DEFS['scales'].iteritems():
+    scale = SCALES[k] = Scale(k, v['intervals'])
+    i = 1
+    scaleinfo = DEFS['scales'][k]
+    if 'modes' in scaleinfo:
+        for scalename in scaleinfo['modes']:
+            MODES[scalename] = (k,i)
+            SCALES[k].add_mode(scalename,i)
+            i += 1
+    else:
+        MODES[k] = (k,1)
 
-    'blues': ('blues',1),
-    'bebop': ('bebop',1),
-    'wholetone': ('wholetone',1),
-    'chromatic': ('chromatic',1),
-
-    'yo': ('pentatonic', 1),
-    'minorpentatonic': ('pentatonic', 2),
-    'majorpentatonic': ('pentatonic', 3),
-    'egyption': ('pentatonic', 4),
-    'mangong': ('pentatonic', 5),
-
-    'harmonicminor': ('harmonicminor',1),
-    'locriann6': ('harmonicminor',2),
-    'ionianaug#5': ('harmonicminor',3),
-    'dorian#4': ('harmonicminor',4),
-    'phyrigianminor': ('harmonicminor',5),
-    'lydian#9': ('harmonicminor',6),
-    'alteredbb7': ('harmonicminor',7),
-
-    'harmonicmajor': ('harmonicmajor',1),
-    'dorianb5': ('harmonicmajor',2),
-    'phyrgianb4': ('harmonicmajor',3),
-    'lydianb3': ('harmonicmajor',4),
-    'mixolydianb2': ('harmonicmajor',5),
-    'lydianaug#2': ('harmonicmajor',6),
-    'locrianbb7': ('harmonicmajor',7),
-
-    'melodicminor': ('melodicminor',1),
-    'dorianb2': ('melodicminor',2),
-    'lydianaug': ('melodicminor',3),
-    'mixolydian#11': ('melodicminor',4),
-    'mixolydianb2': ('melodicminor',5),
-    'locriann2': ('melodicminor',6),
-    'altered': ('melodicminor',7), # superlocrian
-
-    'doubleharmonic': ('doubleharmonic',1),
-    'lydian#2#6': ('doubleharmonic',2),
-    'ultraphyrigian': ('doubleharmonic',3),
-    'hungarianminor': ('doubleharmonic',4),
-    'oriental': ('doubleharmonic',5),
-    'ionianaug': ('doubleharmonic',6),
-    'locrianbb3bb7': ('doubleharmonic',7),
-
-    'neapolitan': ('neapolitan',1),
-    'leadingwholetone': ('neapolitan',2),
-    'lydianaugdom': ('neapolitan',3),
-    'minorlydian': ('neapolitan',4),
-    'arabian': ('neapolitan',5),
-    'semilocrianb4': ('neapolitan',6),
-    'superlocrianbb3': ('neapolitan',7),
-
-    'neapolitanminor': ('neapolitanminor',1),
-    'lydian#6': ('neapolitanminor',2),
-    'mixolydianaug': ('neapolitanminor',3),
-    'hungariangypsy': ('neapolitanminor',4),
-    'locriandom': ('neapolitanminor',5),
-    'ionain#2': ('neapolitanminor',6),
-    'ultralocrianbb3': ('neapolitanminor',7),
-}
-for k,v in MODES.iteritems():
-    SCALES[v[0]].add_mode(k,v[1])
-
+DIATONIC = SCALES['diatonic']
 # for lookup, normalize name first, add root to result
 # number chords can't be used with note numbers "C7 but not 17
 # in the future it might be good to lint chord names in a test
 # so that they dont clash with commands and break previous songs if chnaged
 # This will be replaced for a better parser
 # TODO: need optional notes marked
-CHORDS = {
-    # relative intervals that don't clash with chord names
-    # using these with numbered notation requires ':'
-    "1": "",
-    "#1": "#1",
-    "m2": "b2",
-    "2": "2",
-    "#2": "#2",
-    "b3": "b3",
-    "m3": "b3",
-    "3": "3",
-    "4": "4",
-    "#4": "#4",
-    "b5": "b5",
-    "5": "5",
-    "#5": "#5",
-    "b6": "b6",
-    "#5": "#5",
-    "p6": "6",
-    "p7": "7",
-    "b7": "b7",
-    "#6": "#6",
-    "#8": "#8",
-    "#9": "#9",
-    # "#11": "#11", # easy confusion with 11 chord
-
-    # chords and voicings
-
-    "ma": "3 5",
-    "mab5": "3 b5", # lyd
-    "ma#4": "3 #4 5", # lydadd5
-    "ma6": "3 5 6",
-    "ma69": "3 5 6 9",
-    "ma769": "3 5 6 7 9",
-    "m69": "b3 5 6 9",
-    "ma7": "3 5 7",
-    "ma7#4": "3 #4 5 7", # lyd7add5
-    "ma7b5": "3 b5 7", # lyd7
-    "ma7b9": "3 5 7 b9",
-    "ma7b13": "3 5 7 9 11 b13",
-    "ma9": "3 5 7 9",
-    # "maadd9": "3 5 9",
-    "ma9b5": "3 b5 7 9",
-    "ma9+": "3 #5 7 9",
-    "ma#11": "3 b5 7 9 #11",
-    "ma11": "3 5 7 9 11",
-    "ma11b5": "3 b5 7 9 11",
-    "ma11+": "3 #5 7 9 11",
-    "ma11b13": "3 #5 7 9 11 b13",
-    # "maadd11": "3 5 11",
-    # "maadd#11": "3 5 #11",
-    "ma13": "3 5 7 9 11 13",
-    "ma13b5": "3 b5 7 9 11 13",
-    "ma13+": "3 #5 7 9 11 13",
-    "ma13#4": "3 #4 5 7 9 11 13",
-    "m": "b3 5",
-    "m6": "b3 5 6",
-    "m7": "b3 5 b7",
-    "m69": "b3 5 6 9",
-    "m769": "b3 5 6 7 9",
-    # "madd9": "3 b5 9",
-    "m7b5": "b3 b5 b7",
-    "m7+": "b3 #5 b7",
-    "m9": "b3 5 b7 9",
-    "m9+": "b3 #5 b7 9",
-    "m11": "b3 5 b7 9 11",
-    "m11+": "b3 #5 b7 9 11",
-    "m11b9": "b3 5 b7 b9 11",
-    "m11b13": "b3 5 b7 9 11 b13",
-    "m13": "b3 5 b7 9 11 13",
-    "m13b9": "3 5 b7 b9 11 13",
-    "m13#9": "3 5 b7 #9 11 13",
-    "m13b11": "3 5 b7 #9 b11 13",
-    "m13#11": "3 5 b7 #9 #11 13",
-    "+": "3 #5",
-    "7+": "3 #5 b7",
-    "9+": "3 #5 b7 9",
-    "11+": "3 #5 b7 9 11",
-    "13+": "3 #5 b7 9 11 13",
-    "7": "3 5 b7",
-    "7b5": "3 b5 b7",
-    "69": "3 5 6 b7 9",
-    "7+": "3 #5 b7",
-    "7b9": "3 5 b7 b9",
-    "9": "4 5 b7 9",
-    "9b5": "4 b5 b7 9",
-    "9+": "4 #5 b7 9",
-    "9#11": "4 5 b7 9 #11",
-    "11": "4 5 b7 9 11",
-    "11b5": "4 b5 b7 9 11",
-    "11+": "4 #5 b7 9 11",
-    "11b9": "4 5 b7 b9 11",
-    "13": "4 5 b7 9 11 13",
-    "13b5": "4 b5 b7 9 11 13",
-    "13#11": "4 5 b7 9 #11 13",
-    "13+": "4 #5 b7 9 13",
-    "dim": "b3 b5",
-    "dim7": "b3 b5 bb7",
-    "dim9": "b3 b5 bb7 9",
-    "dim11": "b3 b5 bb7 9 11",
-    "sus": "4 5",
-    "sus2": "2 5",
-    "sus2": "2 5",
-    "6": "3 5 6",
-    "9": "3 5 b7 9",
-    "11": "3 5 b7 9 #11",
-    "13": "3 5 7 9 11 13",
-    "15": "3 5 b7 9 #11 #15",
-
-    # informal voicings
-    "f": "5",
-    "pow": "5 8",
-    "mm7": "b3 5 7",
-    "mm9": "b3 5 7 9",
-    "mm11": "b3 5 7 9 11",
-    "mm13": "b3 5 7 9 11 13",
-
-    # maj2
-    "mu": "2 3 5",
-    "mu7": "2 3 5 7",
-    "mu7#4": "2 3 #4 5 7", # lyd7, 3sus2|sus2
-    "mu-": "2 b3 5",
-    "mu-7": "2 b3 5 7",
-    "mu-7b5": "2 3 b5 7",
-    "mu7b5": "2 3 b5 7",
-
-    # maj4
-    "wu": "3 4 5", # maadd4
-    "wu7": "3 4 5 7", # ma7add4
-    "wu7b5": "2 3 b5 7",
-    "wu-": "b3 4 5", # madd4
-    "wu-7": "b3 4 5 7",
-    "wu-7b5": "b3 4 b5 7",
-
-    # "edge" chords: play edges of scale shape along tone ladder (i.e. darkest and brightest notes of each whole tone scale)
-    "eg": "3 4 7", # diatonic scale edges (egb=phyr, egc=lyd, egd=loc)
-    "eg-": "2 b3 7", # melodic minor edge
-    "arp": "3 4 5 7", # diatonic edge w/ 5, for inversions use "|5", eg: egb|5
-    "melo": "2 b3 5 7", # eg- w/ 5, melodic minor arp
-
-    # extended sus, i.e. play contiguous notes along circle of 5ths
-    "sq": "2 4 5", # "square", sus2|4, sus both directions, contiguous ladder (4->2)
-    "sus3": "b3 4 5 b7", # 1->b3 ccw
-    "sus3+": "2 3 5 6", # 1->3 cw
-    "sus7": "4 5 b7", # 1->b7 ccw
-    "sus7+": "2 5 6 7 9", # 1->7 cw
-    "sus26": "5 6 9",
-    "sus9": "4 5 9",
-    "sus13": "4 5 9 13",
-    "q": "4 b7", # quartal voicing
-    "qt": "5 9", # quintal voicing
-}
-CHORDS_ALT = {
-    "r": "1",
-    "M2": "2",
-    "M3": "3",
-    "aug": "+",
-    "ma#5": "+",
-    "ma#5": "+",
-    "aug7": "+7",
-    "p4": "4",
-    "p5": "5",
-    "-": "m",
-    "M": "ma",
-    "sus4": "sus",
-    # "major": "maj",
-    "ma7": "ma7",
-    "ma9": "ma9",
-    "lyd": "mab5",
-    "lyd7": "ma7b5",
-    "plyd": "ma#4",
-    "plyd7": "ma7#4",
-    # "Madd9": "maadd9",
-    # "maor7": "ma7",
-    "Mb5": "mab5",
-    # "M7": "ma7",
-    # "M7b5": "ma7b5",
-    # "min": "m",
-    # "minor": "m",
-    # "min7": "m7",
-    # "minor7": "m7",
-    "p": "pow",
-    # "11th": "11",
-    "o": "dim",
-    "o7": "dim7",
-    "7o": "dim7",
-    "o9": "dim9",
-    "9o": "dim9",
-    "o11": "dim11",
-    "11o": "dim11",
-    "sus24": "sq",
-    # "mma7": "mm7",
-    # "mma9": "mm9",
-    # "mma11": "mm11",
-    # "mma13": "mm13",
-}
+CHORDS = DEFS['chords']
+CHORDS_ALT = DEFS['chord_alts']
+# CHORD_REPLACE = DEFS['chord_replace']
 # replace and keep the rest of the name
 CHORDS_REPLACE = OrderedDict([
     ("#5", "+"),
@@ -577,136 +290,7 @@ for chordlist in (CHORDS, CHORDS_ALT):
 #     'do': 'r', # d dim vs dorian
 # }
 
-GM = [
-    "Acoustic Grand Piano",
-    "Bright Acoustic Piano",
-    "Electric Grand Piano",
-    "Honky-tonk Piano",
-    "Electric Piano 1",
-    "Electric Piano 2",
-    "Harpsichord",
-    "Clavi",
-    "Celesta",
-    "Glockenspiel",
-    "Music Box",
-    "Vibraphone",
-    "Marimba",
-    "Xylophone",
-    "Tubular Bells",
-    "Dulcimer",
-    "Drawbar Organ",
-    "Percussive Organ",
-    "Rock Organ",
-    "Church Organ",
-    "Reed Organ",
-    "Accordion",
-    "Harmonica",
-    "Tango Accordion",
-    "Acoustic Guitar (nylon)",
-    "Acoustic Guitar (steel)",
-    "Electric Guitar (jazz)",
-    "Electric Guitar (clean)",
-    "Electric Guitar (muted)",
-    "Overdriven Guitar",
-    "Distortion Guitar",
-    "Guitar harmonics",
-    "Acoustic Bass",
-    "Electric Bass (finger)",
-    "Electric Bass (pick)",
-    "Fretless Bass",
-    "Slap Bass 1",
-    "Slap Bass 2",
-    "Synth Bass 1",
-    "Synth Bass 2",
-    "Violin",
-    "Viola",
-    "Cello",
-    "Contrabass",
-    "Tremolo Strings",
-    "Pizzicato Strings",
-    "Orchestral Harp",
-    "Timpani",
-    "String Ensemble 1",
-    "String Ensemble 2",
-    "SynthStrings 1",
-    "SynthStrings 2",
-    "Choir Aahs",
-    "Voice Oohs",
-    "Synth Voice",
-    "Orchestra Hit",
-    "Trumpet",
-    "Trombone",
-    "Tuba",
-    "Muted Trumpet",
-    "French Horn",
-    "Brass Section",
-    "SynthBrass 1",
-    "SynthBrass 2",
-    "Soprano Sax",
-    "Alto Sax",
-    "Tenor Sax",
-    "Baritone Sax",
-    "Oboe",
-    "English Horn",
-    "Bassoon",
-    "Clarinet",
-    "Piccolo",
-    "Flute",
-    "Recorder",
-    "Pan Flute",
-    "Blown Bottle",
-    "Shakuhachi",
-    "Whistle",
-    "Ocarina",
-    "Lead 1 (square)",
-    "Lead 2 (sawtooth)",
-    "Lead 3 (calliope)",
-    "Lead 4 (chiff)",
-    "Lead 5 (charang)",
-    "Lead 6 (voice)",
-    "Lead 7 (fifths)",
-    "Lead 8 (bass + lead)",
-    "Pad 1 (new age)",
-    "Pad 2 (warm) ",
-    "Pad 3 (polysynth)",
-    "Pad 4 (choir)",
-    "Pad 5 (bowed)",
-    "Pad 6 (metallic)",
-    "Pad 7 (halo)",
-    "Pad 8 (sweep)",
-    "FX 1 (rain)",
-    "FX 2 (soundtrack)",
-    "FX 3 (crystal)",
-    "FX 4 (atmosphere)",
-    "FX 5 (brightness)",
-    "FX 6 (goblins)",
-    "FX 7 (echoes)",
-    "FX 8 (sci-fi)",
-    "Sitar",
-    "Banjo",
-    "Shamisen",
-    "Koto",
-    "Kalimba",
-    "Bag pipe",
-    "Fiddle",
-    "Shanai",
-    "Tinkle Bell",
-    "Agogo",
-    "Steel Drums",
-    "Woodblock",
-    "Taiko Drum",
-    "Melodic Tom",
-    "Synth Drum",
-    "Reverse Cymbal",
-    "Guitar Fret Noise",
-    "Breath Noise",
-    "Seashore",
-    "Bird Tweet",
-    "Telephone Ring",
-    "Helicopter",
-    "Applause",
-    "Gunshot",
-]
+GM = load_cfg('gm')
 DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
 SPEECH_WORDS = ['speech','say','speak']
 GM_LOWER = [""]*len(GM)
@@ -779,7 +363,7 @@ MIDI_PROGRAM = 0b1100
 MIDI_PITCH = 0b1110
 
 class Track:
-    FLAGS = Set('auto_roman')
+    FLAGS = set('auto_roman')
     def __init__(self, idx, midich, player, schedule):
         self.idx = idx
         # self.players = [player]
@@ -823,7 +407,7 @@ class Track:
         self.use_sustain_pedal = False # whether to use midi sustain instead of track
         self.sustain_pedal_state = False # current midi pedal state
         self.schedule.clear_channel(self)
-        self.flags = Set()
+        self.flags = set()
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in xrange(16)]), lambda x: x[1])

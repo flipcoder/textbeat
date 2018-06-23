@@ -4,3 +4,4 @@ numpy
 ctcsound
 prompt_toolkit
 appdirs
+pyyaml

@@ -140,6 +140,7 @@ I'm currently looking into recording via a headless host.
 - @end: end song
 
 Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
+```
 
 # Track commands
 

@@ -413,7 +413,7 @@ Consider the 2 tracks:
 The spacing is not even between the sets, but the 't' value stretches them
 to make them line up in a default ratio of 3:4.
 
-# Advanced
+# Notes
 
 In a traditional tracker, individual notes would take place over multiple
 channels.  You can do this in decadence if it fits your writing style,
@@ -447,8 +447,6 @@ you can type these directly into the decadence shell.
 I'm a fan of thinking about music and chords in a relative way that is not dependent on key.
 For this reason, decadence prefers relative note numbers/names
 over arbitrary note names (even though both are valid).
-
-If no number prefix is given, like in the above examples, it is always 1 (C).
 
 If you're writing a song in D minor, you will want to set the global or track key
 to D, making D note 1. (You could also set D to 6 if you're thinking modally)

@@ -2,17 +2,51 @@
 """decadence
 Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
+
+Usage:
+    decadence.py [+RANGE] [--follow] [-eftnpsrx] [SONGNAME]
+    decadence.py -c [COMMANDS ...]
+    decadence.py -l [LINE_CONTENT ...]
+    decadence.py  [SONGNAME]
+
+Examples:
+    decadence.py            shell
+    decadence.py song.dc    play song
+
+Options:
+    -h --help             show this
+    -v --verbose          verbose
+    -t --tempo=<bpm>      set tempo
+    -x --grid=<grid>      set grid
+    -n --note=<note>      set grid using note value
+    -s --speed=<speed>    (STUB) playback speed
+    --dev=<device>        output device, partial match
+    -p --patch=<patch>    default midi patch, partial match
+    -c                    execute commands sequentially
+    -l                    execute commands simultaenously
+    -r --remote           (STUB) remote, keep alive as daemon
+    --nomute              don't mute midi on end
+    +<range>              play from line or maker, for range use start:end
+    -e --edit             (STUB) open file in editor
+    --vi                  (STUB) shell vi mode
+    -T --transpose        (STUB) transpose (in half steps)
+    --sustain             sustain by default
+    --numbers             use note numbers in output
+    --notenames           use note names in output
+    --flats               prefer flats in output
+    --sharps              prefer sharps in output
+    --lint                analyze file
+    --follow              (old) print newlines every line, no output
+    --quiet               no output
 """
 from __future__ import unicode_literals, print_function, generators
 import os, sys, time, random, itertools, signal, tempfile, traceback
-# from sets import ImmutableSet
-import yaml
-from collections import OrderedDict
 import time, subprocess, pipes
+import yaml, colorama, appdirs
+from docopt import docopt
+from collections import OrderedDict
 import pygame, pygame.midi as midi
-import colorama
 from multiprocessing import Process,Pipe
-import appdirs
 
 from src import *
 
@@ -36,6 +70,7 @@ style = style_from_dict({
     Token.Info:     '#000088',
 })
 
+ARGS = docopt(__doc__)
 APPNAME = 'decadence'
 DIR = appdirs.AppDirs(APPNAME)
 # LOG_FN = os.path.join(DIR.user_log_dir,'.log')
@@ -810,7 +845,7 @@ TRACK_HISTORY = ['.'] * NUM_TRACKS
 FN = None
 row = 0
 stoprow = -1
-dcmode = 'n' # n normal c command s sequence
+DCMODE = 'n' # n normal c command s sequence
 next_arg = 1
 # request_tempo = False
 # request_grid = False
@@ -821,92 +856,48 @@ SHELL = True
 DAEMON = False
 GUI = False
 PORTNAME = ''
+SPEED = 1.0
 
-for i in xrange(1,len(sys.argv)):
-    if skip:
-        skip -= 1
-        continue
-    arg = sys.argv[i]
-    if arg.startswith('-t'):
-        if len(arg)>2:
-            TEMPO = float(arg[2:]) # same token: -t100
-        else:
-            # look ahead and eat next token
-            TEMPO = float(sys.argv[i+1]) # split token: -t 100
-            skip += 1
-    # request_tempo = True
-    elif arg.startswith('-x'):
-        if len(arg)>2:
-            GRID = float(arg[2:]) # same token: -g100
-        else:
-            # look ahead and eat next token
-            GRID = float(sys.argv[i+1]) # split token: -g 100
-            skip += 1
-    elif arg.startswith('-n'): # note value (changes grid)
-        if len(arg)>2:
-            GRID = float(arg[2:])/4.0 # same token: -n4
-        else:
-            # look ahead and eat next token
-            GRID = float(sys.argv[i+1])/4.0 # split token: -n 4
-            skip += 1
-    elif arg.startswith('-p'):
-        if len(arg)>2:
-            vals = arg[2:].split(',')
-        else:
-            vals = sys.argv[i+1].split(',')
-            skip += 1
-        for i in xrange(len(vals)):
-            val = vals[i]
-            if val.isdigit():
-                TRACKS[i].patch(int(val))
-            else:
-                TRACKS[i].patch(val)
-    elif arg.startswith('--dev'):
-        PORTNAME = sys.argv[i+1]
-        skip += 1
-    elif arg == '--vi':
-        VIMODE = True
-    elif arg == '--lint':
-        LINT = True
-    elif arg == '--follow':
-        FOLLOW = True
-        PRINT = False
-    elif arg == '--noprint':
-        PRINT = False
-    elif arg == '-v':
-        SHOWTEXT = True
-    elif arg == '-l':
-        dcmode = 'l'
-    elif arg == '-c':
-        dcmode = 'c'
-    elif arg == '-sh':
-        SHELL = True
-    elif arg == '-d':
-        DAEMON = True
-    elif arg == '--nomute':
-        NOMUTE = True
-    elif arg == '--sustain':
-        SUSTAIN = True
-    elif arg == '--sharps':
-        FLATS = False
-    elif arg == '--flats':
-        FLATS = True
-    elif arg == '--numbers':
-        NOTENAMES = False
-    elif arg == '--notenames':
-        NOTENAMES = True
-    else:
-        next_arg = i
-        break
-    next_arg = i+1
+for arg,val in ARGS.iteritems():
+    if val:
+        if arg == '--tempo': TEMPO = float(val)
+        elif arg == '--grid': GRID = float(val)
+        elif arg == '--note': GRID = float(val)/4.0
+        elif arg == '--speed': SPEED = float(val)
+        elif arg == '--verbose': SHOWTEXT = True
+        elif arg == '--dev': PORTNAME = val
+        elif arg == '--vi': VIMODE = True
+        elif arg == '--patch':
+            vals = val.split(',')
+            for i in xrange(len(vals)):
+                val = vals[i]
+                if val.isdigit():
+                    TRACKS[i].patch(int(val))
+                else:
+                    TRACKS[i].patch(val)
+        elif arg == '--sustain': SUSTAIN=True
+        elif arg == '--nomute': NOMUTE=True
+        elif arg == '--remote': DAEMON = True
+        elif arg == '--lint': LINT = True
+        elif arg == '--quiet': PRINT = False
+        elif arg == '--follow':
+            FOLLOW = True
+            PRINT = False
+        elif arg == '--flats': FLATS = True
+        elif arg == '--sharps': SHARPS= True
+        elif arg == '--edit': pass
+        elif arg == '-l' and val: DCMODE = 'l'
+        elif arg == '-c' and val: DCMODE = 'c'
 
-if dcmode=='l':
-    buf = ' '.join(sys.argv[next_arg:]).split(';') # ;
-elif dcmode=='c':
-    buf = ' '.join(sys.argv[next_arg:]).split(' ') # spaces
+if DCMODE=='l':
+    buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
+elif DCMODE=='c':
+    buf = ' '.join(ARGS['COMMANDS']).split(' ') # spaces
 else: # mode n
-    if len(sys.argv)>=2:
-        FN = sys.argv[-1]
+    # if len(sys.argv)>=2:
+    #     FN = sys.argv[-1]
+    if ARGS['SONGNAME']:
+        FN = ARGS['SONGNAME']
         with open(FN) as f:
             for line in f.readlines():
                 lc = 0
@@ -937,8 +928,8 @@ else: # mode n
                 buf += [line]
             SHELL = False
     else:
-        if dcmode == 'n':
-            dcmode = ''
+        if DCMODE == 'n':
+            DCMODE = ''
         SHELL = True
 
 midi.init()
@@ -979,7 +970,7 @@ if SUSTAIN:
     TRACKS[0].sustain = SUSTAIN
 
 # show nice output in certain modes
-if SHELL or dcmode in 'cl':
+if SHELL or DCMODE in 'cl':
     SHOWTEXT = True
 
 for i in xrange(len(sys.argv)):
@@ -1012,6 +1003,9 @@ if SHELL:
     log(FG.BLUE + 'decadence v'+unicode(VERSION))
     log('Copyright (c) 2018 Grady O\'Connell')
     log('https://github.com/flipcoder/decadence')
+    log('View README.md for syntax and usage information.')
+    log('Use -h for command line options.')
+    log('')
     if PORTNAME:
         log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',))
         if TRACKS[0].midich == DRUM_CHANNEL:
@@ -1035,13 +1029,13 @@ while not QUITFLAG:
             # done with file, finish playing some stuff
             
             arps_remaining = 0
-            if SHELL or DAEMON or dcmode in ['c','l']: # finish arps in shell mode
+            if SHELL or DAEMON or DCMODE in ['c','l']: # finish arps in shell mode
                 for ch in TRACKS[:TRACKS_ACTIVE]:
                     if ch.arp_enabled:
                         if ch.arp_cycle_limit or not ch.arp_once:
                             arps_remaining += 1
                             line = '.'
-                if not arps_remaining and not SHELL and dcmode not in ['c','l']:
+                if not arps_remaining and not SHELL and DCMODE not in ['c','l']:
                     break
                 line = '.'
             
@@ -2150,7 +2144,7 @@ while not QUITFLAG:
                     cell = []
                     break
                 else:
-                    if dcmode in 'cl':
+                    if DCMODE in 'cl':
                         log(FG.BLUE + line)
                     indent = ' ' * (len(fullcell)-len(cell))
                     log(FG.RED + indent +  "^ Unexpected " + cell[0] + " here")

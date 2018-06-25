@@ -15,50 +15,11 @@ Copyright (c) 2018 Grady O'Connell
 # Overview
 
 Compose music in a plaintext format or type music directly in the shell.
-The file format is vertical and column-based, similar to early music trackers, but
-with some modern features to make it more accessible and readable by musicians.
-The format is intended to be dense but readable once learned.
+The format is vertical and column-based, similar to early music trackers,
+but with syntax inspired by jazz/music theory.
 
-In a traditional tracker, individual notes would take place over multiple
-channels.  For instance, a C major chord would be specified in a way a
-computer would understand it: 3 notes across 3 separate channels: C,E,G.
-In Decadence, you can write it in a single channel as a chord.
-You may choose to write it as "Cmaj".
-or since we're in the key of C, "1maj", "ma", "maj", "major", "M", or "I" would also work.
-
-Unlike with humans, chord voicings need to be specific for parsing, even if they're complex.
-
-So, you may find yourself writing a huge voicing spanning octaves like this:
-
-maj7#4/sus2/1
-
-(same thing with note names: Cmaj7#4/Csus2/C)
-
-The above chord voicing spans 3 octaves and contains 9 notes.
-It is a Cmaj7 chord w/ an added #4, followed by a lower octave Csus2.
-Then at the bottom, there is a C bass note.  Writing this in a tracker with 1 note per channel,
-or even in piano roll, is difficult to read and understand (at least to me).
-As cryptic as it may seem to non-musicians, condensed chord voicings are going
-to make more sense to your ear over time than seeing random note letters fly by.
-To build an association between the chords and how they sound, run decadence and type
-them in the shell.
-
-I'm a fan of thinking about music and chords in a relative way that is not dependent on key.
-For this reason, decadence prefers numbered note notation and key note transposition
-over arbitrary note names (even though both are valid).
-If no number prefix is given, like in the above examples, it is always 1, and unless we tranpose, that means C.
-
-Note to musicians: There are a few quirks with the parser that make the chord interpretation different than
-what musicians would expect.  For example, slash chords do not imply inversions,
-but are for stacking across octaves.  Additionally, note names do no imply chords.
-For example, C/E means play a C note with an E in a lower octave, whereas a musician might
-interpret this as a specific chord voicing.  (Inversions use shift operator (maj>))
-
-# Why?
-
-Plaintext = Vim = Zen.
-
-Music is code.
+This project is still very new.  Despite number of features, you may quickly
+run into issues.  Feel free to [communicate](https://gitter.im/flipcoder/decadence) your experiences to me.
 
 # Features
 
@@ -81,10 +42,12 @@ Decadence is a new project, but you can already do lots of cool things:
 
 # Setup
 
-You can use this with General Midi out-of-the-box on windows, which is great for learning,
-but who wants to write music like that?  We need VSTs!
+You can use the shell with General Midi out-of-the-box on windows, which is great for learning,
+but sounds bad without a decent soundfont.
 
-For windows, you'll need a virtual midi driver, such as [loopMIDI](http://www.tobias-erichsen.de/software/loopmidi.html) and a VST host or DAW.
+If you want to use VST instruments, you'll need to route the MIDI out to something that hosts them, like a DAW.
+
+For windows, you can use a virtual midi driver, such as [loopMIDI](http://www.tobias-erichsen.de/software/loopmidi.html) for usage with a VST host or DAW.
 
 If you're on Linux, you can use soundfonts through qsynth or use a software instrument like helm or dexed.  VSTs should work here as well.
 
@@ -207,10 +170,11 @@ Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
 # The Basics
 
 If you're familiar with trackers, you may pick this up quite easily.
-Music flows vertically, with separate columns that are separated by whitespace or setting separators.
+Music flows vertically, with separate columns that are separated by whitespace or
+manually setting a column width.
 
-Each column is represents a track and they default to separate midi channel numbers.
-Tracks sequence notes.  You'll usually play at least 1 track per instrument.
+Each column represents a track, which defaults to separate midi channel numbers.
+Tracks play sequences of notes.  You'll usually play at least 1 track per instrument.
 This doesn't mean you're limited to just one note per track though,
 you can keep notes held down and play chords as you wish.
 
@@ -309,6 +273,9 @@ A (-) character will then mute them all.
 7_
 -
 ```
+
+If you want to hold a series of notes like a sustain pedal, simply use two underscores (__)
+and all future notes will be held until a mute is received.
 
 ## Chord
 
@@ -446,10 +413,60 @@ Consider the 2 tracks:
 The spacing is not even between the sets, but the 't' value stretches them
 to make them line up in a default ratio of 3:4.
 
+# Advanced
+
+In a traditional tracker, individual notes would take place over multiple
+channels.  You can do this in decadence if it fits your writing style,
+but it is not the only way.
+
+For instance, a C major chord would be specified in a way a
+computer would understand it: 3 notes across 3 separate channels: C,E,G.
+In decadence, in addition to this behavior, you can write it in a single channel as a chord.
+You may choose to write it as "Cmaj".
+or since we're in the key of C, "1maj", "ma", "maj", "major", "M", or "I" would also work.
+
+Writing this in a tracker with 1 note per channel is specific enough for a computer,
+but annoyingly lacking context from the perspective of a performer.
+
+So, you may find yourself writing a huge voicing spanning octaves like this:
+
+maj7#4/sus2/1
+
+(same thing with note names: Cmaj7#4/Csus2/C)
+    
+(suffix this with & to hear the notes walked individually)
+
+The above chord voicing spans 3 octaves and contains 9 notes.
+It is a Cmaj7 chord w/ an added #4, followed by a lower octave Csus2.
+Then at the bottom, there is a C bass note.
+As cryptic as it may seem to non-musicians, condensed chord voicings are going
+to make more sense to your ear over time than seeing random note letters fly by.
+To build an association between the chords and how they sound,
+you can type these directly into the decadence shell.
+
+I'm a fan of thinking about music and chords in a relative way that is not dependent on key.
+For this reason, decadence prefers relative note numbers/names
+over arbitrary note names (even though both are valid).
+
+So if you're writing a song in D minor, you will want to set the global or track key
+to D, making D note 1. (You could also set D to 6 if you're thinking modally)
+If this is confusing or not beneficial to you: don't worry, it's optional!
+
+If no number prefix is given, like in the above examples, it is always 1 (C).
+
+Note to musicians: There are a few quirks with the parser that make the chord interpretation different than
+what musicians would expect.  For example, slash chords do not imply inversions,
+but are for stacking across octaves.  Additionally, note names alone do no imply chords.
+For example, C/E means play a C note with an E in a lower octave, whereas a musician might
+interpret this as a specific chord voicing.  (Inversions use shift operator (maj> for first inversion))
+
 # What else?
 
 I'm improving this faster than I'm documenting it.  Because of that, not everything is explained.
-If you've got python chops, you peak in the code to get an idea on the upcoming features.
+
+Check out the project board for more information on current/upcoming features.
+
+Also, check out the basic text examples in the test/ folder.
 
 # What's the plan?
 
@@ -463,16 +480,18 @@ Things I'm planning on adding soon:
 - MIDI input/output
 - MIDI stabilization
 - Headless VST rack integration
-- Csound, Sonic Pi, libgme (chiptune lib) integration
+- Csound and Sonic Pi instrument integration
+- libGME for classic chiptune
 - Text-to-speech and singing (Espeak/Festival)
 ```
 
 Features I'm adding eventually:
 
 ```
-- Recording and encoding audio output of a project
+- Recording and encoding output of a project
 - Midi controller input and recording
 - Midi input chord analysis
+- MPE support for temperment and dynamic tonality
 ```
 
 I'll be making use of python's multiprocessing or

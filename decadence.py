@@ -4,6 +4,7 @@ Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
 
 Usage:
+    decadence.py [--follow] [-eftnpsrx] [SONGNAME]
     decadence.py [+RANGE] [--follow] [-eftnpsrx] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]

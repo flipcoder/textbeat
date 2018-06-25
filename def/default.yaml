@@ -190,16 +190,50 @@ chords:
     dim11: 'b3 b5 bb7 9 11'
     sus: '4 5'
     sus2: '2 5'
+
+    # Informal voicings below -- eventually move to another file
     
-    # majminor
+    f: '5'
+    pow: '5 8'
     mm7: 'b3 5 7'
     mm9: 'b3 5 7 9'
     mm11: 'b3 5 7 9 11'
     mm13: 'b3 5 7 9 11 13'
 
-    # power chords
-    f: '5'
-    pow: '5 8'
+    # maj2
+    mu: '2 3 5'
+    mu7: '2 3 5 7'
+    mu7#4: '2 3 #4 5 7' # lyd7 3sus2|sus2
+    mu-: '2 b3 5'
+    mu-7: '2 b3 5 7'
+    mu-7b5: '2 3 b5 7'
+    mu7b5: '2 3 b5 7'
+
+    # maj4
+    wu: '3 4 5' # maadd4
+    wu7: '3 4 5 7' # ma7add4
+    wu7b5: '2 3 b5 7'
+    wu-: 'b3 4 5' # madd4
+    wu-7: 'b3 4 5 7'
+    wu-7b5: 'b3 4 b5 7'
+
+    # 'edge': play edges of scale shape along tone ladder (i.e. darkest and brightest notes of each whole tone scale)
+    eg: '3 4 7' # diatonic scale edges (egb=phyr egc=lyd egd=loc)
+    eg-: '2 b3 7' # melodic minor edge
+    arp: '3 4 5 7' # diatonic edge w/ 5 for inversions use '|5' eg: egb|5
+    melo: '2 b3 5 7' # eg- w/ 5 melodic minor arp
+
+    # extended sus i.e. play contiguous notes along circle of 5ths
+    sq: '2 4 5' # 'square' sus2|4 sus both directions contiguous ladder (4->2)
+    sus3: 'b3 4 5 b7' # 1->b3 ccw
+    sus3+: '2 3 5 6' # 1->3 cw
+    sus7: '4 5 b7' # 1->b7 ccw
+    sus7+: '2 5 6 7 9' # 1->7 cw
+    sus26: '5 6 9'
+    sus9: '4 5 9'
+    sus13: '4 5 9 13'
+    q: '4 b7' # quartal (stacked 4ths) sus voicing
+    qt: '5 9' # quintal (stacked 5ths) sus voicing
 
 chord_alts:
     r: '1'
@@ -230,6 +264,7 @@ chord_alts:
     # minor: m
     # min7: m7
     # minor7: m7
+    p: pow
     # 11th: 11
     o: dim
     o7: dim7
@@ -243,5 +278,4 @@ chord_alts:
     # mma9: mm9
     # mma11: mm11
     # mma13: mm13
-    p: pow
 

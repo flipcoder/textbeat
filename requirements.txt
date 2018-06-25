@@ -6,3 +6,4 @@ prompt_toolkit
 appdirs
 pyyaml
 docopt
+future

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 """decadence
 Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
@@ -42,6 +42,8 @@ Options:
 """
 from __future__ import unicode_literals, print_function, generators
 import os, sys, time, random, itertools, signal, tempfile, traceback
+from builtins import range, str
+from future.utils import iteritems
 import time, subprocess, pipes
 import yaml, colorama, appdirs
 from docopt import docopt
@@ -79,6 +81,7 @@ HISTORY_FN = os.path.join(DIR.user_config_dir, '.history')
 HISTORY = FileHistory(HISTORY_FN)
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 CFG_PATH = os.path.join(SCRIPT_PATH, 'config')
+DEF_PATH = os.path.join(SCRIPT_PATH, 'def')
 try:
     os.makedirs(DIR.user_config_dir)
 except OSError:
@@ -138,7 +141,7 @@ class BackgroundProcess:
                 self.words.clear()
             else:
                 log('BAD COMMAND: ' + msg[0])
-            self.processses = filter(lambda p: p.poll()==None, self.processes)
+            self.processses = list(filter(lambda p: p.poll()==None, self.processes))
         self.con.close()
         for tmp in self.words:
             tmp.close()
@@ -177,7 +180,10 @@ def log(msg):
         print(msg)
 
 def load_cfg(fn):
-    with file(os.path.join(CFG_PATH, fn+'.yaml'),'r') as y:
+    with open(os.path.join(CFG_PATH, fn+'.yaml'),'r') as y:
+        return yaml.safe_load(y)
+def load_def(fn):
+    with open(os.path.join(DEF_PATH, fn+'.yaml'),'r') as y:
         return yaml.safe_load(y)
 
 VERSION = '0.1'
@@ -248,13 +254,17 @@ class Scale:
             if idx == 1:
                 return self.name
             else:
-                return self.name + " mode " + unicode(idx)
+                return self.name + " mode " + str(idx)
         return m
 
-DEFS = load_cfg('def')
+DEFS = load_def('default')
+for f in os.listdir(DEF_PATH):
+    if f != 'default.yaml':
+        defs = load_def(f[:-len('.yaml')])
+        
 SCALES = {}
 MODES = {}
-for k,v in DEFS['scales'].iteritems():
+for k,v in iteritems(DEFS['scales']):
     scale = SCALES[k] = Scale(k, v['intervals'])
     i = 1
     scaleinfo = DEFS['scales'][k]
@@ -291,12 +301,12 @@ CHORDS_REPLACE = OrderedDict([
 ])
 
 # add scales as chords
-for sclname, scl in SCALES.iteritems():
+for sclname, scl in iteritems(SCALES):
     # as with chords, don't list root
-    for m in xrange(len(scl.modes)):
+    for m in range(len(scl.modes)):
         sclnotes = []
         idx = 0
-        inter = filter(lambda x:x.isdigit(), scl.intervals)
+        inter = list(filter(lambda x:x.isdigit(), scl.intervals))
         if m:
             inter = list(inter[m:]) + list(inter[:m])
         for x in inter:
@@ -330,7 +340,7 @@ GM = load_cfg('gm')
 DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
 SPEECH_WORDS = ['speech','say','speak']
 GM_LOWER = [""]*len(GM)
-for i in xrange(len(GM)): GM_LOWER[i] = GM[i].lower()
+for i in range(len(GM)): GM_LOWER[i] = GM[i].lower()
 
 def normalize_chord(c):
     try:
@@ -349,7 +359,7 @@ def expand_chord(c):
     #     r = random.choice(CHORDS.values())
     #     log(r)
     #     return r
-    for k,v in CHORDS_REPLACE.iteritems():
+    for k,v in iteritems(CHORDS_REPLACE):
         cr = c.replace(k,v)
         if cr != c:
             c=cr
@@ -446,7 +456,7 @@ class Track:
         self.flags = set()
     # def _lazychannelfunc(self):
     #     # get active channel numbers
-    #     return map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in xrange(16)]), lambda x: x[1])
+    #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
     def add_flags(self, f):
         if f != f & FLAGS:
             raise ParseError('invalid flags')
@@ -480,7 +490,7 @@ class Track:
         for ch in self.channels:
             self.notes[n] = v
             self.sustain_notes[n] = sustain
-            # log("on " + unicode(n))
+            # log("on " + str(n))
             if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch))
             self.player.note_on(n,v,ch)
     def note_off(self, n, v=-1):
@@ -489,7 +499,7 @@ class Track:
         if n < 0 or n >= RANGE:
             return
         if self.notes[n]:
-            # log("off " + unicode(n))
+            # log("off " + str(n))
             for ch in self.channels:
                 if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
                 self.player.note_off(n,v,ch)
@@ -499,7 +509,7 @@ class Track:
     def release_all(self, mute_sus=False, v=-1):
         if v == -1:
             v = self.vel
-        for n in xrange(RANGE):
+        for n in range(RANGE):
             # if mute_sus, mute sustained notes too, otherwise ignore
             mutesus_cond = True
             if not mute_sus:
@@ -510,7 +520,7 @@ class Track:
                     self.player.note_off(n,v,ch)
                     self.notes[n] = 0
                     self.sustain_notes[n] = 0
-                # log("off " + unicode(n))
+                # log("off " + str(n))
         # self.notes = [0] * RANGE
         if self.modval>0:
             self.cc(1,0)
@@ -569,7 +579,7 @@ class Track:
                 stop_search = False
                 gmwords = GM_LOWER
                 for w in inst.split(' '):
-                    gmwords = filter(lambda x: w in x, gmwords)
+                    gmwords = list(filter(lambda x: w in x, gmwords))
                     lengw = len(gmwords)
                     if lengw==1:
                         log('found')
@@ -580,7 +590,7 @@ class Track:
                 assert len(gmwords) > 0
                 log(FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0])
                 p = GM_LOWER.index(gmwords[0])
-                # for i in xrange(len(GM_LOWER)):
+                # for i in range(len(GM_LOWER)):
                 #     continue_search = False
                 #     for pword in inst.split(' '):
                 #         if pword.lower() not in gmwords:
@@ -596,7 +606,7 @@ class Track:
                     #     continue
 
         self.patch_num = p
-        # log('PATCH SET - ' + unicode(p))
+        # log('PATCH SET - ' + str(p))
         status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
         if SHOWMIDI: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
         self.player.write_short(status,p)
@@ -859,7 +869,7 @@ GUI = False
 PORTNAME = ''
 SPEED = 1.0
 
-for arg,val in ARGS.iteritems():
+for arg,val in iteritems(ARGS):
     if val:
         if arg == '--tempo': TEMPO = float(val)
         elif arg == '--grid': GRID = float(val)
@@ -870,7 +880,7 @@ for arg,val in ARGS.iteritems():
         elif arg == '--vi': VIMODE = True
         elif arg == '--patch':
             vals = val.split(',')
-            for i in xrange(len(vals)):
+            for i in range(len(vals)):
                 val = vals[i]
                 if val.isdigit():
                     TRACKS[i].patch(int(val))
@@ -934,10 +944,13 @@ else: # mode n
         SHELL = True
 
 midi.init()
-dev = 0
-for i in xrange(midi.get_count()):
+if midi.get_count()==0:
+    print('No midi devices found.')
+    sys.exit(1)    
+dev = -1
+for i in range(midi.get_count()):
     port = pygame.midi.get_device_info(i)
-    portname = port[1]
+    portname = port[1].decode('utf-8')
     # timidity
     devs = [
         'timidity port 0',
@@ -962,7 +975,7 @@ PLAYER = pygame.midi.Output(dev)
 INSTRUMENT = 0
 PLAYER.set_instrument(0)
 mch = 0
-for i in xrange(NUM_CHANNELS_PER_DEVICE):
+for i in range(NUM_CHANNELS_PER_DEVICE):
     # log("%s -> %s" % (i,mch))
     TRACKS.append(Track(i, mch, PLAYER, SCHEDULE))
     mch += 2 if i==DRUM_CHANNEL else 1
@@ -974,7 +987,7 @@ if SUSTAIN:
 if SHELL or DCMODE in 'cl':
     SHOWTEXT = True
 
-for i in xrange(len(sys.argv)):
+for i in range(len(sys.argv)):
     arg = sys.argv[i]
     
     # play range (+ param, comma-separated start and end)
@@ -1001,20 +1014,18 @@ for i in xrange(len(sys.argv)):
             pass # no stop param
 
 if SHELL:
-    log(FG.BLUE + 'decadence v'+unicode(VERSION))
+    log(FG.BLUE + 'decadence v'+str(VERSION))
     log('Copyright (c) 2018 Grady O\'Connell')
     log('https://github.com/flipcoder/decadence')
-    log('View README.md for syntax and usage information.')
-    log('Use -h for command line options.')
-    log('')
     if PORTNAME:
         log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',))
         if TRACKS[0].midich == DRUM_CHANNEL:
             log(FG.GREEN + 'GM Percussion')
         else:
             log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[TRACKS[0].patch_num])
-    log('')
+    log('Use -h for command line options.')
     log('Read the manual and look at examples. Have fun!')
+    log('')
 
 header = True # set this to false as we reached cell data
 while not QUITFLAG:
@@ -1049,11 +1060,11 @@ while not QUITFLAG:
                         # SHELL PROMPT
                         # log(orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE)))
                         cur_oct = TRACKS[0].octave
-                        # cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
+                        # cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+str(int(TEMPO))+'bpm x'+str(int(GRID))+' '+\
                         #     note_name(TRACKS[0].transpose) + ' ' +\
                         #     orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
                         #     ')> '
-                        cline = 'DC> ('+unicode(int(TEMPO))+'bpm x'+unicode(int(GRID))+' '+\
+                        cline = 'DC> ('+str(int(TEMPO))+'bpm x'+str(int(GRID))+' '+\
                             note_name(TRACKS[0].transpose) + ' ' +\
                             orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
                             ')> '
@@ -1062,8 +1073,8 @@ while not QUITFLAG:
                         # bufline = raw_input(cline)
                         bufline = prompt(cline,
                             history=HISTORY, vi_mode=VIMODE)
-                        bufline = filter(None, bufline.split(' '))
-                        bufline = map(lambda b: b.replace(';',' '), bufline)
+                        bufline = list(filter(None, bufline.split(' ')))
+                        bufline = list(map(lambda b: b.replace(';',' '), bufline))
                         buf += bufline
                     elif DAEMON:
                         pass
@@ -1080,7 +1091,7 @@ while not QUITFLAG:
         # if line.startswith('|'):
         #     SEPARATORS = [] # clear
         #     # column setup!
-        #     for i in xrange(1,len(line)):
+        #     for i in range(1,len(line)):
         #         if line[i]=='|':
         #             SEPARATORS.append(i)
         
@@ -1134,7 +1145,7 @@ while not QUITFLAG:
                         if op == ':': op = '='
                         if not op in '*/=-+':
                             # implicit =
-                            val = unicode(op) + unicode(val)
+                            val = str(op) + str(val)
                             op='='
                         if not val or op=='.':
                             val = op + val # append
@@ -1178,14 +1189,14 @@ while not QUITFLAG:
                                     pass
                             elif var=='P':
                                 vals = val.split(',')
-                                for i in xrange(len(vals)):
+                                for i in range(len(vals)):
                                     p = vals[i]
                                     if p.strip().isdigit():
                                         TRACKS[i].patch(int(p))
                                     else:
                                         TRACKS[i].patch(p)
                             elif var=='F': # flags
-                                for i in xrange(len(vals)):
+                                for i in range(len(vals)):
                                     TRACKS[i].add_flags(val.split(','))
                             elif var=='R' or var=='S':
                                 if val:
@@ -1211,7 +1222,7 @@ while not QUITFLAG:
                                         
                                         log(MODE-1)
                                         if var=='R':
-                                            for i in xrange(MODE-1):
+                                            for i in range(MODE-1):
                                                 inc = 0
                                                 try:
                                                     inc = int(inter[i])
@@ -1261,7 +1272,7 @@ while not QUITFLAG:
         # this is not indented in blank lines because even blank lines have this logic
         gutter = ''
         if SHELL:
-            cells = filter(None,line.split(' '))
+            cells = list(filter(None,line.split(' ')))
         elif COLUMNS:
             cells = fullline
             # shift column pos right if any
@@ -1269,7 +1280,7 @@ while not QUITFLAG:
             # shift columns right, creating left-hand gutter
             # cells = cells[-1*min(0,COLUMN_SHIFT):] # create gutter (if negative shift)
             # separate into chunks based on column width
-            cells = [cells[i:i + COLUMNS] for i in xrange(0, len(cells), COLUMNS)]
+            cells = [cells[i:i + COLUMNS] for i in range(0, len(cells), COLUMNS)]
             # log(cells)
         elif not SEPARATORS:
             # AUTOGENERATE CELL SEPARATORS
@@ -1281,8 +1292,8 @@ while not QUITFLAG:
                         SEPARATORS.append(pos)
                     # log(cell)
                 pos += len(cell) + 1
-            # log( "SEPARATORS " + unicode(SEPARATORS))
-            cells = filter(None,cells)
+            # log( "SEPARATORS " + str(SEPARATORS))
+            cells = list(filter(None,cells))
             # if fullline.startswith(' '):
             #     cells = ['.'] + cells # dont filter first one
             autoseparate = True
@@ -1292,7 +1303,7 @@ while not QUITFLAG:
             seplen = len(SEPARATORS)
             # log(seplen)
             pos = 0
-            for i in xrange(seplen):
+            for i in range(seplen):
                 cells.append(fullline[pos:SEPARATORS[i]].strip())
                 pos = SEPARATORS[i]
             lastcell = fullline[pos:].strip()
@@ -1470,11 +1481,11 @@ while not QUITFLAG:
                         #     break
                         # numbered notation
                         # wrap notes into 1-7 range before scale lookup
-                        wrap = ((c-1) / notecount)
+                        wrap = ((c-1) // notecount)
                         note = ((c-1) % notecount)+1
-                        # log('note ' + unicode(note))
+                        # log('note ' + str(note))
                         
-                        for i in xrange(1,note):
+                        for i in range(1,note):
                             # dont use scale for expanded chord notes
                             if expanded:
                                 try:
@@ -1498,7 +1509,7 @@ while not QUITFLAG:
                         assert inversion != 0
                         if inversion!=1:
                             if flip_inversion: # not working yet
-                                # log('note ' + unicode(note))
+                                # log('note ' + str(note))
                                 # log('down inv: %s' % (inversion/chord_note_count+1))
                                 # n -= 12 * (inversion/chord_note_count+1)
                                 pass
@@ -1557,8 +1568,8 @@ while not QUITFLAG:
                         try:
                             # dont allow lower case, since 'b' means flat
                             note = ' CDEFGAB'.index(c.upper())
-                            noteletter = unicode(c)
-                            for i in xrange(note):
+                            noteletter = str(c)
+                            for i in range(note):
                                 n += int(DIATONIC.intervals[i-1])
                             n -= slashidx*12
                             # adjust B(7) and A(6) below C, based on accidentials
@@ -1618,7 +1629,7 @@ while not QUITFLAG:
                                                 cut += ct
                                                 cut -= 2 # remove "no"
                                                 chordname = chordname[:-2] # cut "no
-                                                nonotes.append(unicode(prefix)+unicode(num)) # ex: b5
+                                                nonotes.append(str(prefix)+str(num)) # ex: b5
                                                 break
                                           
                                     if 'add' in chordname:
@@ -1626,7 +1637,7 @@ while not QUITFLAG:
                                         chordname = addtoks[0]
                                         addnotes = addtoks[1:]
                                 except IndexError:
-                                    log('chordname length ' + unicode(len(chordname)))
+                                    log('chordname length ' + str(len(chordname)))
                                     pass # chordname length
                                 except ValueError:
                                     log('bad cast ' + char)
@@ -1687,7 +1698,7 @@ while not QUITFLAG:
                                 
                                 try:
                                     chord_notes = expand_chord(chordname)
-                                    chord_notes = filter(lambda x: x not in nonotes, chord_notes)
+                                    chord_notes = list(filter(lambda x: x not in nonotes, chord_notes))
                                     chord_note_count = len(chord_notes)+1 # + 1 for root
                                     expanded = True
                                     tok = ""
@@ -1698,7 +1709,7 @@ while not QUITFLAG:
                                     if len(chord_notes)>1: # can pop?
                                         try:
                                             chord_notes = expand_chord(chordname[:-1])
-                                            chord_notes = filter(lambda x,nonotes=nonotes: x in nonotes)
+                                            chord_notes = list(filter(lambda x,nonotes=nonotes: x in nonotes))
                                             chord_note_count = len(chord_notes) # + 1 for root
                                             expanded = True
                                             try:
@@ -1841,7 +1852,7 @@ while not QUITFLAG:
             # if cell.startswith('\"') and cell.count('\"')==2:
             #     quote = cell.find('\"',1)
             #     word =  cell[1:quote]
-            #     BGPIPE.send((BGCMD.SAY,unicode(word)))
+            #     BGPIPE.send((BGCMD.SAY,str(word)))
             #     cell = cell[quote+1:]
             #     ignore = True
              
@@ -1881,7 +1892,7 @@ while not QUITFLAG:
                 if c == '>' or c=='<':
                     sign = (1 if c=='>' else -1)
                     ct = count_seq(cell)
-                    for i in xrange(ct):
+                    for i in range(ct):
                         if notes:
                             notes[i%len(notes)] += 12*sign
                     notes = notes[sign*1:] + notes[:1*sign]
@@ -2083,7 +2094,7 @@ while not QUITFLAG:
                     num = float('0.'+num)
                     strum = 1.0
                     if len(notes)==1: # tremolo
-                        notes = [notes[i:i + sq] for i in xrange(0, len(notes), sq)]
+                        notes = [notes[i:i + sq] for i in range(0, len(notes), sq)]
                     # log('strum')
                     if SHOWTEXT:
                         showtext.append('strum($)')

@@ -420,24 +420,24 @@ channels.  You can do this in decadence if it fits your writing style,
 but it is not the only way.
 
 For instance, a C major chord would be specified in a way a
-computer would understand it: 3 notes across 3 separate channels: C,E,G.
-In decadence, in addition to this behavior, you can write it in a single channel as a chord.
-You may choose to write it as "Cmaj".
-or since we're in the key of C, "1maj", "ma", "maj", "major", "M", or "I" would also work.
-
+computer would understand it: 3 notes across 3 separate channels: C,E,G (or 1,3,5).
 Writing this in a tracker with 1 note per channel is specific enough for a computer,
 but annoyingly lacking context from the perspective of a performer.
 
+In decadence, you can write the chord directly: 1maj or Cmaj.
+1 (C) is not required here. as chords without note names are positioned on 1 (C) (ex. "maj" = "Cmaj" = "1maj").
+Other shorthand names that work: "ma", "major", "M", or roman numeral "I"
+
 So, you may find yourself writing a huge voicing spanning octaves like this:
 
-maj7#4/sus2/1
+b7maj7#4/sus2/1
 
-(same thing with note names: Cmaj7#4/Csus2/C)
+(same thing with note names: Bbmaj7#4/Csus2/C)
     
 (suffix this with & to hear the notes walked individually)
 
 The above chord voicing spans 3 octaves and contains 9 notes.
-It is a Cmaj7 chord w/ an added #4, followed by a lower octave Csus2.
+It is a Bbmaj7 chord w/ an added #4 (relative to Bb, which is E), followed by a lower octave Csus2.
 Then at the bottom, there is a C bass note.
 As cryptic as it may seem to non-musicians, condensed chord voicings are going
 to make more sense to your ear over time than seeing random note letters fly by.
@@ -448,17 +448,25 @@ I'm a fan of thinking about music and chords in a relative way that is not depen
 For this reason, decadence prefers relative note numbers/names
 over arbitrary note names (even though both are valid).
 
-So if you're writing a song in D minor, you will want to set the global or track key
+If no number prefix is given, like in the above examples, it is always 1 (C).
+
+If you're writing a song in D minor, you will want to set the global or track key
 to D, making D note 1. (You could also set D to 6 if you're thinking modally)
 If this is confusing or not beneficial to you: don't worry, it's optional!
-
-If no number prefix is given, like in the above examples, it is always 1 (C).
 
 Note to musicians: There are a few quirks with the parser that make the chord interpretation different than
 what musicians would expect.  For example, slash chords do not imply inversions,
 but are for stacking across octaves.  Additionally, note names alone do no imply chords.
 For example, C/E means play a C note with an E in a lower octave, whereas a musician might
 interpret this as a specific chord voicing.  (Inversions use shift operator (maj> for first inversion))
+
+# Full list of scales, modes, chords, and voicings
+
+- Default: [def/default.yaml](https://github.com/flipcoder/decadence/blob/master/def/default.yaml).
+- Informal: [def/informal.yaml](https://github.com/flipcoder/decadence/blob/master/def/informal.yaml).
+- Experimental: [def/dc.yaml](https://github.com/flipcoder/decadence/blob/master/def/dc.yaml).
+
+These lists does not include certain chord modifications (add, no, drop, etc.)
 
 # What else?
 

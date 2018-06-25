@@ -5,3 +5,4 @@ ctcsound
 prompt_toolkit
 appdirs
 pyyaml
+docopt

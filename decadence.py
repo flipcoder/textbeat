@@ -4,7 +4,7 @@ Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
 
 Usage:
-    decadence.py [--follow] [-eftnpsrx] [SONGNAME]
+    decadence.py [--follow] [--csound] [--sonic-pi] [-eftnpsrx] [SONGNAME]
     decadence.py [+RANGE] [--follow] [-eftnpsrx] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
@@ -39,9 +39,11 @@ Options:
     --lint                analyze file
     --follow              (old) print newlines every line, no output
     --quiet               no output
+    --csound              (STUB) enable csound
+    --sonic-pi            (STUB) enable sonic-pi
 """
 from __future__ import unicode_literals, print_function, generators
-import os, sys, time, random, itertools, signal, tempfile, traceback
+import os, sys, time, random, itertools, signal, tempfile, traceback, socket
 from builtins import range, str
 from future.utils import iteritems
 import time, subprocess, pipes
@@ -50,17 +52,7 @@ from docopt import docopt
 from collections import OrderedDict
 import pygame, pygame.midi as midi
 from multiprocessing import Process,Pipe
-
 from src import *
-
-# import pyeditline
-# import pyeditline as readline
-# import pykka
-# try:
-#     import ctcsound
-# except ImportError:
-#     pass
-# import logging
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import style_from_dict
 from prompt_toolkit.history import InMemoryHistory
@@ -194,6 +186,7 @@ DRUM_CHANNEL = 9
 SHOWMIDI = False
 DRUM_OCTAVE = -2
 random.seed()
+CSOUND_PORT = 3489
 
 FLATS=False
 NOTENAMES=True # show note names instead of numbers
@@ -900,6 +893,25 @@ for arg,val in iteritems(ARGS):
         elif arg == '-l' and val: DCMODE = 'l'
         elif arg == '-c' and val: DCMODE = 'c'
 
+SUPPORT = set(['midi'])
+SUPPORT_ALL = set(['sonic-pi','csound','midi']) # gme,mpe
+psonic = None
+if ARGS['--sonic-pi']:
+    import psonic
+    SUPPORT.add('sonic-pi')
+
+csound = None
+if ARGS['--csound']:
+    csound_proc = subprocess.Popen(['csound', '-odac', '--port='+str(CSOUND_PORT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    csound = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    SUPPORT.add('csound')
+
+def csound_send(s):
+    assert csound
+    return csound.sendto(s,('localhost',CSOUND_PORT))
+
+# import logging
+
 if DCMODE=='l':
     buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
 elif DCMODE=='c':
@@ -1017,6 +1029,12 @@ if SHELL:
     log(FG.BLUE + 'decadence v'+str(VERSION))
     log('Copyright (c) 2018 Grady O\'Connell')
     log('https://github.com/flipcoder/decadence')
+    s = SUPPORT_ALL & SUPPORT
+    s2 = SUPPORT_ALL - SUPPORT
+    if s:
+        log(FG.GREEN + 'Active Modules: ' + FG.WHITE +  ', '.join(s) + FG.WHITE)
+    if s2:
+        log(FG.RED + 'Inactive Modules: ' +  FG.WHITE + ', '.join(s2))
     if PORTNAME:
         log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',))
         if TRACKS[0].midich == DRUM_CHANNEL:
@@ -2274,6 +2292,9 @@ for ch in TRACKS:
 
 del PLAYER
 midi.quit()
+
+if csound and csound_proc:
+    csound_proc.kill()
 
 # def main():
 #     pass

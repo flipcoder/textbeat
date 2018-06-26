@@ -3,16 +3,16 @@
 Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
 
+Examples:
+    decadence.py          shell
+    decadence.py song.dc  play song
+
 Usage:
     decadence.py [--follow] [--csound] [--sonic-pi] [-eftnpsrx] [SONGNAME]
     decadence.py [+RANGE] [--follow] [-eftnpsrx] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
     decadence.py  [SONGNAME]
-
-Examples:
-    decadence.py            shell
-    decadence.py song.dc    play song
 
 Options:
     -h --help             show this
@@ -697,7 +697,7 @@ class Schedule:
                 else:
                     # sleep until next event
                     if ev.t >= 0.0:
-                        time.sleep(t*(ev.t-self.passed))
+                        time.sleep(SPEED*t*(ev.t-self.passed))
                         ev.func(0)
                         self.passed = ev.t # only inc if positive
                     else:
@@ -707,7 +707,7 @@ class Schedule:
 
             slp = t*(1.0-self.passed) # remaining time
             if slp > 0.0:
-                time.sleep(slp)
+                time.sleep(SPEED*slp)
             self.passed = 0.0
             self.events = self.events[processed:]
         except KeyboardInterrupt as ex:

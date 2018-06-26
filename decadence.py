@@ -8,21 +8,20 @@ Examples:
     decadence.py song.dc  play song
 
 Usage:
-    decadence.py [--follow] [--csound] [--sonic-pi] [-eftnpsrx] [SONGNAME]
-    decadence.py [+RANGE] [--follow] [-eftnpsrx] [SONGNAME]
+    decadence.py [--follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
+    decadence.py [+RANGE] [--follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
-    decadence.py  [SONGNAME]
 
 Options:
     -h --help             show this
     -v --verbose          verbose
-    -t --tempo=<bpm>      set tempo
-    -x --grid=<grid>      set grid
-    -n --note=<note>      set grid using note value
-    -s --speed=<speed>    (STUB) playback speed
+    -t --tempo=<bpm>      (STUB) set tempo
+    -x --grid=<g>         (STUB) set grid
+    -n --note=<n>         (STUB) set grid using note value
+    -s --speed=<s>        (STUB) playback speed
     --dev=<device>        output device, partial match
-    -p --patch=<patch>    default midi patch, partial match
+    -p --patch=<patch>    (STUB) default midi patch, partial match
     -c                    execute commands sequentially
     -l                    execute commands simultaenously
     -r --remote           (STUB) remote, keep alive as daemon
@@ -36,7 +35,7 @@ Options:
     --notenames           use note names in output
     --flats               prefer flats in output
     --sharps              prefer sharps in output
-    --lint                analyze file
+    --lint                (STUB) analyze file
     --follow              (old) print newlines every line, no output
     --quiet               no output
     --csound              (STUB) enable csound
@@ -58,6 +57,8 @@ from prompt_toolkit.styles import style_from_dict
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.token import Token
+if sys.version_info[0]==3:
+    basestring = str
 
 style = style_from_dict({
     Token:          '#ff0066',

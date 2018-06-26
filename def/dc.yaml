@@ -20,8 +20,8 @@ chords:
     sus13: '4 5 9 13'
 
     # edges of scale shape along circle (i.e. darkest and brightest notes of each whole tone scale)
-    eg: '3 4 7' # diatonic edges (egb=phyr egc=lyd egd=loc)
+    eg: '3 4 7' # diatonic edges ("eg>>"=phyr "eg>3"=lyd "eg>6"=loc)
     eg-: '2 b3 7' # melodic minor edges
-    arp: '3 4 5 7' # aka wu7, diatonic edge w/ 5, for inversions use '|5' eg: egb|5
+    arp: '3 4 5 7' # aka wu7, diatonic edge w/ 5, for inversions use '|5' eg: eg>|5
     melo: '2 b3 5 7' # eg- w/ 5 melodic minor arp
 

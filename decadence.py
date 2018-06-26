@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python
 """decadence
 Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
@@ -8,8 +8,8 @@ Examples:
     decadence.py song.dc  play song
 
 Usage:
-    decadence.py [--follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
-    decadence.py [+RANGE] [--follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
+    decadence.py [--ring | --follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
+    decadence.py [+RANGE] [--ring || --follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
 
@@ -25,7 +25,7 @@ Options:
     -c                    execute commands sequentially
     -l                    execute commands simultaenously
     -r --remote           (STUB) remote, keep alive as daemon
-    --nomute              don't mute midi on end
+    --ring                don't mute midi on end
     +<range>              play from line or maker, for range use start:end
     -e --edit             (STUB) open file in editor
     --vi                  (STUB) shell vi mode
@@ -42,881 +42,65 @@ Options:
     --sonic-pi            (STUB) enable sonic-pi
 """
 from __future__ import unicode_literals, print_function, generators
-import os, sys, time, random, itertools, signal, tempfile, traceback, socket
-from builtins import range, str
-from future.utils import iteritems
-import time, subprocess, pipes
-import yaml, colorama, appdirs
-from docopt import docopt
-from collections import OrderedDict
-import pygame, pygame.midi as midi
-from multiprocessing import Process,Pipe
 from src import *
-from prompt_toolkit import prompt
-from prompt_toolkit.styles import style_from_dict
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.history import FileHistory
-from prompt_toolkit.token import Token
-if sys.version_info[0]==3:
-    basestring = str
+if __name__!='__main__':
+    sys.exit(0)
+ARGS = docopt(__doc__)
+set_args(ARGS)
+
+from src.support import *
 
 style = style_from_dict({
     Token:          '#ff0066',
     Token.DC:       '#00aa00',
     Token.Info:     '#000088',
 })
+colorama.init(autoreset=True)
 
-ARGS = docopt(__doc__)
-APPNAME = 'decadence'
-DIR = appdirs.AppDirs(APPNAME)
-# LOG_FN = os.path.join(DIR.user_log_dir,'.log')
-HISTORY_FN = os.path.join(DIR.user_config_dir, '.history')
-HISTORY = FileHistory(HISTORY_FN)
-SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-CFG_PATH = os.path.join(SCRIPT_PATH, 'config')
-DEF_PATH = os.path.join(SCRIPT_PATH, 'def')
-try:
-    os.makedirs(DIR.user_config_dir)
-except OSError:
-    pass
 # logging.basicConfig(filename=LOG_FN,level=logging.DEBUG)
 
-QUITFLAG = False
-class SignalError(BaseException):
-    pass
-class ParseError(BaseException):
-    def __init__(self, s=''):
-        super(BaseException,self).__init__(s)
-def quitnow(signum,frame):
-    raise SignalError()
-signal.signal(signal.SIGTERM, quitnow)
-signal.signal(signal.SIGINT, quitnow)
-
-VIMODE = False
-
-class BGCMD:
-    NONE = 0
-    QUIT = 1
-    SAY = 2
-    CACHE = 2
-    CLEAR = 3
-
-# Currently not used, caches text to speech stuff in a way compatible with jack
-# current super slow, need to write stabilizer first
-class BackgroundProcess:
-    def __init__(self, con):
-        self.con = con
-        self.words = {}
-        self.processes = []
-    def cache(self,word):
-        try:
-            tmp = self.words[word]
-        except:
-            tmp = tempfile.NamedTemporaryFile()
-            p = subprocess.Popen(['espeak', '\"'+pipes.quote(word)+'\"','--stdout'], stdout=tmp)
-            p.wait()
-            self.words[tmp.name] = tmp
-        return tmp
-    def run(self):
-        devnull = open(os.devnull, 'w')
-        while True:
-            msg = self.con.recv()
-            # log(msg)
-            if msg[0]==BGCMD.SAY:
-                tmp = self.cache(msg[1])
-                # super slow, better option needed
-                self.processes.append(subprocess.Popen(['mpv','-ao','jack',tmp.name],stdout=devnull,stderr=devnull))
-            elif msg[0]==BGCMD.CACHE:
-                self.cache(msg[1])
-            elif msg[0]==BGCMD.QUIT:
-                break
-            elif msg[0]==BGCMD.CLEAR:
-                self.words.clear()
-            else:
-                log('BAD COMMAND: ' + msg[0])
-            self.processses = list(filter(lambda p: p.poll()==None, self.processes))
-        self.con.close()
-        for tmp in self.words:
-            tmp.close()
-        for proc in self.processes:
-            proc.wait()
-
-def bgproc_run(con):
-    proc = BackgroundProcess(con)
-    proc.run()
-
-if __name__!='__main__':
-    sys.exit(0)
-
-colorama.init(autoreset=True)
-FG = colorama.Fore
-BG = colorama.Back
-STYLE = colorama.Style
-
-BCPROC = None
-
-# BGPIPE, child = Pipe()
-# BGPROC = Process(target=bgproc_run, args=(child,))
-# BGPROC.start()
-
-PRINT=True
-LOG=False
-FOLLOW=False
-LINT=False
-
-def follow(count):
-    if FOLLOW:
-        print('\n' * max(0,count-1))
-
-def log(msg):
-    if PRINT:
-        print(msg)
-
-def load_cfg(fn):
-    with open(os.path.join(CFG_PATH, fn+'.yaml'),'r') as y:
-        return yaml.safe_load(y)
-def load_def(fn):
-    with open(os.path.join(DEF_PATH, fn+'.yaml'),'r') as y:
-        return yaml.safe_load(y)
-
-VERSION = '0.1'
-NUM_TRACKS = 15 # skip drum channel
-NUM_CHANNELS_PER_DEVICE = 15 # "
-TRACKS_ACTIVE = 1
-DRUM_CHANNEL = 9
-SHOWMIDI = False
-DRUM_OCTAVE = -2
-random.seed()
-CSOUND_PORT = 3489
-
-FLATS=False
-NOTENAMES=True # show note names instead of numbers
-SOLFEGE=False
-SOLFEGE_NOTES ={
-    'do': '1',
-    'di': '#1',
-    'ra': 'b2',
-    're': '2',
-    'ri': '#2',
-    'me': 'b3',
-    'mi': '3',
-    'fa': '4',
-    'fi': '4#',
-    'se': 'b5',
-    'sol': '5',
-    'si': '#5',
-    'le': 'b6',
-    'la': '6',
-    'li': '#6',
-    'te': 'b7',
-    'ti': '7',
-}
-
-def note_name(n, nn=NOTENAMES, ff=FLATS, sf=SOLFEGE):
-    assert type(n) == int
-    if sf:
-        if ff:
-            return ['Do','Ra','Re','Me','Mi','Fa','Se','Sol','Le','La','Te','Ti'][n%12]
-        else:
-            return ['Do','Ri','Re','Ri','Mi','Fa','Fi','Sol','Si','La','Li','Ti'][n%12]
-    elif nn:
-        if ff:
-            return ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'][n%12]
-        return ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][n%12]
-    else:
-        if ff:
-            return ['1','b2','2','b3','3','4','5b','5','b6','6','b7','7'][n%12]
-        return ['1','#1','2','#2','3','4','#4','5','#5','6','#6','7'][n%12]
-
-class Scale:
-    def __init__(self, name, intervals):
-        self.name = name
-        self.intervals = intervals
-        self.modes = [''] * 12
-    def add_mode(self, name, index):
-        assert index > 0
-        self.modes[index-1] = name
-    def add_mode_i(self, name, index): # chromaticc index
-        assert index > 0
-        self.modes[index-1] = name
-    def mode(self, index):
-        return self.mode[index]
-    def mode_name(self, idx):
-        assert idx != 0 # modes are 1-based
-        m = self.modes[idx-1]
-        if not m:
-            if idx == 1:
-                return self.name
-            else:
-                return self.name + " mode " + str(idx)
-        return m
-
-DEFS = load_def('default')
-for f in os.listdir(DEF_PATH):
-    if f != 'default.yaml':
-        defs = load_def(f[:-len('.yaml')])
-        
-SCALES = {}
-MODES = {}
-for k,v in iteritems(DEFS['scales']):
-    scale = SCALES[k] = Scale(k, v['intervals'])
-    i = 1
-    scaleinfo = DEFS['scales'][k]
-    if 'modes' in scaleinfo:
-        for scalename in scaleinfo['modes']:
-            MODES[scalename] = (k,i)
-            SCALES[k].add_mode(scalename,i)
-            i += 1
-    else:
-        MODES[k] = (k,1)
-
-DIATONIC = SCALES['diatonic']
-# for lookup, normalize name first, add root to result
-# number chords can't be used with note numbers "C7 but not 17
-# in the future it might be good to lint chord names in a test
-# so that they dont clash with commands and break previous songs if chnaged
-# This will be replaced for a better parser
-# TODO: need optional notes marked
-CHORDS = DEFS['chords']
-CHORDS_ALT = DEFS['chord_alts']
-# CHORD_REPLACE = DEFS['chord_replace']
-# replace and keep the rest of the name
-CHORDS_REPLACE = OrderedDict([
-    ("#5", "+"),
-    ("aug", "+"),
-    ("mmaj", "mm"),
-    ("major", "ma"),
-    ("M", "ma"),
-    ("maj", "ma"),
-    ("minor", "m"),
-    ("min", "m"),
-    ("dom", ""), # temp
-    ("R", ""),
-])
-
-# add scales as chords
-for sclname, scl in iteritems(SCALES):
-    # as with chords, don't list root
-    for m in range(len(scl.modes)):
-        sclnotes = []
-        idx = 0
-        inter = list(filter(lambda x:x.isdigit(), scl.intervals))
-        if m:
-            inter = list(inter[m:]) + list(inter[:m])
-        for x in inter:
-            sclnotes.append(note_name(idx, False))
-            try:
-                idx += int(x)
-            except ValueError:
-                idx += 1 # passing tone is 1
-                pass
-        sclnotes = ' '.join(sclnotes[1:])
-        if m==0:
-            CHORDS[sclname] = sclnotes
-        # log(scl.mode_name(m+1))
-        # log(sclnotes)
-        CHORDS[scl.mode_name(m+1)] = sclnotes
-
-# certain chords parse incorrectly with note letters
-BAD_CHORDS = []
-for chordlist in (CHORDS, CHORDS_ALT):
-    for k in chordlist.keys():
-        if k and k[0].lower() in 'abcdefgiv':
-            BAD_CHORDS.append(k[1:]) # 'aug' would be 'ug'
-
-# don't parse until checking next char
-# AMBIGUOUS_NAMES = {
-#     'io': 'n', # i dim vs ionian
-#     'do': 'r', # d dim vs dorian
-# }
-
-GM = load_cfg('gm')
-DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
-SPEECH_WORDS = ['speech','say','speak']
-GM_LOWER = [""]*len(GM)
-for i in range(len(GM)): GM_LOWER[i] = GM[i].lower()
-
-def normalize_chord(c):
-    try:
-        c = CHORDS_ALT[c]
-    except KeyError:
-        c = c.lower()
-        try:
-            c = CHORDS_ALT[c]
-        except KeyError:
-            pass
-    return c
-
-def expand_chord(c):
-    # if c=='rand':
-    #     log(CHORDS.values())
-    #     r = random.choice(CHORDS.values())
-    #     log(r)
-    #     return r
-    for k,v in iteritems(CHORDS_REPLACE):
-        cr = c.replace(k,v)
-        if cr != c:
-            c=cr
-            # log(c)
-            break
-
-    # - is shorthand for m in the index, but only at beginning and end
-    # ex: -7b5 -> m7b5, but mu-7 -> mum7 is invalid
-    # remember notes are not part of chord name here (C-7 -> Cm7 works)
-    if c.startswith('-'):
-        c = 'm' + c[1:]
-    if c.endswith('-'):
-        c = c[:-1] + 'm'
-    return CHORDS[normalize_chord(c)].split(' ')
-
-def note_value(s): # turns dot note values (. and *) into frac
-    if not s:
-        return (0.0, 0)
-    r = 1.0
-    dots = count_seq(s)
-    s = s[dots:]
-    num,ct = peel_float(s, 1.0)
-    s = s[ct:]
-    if s[0]=='*':
-        if dots==1:
-            r = num
-        else:
-            r = num*pow(2.0,float(dots-1))
-    elif s[0]=='.':
-        num,ct = peel_int_s(s)
-        if ct:
-            num = int('0.' + num)
-        else:
-            num = 1.0
-        s = s[ct:]
-        r = num*pow(0.5,float(dots))
-    return (r, dots)
-
-RANGE = 109
-OCTAVE_BASE = 5
-SCALE = DIATONIC
-MODE = 1
-TRANSPOSE = 0
-
-MIDI_CC = 0b1011
-MIDI_PROGRAM = 0b1100
-MIDI_PITCH = 0b1110
-
-class Track:
-    FLAGS = set('auto_roman')
-    def __init__(self, idx, midich, player, schedule):
-        self.idx = idx
-        # self.players = [player]
-        self.player = player
-        self.schedule = schedule
-        self.channels = [midich]
-        self.midich = midich # tracks primary midi channel
-        self.initial_channel = midich
-        self.non_drum_channel = midich
-        self.reset()
-    def reset(self):
-        self.notes = [0] * RANGE
-        self.sustain_notes = [False] * RANGE
-        self.mode = 0 # 0 is NONE which inherits global mode
-        self.scale = None
-        self.instrument = 0
-        self.octave = 0 # rel to OCTAVE_BASE
-        self.modval = 0 # dont read in mod, just track its change by this channel
-        self.sustain = False # sustain everything?
-        self.arp_notes = [] # list of notes to arpegiate
-        self.arp_idx = 0
-        self.arp_cycle_limit = 0 # cycles remaining, only if limit != 0
-        self.arp_pattern = [] # relative steps to
-        self.arp_enabled = False
-        self.arp_once = False
-        self.arp_delay = 0.0
-        self.arp_sustain = False
-        self.arp_note_spacing = 1.0
-        self.arp_reverse = False
-        self.vel = 100
-        self.non_drum_channel = self.initial_channel
-        # self.off_vel = 64
-        self.staccato = False
-        self.patch_num = 0
-        self.transpose = 0
-        self.pitch = 0.0
-        self.tuplets = False
-        self.note_spacing = 1.0
-        self.tuplet_count = 0
-        self.tuplet_offset = 0.0
-        self.use_sustain_pedal = False # whether to use midi sustain instead of track
-        self.sustain_pedal_state = False # current midi pedal state
-        self.schedule.clear_channel(self)
-        self.flags = set()
-    # def _lazychannelfunc(self):
-    #     # get active channel numbers
-    #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
-    def add_flags(self, f):
-        if f != f & FLAGS:
-            raise ParseError('invalid flags')
-        self.flags |= f
-    def mute(self):
-        for ch in self.channels:
-            status = (MIDI_CC<<4) + ch
-            if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
-            self.player.write_short(status, 120, 0)
-            if self.modval>0:
-                ch.cc(1,0)
-                self.modval = False
-    def panic(self):
-        for ch in self.channels:
-            status = (MIDI_CC<<4) + ch
-            if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
-            self.player.write_short(status, 123, 0)
-            if self.modval>0:
-                ch.cc(1,0)
-                self.modval = False
-    def note_on(self, n, v=-1, sustain=False):
-        if self.use_sustain_pedal:
-            if sustain and self.sustain != sustain:
-                self.cc(MIDI_SUSTAIN_PEDAL, sustain)
-        elif not sustain:  # sustain=False is overridden by track sustain
-            sustain = self.sustain
-        if v == -1:
-            v = self.vel
-        if n < 0 or n > RANGE:
-            return
-        for ch in self.channels:
-            self.notes[n] = v
-            self.sustain_notes[n] = sustain
-            # log("on " + str(n))
-            if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch))
-            self.player.note_on(n,v,ch)
-    def note_off(self, n, v=-1):
-        if v == -1:
-            v = self.vel
-        if n < 0 or n >= RANGE:
-            return
-        if self.notes[n]:
-            # log("off " + str(n))
-            for ch in self.channels:
-                if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
-                self.player.note_off(n,v,ch)
-                self.notes[n] = 0
-                self.sustain_notes[n] = 0
-            self.cc(MIDI_SUSTAIN_PEDAL, True)
-    def release_all(self, mute_sus=False, v=-1):
-        if v == -1:
-            v = self.vel
-        for n in range(RANGE):
-            # if mute_sus, mute sustained notes too, otherwise ignore
-            mutesus_cond = True
-            if not mute_sus:
-                mutesus_cond =  not self.sustain_notes[n]
-            if self.notes[n] and mutesus_cond:
-                for ch in self.channels:
-                    if SHOWMIDI: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
-                    self.player.note_off(n,v,ch)
-                    self.notes[n] = 0
-                    self.sustain_notes[n] = 0
-                # log("off " + str(n))
-        # self.notes = [0] * RANGE
-        if self.modval>0:
-            self.cc(1,0)
-        # self.arp_enabled = False
-        self.schedule.clear_channel(self)
-    # def cut(self):
-    def midi_channel(self, midich, stackidx=-1):
-        if midich==DRUM_CHANNEL: # setting to drums
-            if self.channels[stackidx] != DRUM_CHANNEL:
-                self.non_drum_channel = self.channels[stackidx]
-            self.octave = DRUM_OCTAVE
-        else:
-            for ch in self.channels:
-                if ch!=DRUM_CHANNEL:
-                    midich = ch
-            if midich != DRUMCHANNEL: # no suitable channel in span?
-                midich = self.non_drum_channel
-        if stackidx == -1: # all
-            self.release_all()
-            self.channels = [midich]
-        elif midich not in self.channels:
-            self.channels.append(midich)
-    def pitch(self, val): # [-1.0,1.0]
-        val = min(max(0,int((1.0 + val)*0x2000)),16384)
-        self.pitch = val
-        val2 = (val>>0x7f)
-        val = val&0x7f
-        for ch in self.channels:
-            status = (MIDI_PITCH<<4) + self.midich
-            if SHOWMIDI: log(FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2))
-            self.player.write_short(status,val,val2)
-            self.mod(0)
-    def cc(self, cc, val): # control change
-        if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
-        for ch in self.channels:
-            status = (MIDI_CC<<4) + ch
-            if SHOWMIDI: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
-            self.player.write_short(status,cc,val)
-        if cc==1:
-            self.modval = val
-    def mod(self, val):
-        return cc(1,val)
-    def patch(self, p, stackidx=0):
-        if isinstance(p,basestring):
-            # look up instrument string in GM
-            i = 0
-            inst = p.replace('_',' ').replace('.',' ').lower()
-            
-            if p in DRUM_WORDS:
-                self.midi_channel(DRUM_CHANNEL)
-                p = 0
-            else:
-                if self.midich == DRUM_CHANNEL:
-                    self.midi_channel(self.non_drum_channel)
-                
-                stop_search = False
-                gmwords = GM_LOWER
-                for w in inst.split(' '):
-                    gmwords = list(filter(lambda x: w in x, gmwords))
-                    lengw = len(gmwords)
-                    if lengw==1:
-                        log('found')
-                        break
-                    elif lengw==0:
-                        log('no match')
-                        assert False
-                assert len(gmwords) > 0
-                log(FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0])
-                p = GM_LOWER.index(gmwords[0])
-                # for i in range(len(GM_LOWER)):
-                #     continue_search = False
-                #     for pword in inst.split(' '):
-                #         if pword.lower() not in gmwords:
-                #             continue_search = True
-                #             break
-                #         p = i
-                #         stop_search=True
-                        
-                    # if stop_search:
-                    #     break
-                    # if continue_search:
-                    #     assert i < len(GM_LOWER)-1
-                    #     continue
-
-        self.patch_num = p
-        # log('PATCH SET - ' + str(p))
-        status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
-        if SHOWMIDI: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
-        self.player.write_short(status,p)
-    def arp(self, notes, count=0, sustain=False, pattern=[1], reverse=False):
-        self.arp_enabled = True
-        if reverse:
-            notes = notes[::-1]
-        self.arp_notes = notes
-        self.arp_cycle_limit = count
-        self.arp_cycle = count
-        self.arp_pattern = pattern
-        self.arp_pattern_idx = 0
-        self.arp_idx = 0 # use inversions to move this start point (?)
-        self.arp_once = False
-        self.arp_sustain = False
-    def arp_stop(self):
-        self.arp_enabled = False
-        self.release_all()
-    def arp_next(self):
-        assert self.arp_enabled
-        note = self.arp_notes[self.arp_idx]
-        if self.arp_idx+1 == len(self.arp_notes): # cycle?
-            self.arp_once = True
-            if self.arp_cycle_limit:
-                self.arp_cycle -= 1
-                if self.arp_cycle == 0:
-                    self.arp_enabled = False
-        # increment according to pattern order
-        self.arp_idx = (self.arp_idx+self.arp_pattern[self.arp_pattern_idx])%len(self.arp_notes)
-        self.arp_pattern_idx = (self.arp_pattern_idx + 1) % len(self.arp_pattern)
-        self.arp_delay = (self.arp_note_spacing+1.0) % 1.0
-        return (note, self.arp_delay)
-    def tuplet_next(self):
-        delay = 0.0
-        if self.tuplets:
-            delay = self.tuplet_offset
-            self.tuplet_offset = (self.tuplet_offset+self.note_spacing) % 1.0
-            self.tuplet_count -= 1
-            if not self.tuplet_count:
-                self.tuplets = False
-        else:
-            self.tuplet_stop()
-        if feq(delay,1.0):
-            return 0.0
-        # log(delay)
-        return delay
-    def tuplet_stop(self):
-        self.tuplets = False
-        self.tuplet_count = 0
-        self.note_spacing = 1.0
-        self.tuplet_offset = 0.0
-
-class Event:
-    def __init__(self, t, func, ch):
-        self.t = t
-        self.func = func
-        self.ch = ch
-
-class Schedule:
-    def __init__(self):
-        self.events = [] # time,func,ch,skippable
-        # store this just in case logic() throws
-        # we'll need to reenter knowing this value
-        self.passed = 0.0 
-        self.clock = 0.0
-        self.started = False
-    # all note mute and play events should be marked skippable
-    def pending(self):
-        return len(self.events)
-    def add(self, e):
-        self.events.append(e)
-    def clear(self):
-        self.events = []
-    def clear_channel(self, ch):
-        self.events = [ev for ev in self.events if ev.ch!=ch]
-    def logic(self, t):
-        processed = 0
-        
-        # clock = time.clock()
-        # if self.started:
-        #     tdelta = (clock - self.passed)
-        #     self.passed += tdelta
-        #     self.clock = clock
-        # else:
-        #     self.started = True
-        #     self.clock = clock
-        #     self.passed = 0.0
-        # log(self.clock)
-
-        try:
-            self.events = sorted(self.events, key=lambda e: e.t)
-            for ev in self.events:
-                if ev.t > 1.0:
-                    ev.t -= 1.0
-                else:
-                    # sleep until next event
-                    if ev.t >= 0.0:
-                        time.sleep(SPEED*t*(ev.t-self.passed))
-                        ev.func(0)
-                        self.passed = ev.t # only inc if positive
-                    else:
-                        ev.func(0)
-                    
-                    processed += 1
-
-            slp = t*(1.0-self.passed) # remaining time
-            if slp > 0.0:
-                time.sleep(SPEED*slp)
-            self.passed = 0.0
-            self.events = self.events[processed:]
-        except KeyboardInterrupt as ex:
-            # don't replay events
-            self.events = self.events[processed:]
-            raise ex
-        except:
-            QUITFLAG = True
-
-def count_seq(seq, match=''):
-    if not seq:
-        return 0
-    if match == '':
-        match = seq[0]
-        seq = seq[1:]
-    r = 1
-    for c in seq:
-        if c != match:
-            break
-        r+=1
-    return r
-
-def peel_uint(s, d=None):
-    a,b = peel_uint_s(s,d)
-    return (int(a),b)
-
-# don't cast
-def peel_uint_s(s, d=None):
-    r = ''
-    for ch in s:
-        if ch.isdigit():
-            r += ch
-        else:
-            break
-    if not r: return (d,0) if d!=None else ('',0)
-    return (r,len(r))
-
-def peel_roman_s(s, d=None):
-    nums = 'ivx'
-    r = ''
-    case = -1 # -1 unknown, 0 low, 1 uppper
-    for ch in s:
-        chl = ch.lower()
-        chcase = (chl==ch)
-        if chl in nums:
-            if case > 0 and case != chcase:
-                break # changing case ends peel
-            r += ch
-            chcase = 0 if (chl==ch) else 1
-        else:
-            break
-    if not r: return (d,0) if d!=None else ('',0)
-    return (r,len(r))
-
-def peel_int(s, d=None):
-    a,b = peel_int_s(s,d)
-    return (int(a),b)
-
-def peel_int_s(s, d=None):
-    r = ''
-    for ch in s:
-        if ch.isdigit():
-            r += ch
-        elif ch=='-' and not r:
-            r += ch
-        else:
-            break
-    if r == '-': return (0,0)
-    if not r: return (d,'') if d!=None else (0,'')
-    return (int(r),len(r))
-
-def peel_float(s, d=None):
-    r = ''
-    decimals = 0
-    for ch in s:
-        if ch.isdigit():
-            r += ch
-        elif ch=='-' and not r:
-            r += ch
-        elif ch=='.':
-            if decimals >= 1:
-                break
-            r += ch
-            decimals += 1
-        else:
-            break
-    # don't parse trailing decimals
-    if r and r[-1]=='.': r = r[:-1]
-    if not r: return (d,0) if d!=None else (0,0)
-    return (float(r),len(r))
-
-def peel_any(s, match, d=''):
-    r = ''
-    ct = 0
-    for ch in s:
-        if ch in match:
-            r += ch
-            ct += 1
-        else:
-            break
-    return (ct,orr(r,d))
-
-def pauseDC():
-    try:
-        for ch in TRACKS[:TRACKS_ACTIVE]:
-            ch.release_all(True)
-        raw_input(' === PAUSED === ')
-    except:
-        return False
-    return True
+dc = Context()
 
 # class Marker:
 #     def __init__(self,name,row):
 #         self.name = name
 #         self.line = row
 
-TEMPO = 90.0
-GRID = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
-COLUMNS = 0
-COLUMN_SHIFT = 0
-SHOWTEXT = True # nice output (-v), only shell and cmd modes by default
-SUSTAIN = False # start sustained
-NOMUTE = False # nomute=True disables midi muting on program exit
-
-buf = []
-
-class StackFrame:
-    def __init__(self, row):
-        self.row = row
-        self.counter = 0 # repeat call counter
-
-MARKERS = {}
-CALLSTACK = [StackFrame(-1)]
-CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%'
-CCHAR_START = 'T' # control chars
-SCHEDULE = []
-SEPARATORS = []
-TRACK_HISTORY = ['.'] * NUM_TRACKS
-FN = None
-row = 0
-stoprow = -1
-DCMODE = 'n' # n normal c command s sequence
-next_arg = 1
-# request_tempo = False
-# request_grid = False
-skip = 0
-SCHEDULE = Schedule()
-TRACKS = []
-SHELL = True
-DAEMON = False
-GUI = False
-PORTNAME = ''
-SPEED = 1.0
-
 for arg,val in iteritems(ARGS):
     if val:
-        if arg == '--tempo': TEMPO = float(val)
-        elif arg == '--grid': GRID = float(val)
-        elif arg == '--note': GRID = float(val)/4.0
-        elif arg == '--speed': SPEED = float(val)
-        elif arg == '--verbose': SHOWTEXT = True
-        elif arg == '--dev': PORTNAME = val
-        elif arg == '--vi': VIMODE = True
+        if arg == '--tempo': dc.tempo = float(val)
+        elif arg == '--grid': dc.grid = float(val)
+        elif arg == '--note': dc.grid = float(val)/4.0
+        elif arg == '--speed': dc.speed = float(val)
+        elif arg == '--verbose': dc.showtext = True
+        elif arg == '--dev': dc.portname = val
+        elif arg == '--vi': dc.vimode = True
         elif arg == '--patch':
             vals = val.split(',')
             for i in range(len(vals)):
                 val = vals[i]
                 if val.isdigit():
-                    TRACKS[i].patch(int(val))
+                    dc.tracks[i].patch(int(val))
                 else:
-                    TRACKS[i].patch(val)
-        elif arg == '--sustain': SUSTAIN=True
-        elif arg == '--nomute': NOMUTE=True
-        elif arg == '--remote': DAEMON = True
+                    dc.tracks[i].patch(val)
+        elif arg == '--sustain': dc.sustain=True
+        elif arg == '--ring': dc.ring=True
+        elif arg == '--remote': dc.daemon = True
         elif arg == '--lint': LINT = True
-        elif arg == '--quiet': PRINT = False
+        elif arg == '--quiet': set_print(False)
         elif arg == '--follow':
-            FOLLOW = True
-            PRINT = False
+            set_print(True)
+            dc.canfollow = False
         elif arg == '--flats': FLATS = True
         elif arg == '--sharps': SHARPS= True
         elif arg == '--edit': pass
-        elif arg == '-l' and val: DCMODE = 'l'
-        elif arg == '-c' and val: DCMODE = 'c'
+        elif arg == '-l' and val: dc.dcmode = 'l'
+        elif arg == '-c' and val: dc.dcmode = 'c'
 
-SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['sonic-pi','csound','midi']) # gme,mpe
-psonic = None
-if ARGS['--sonic-pi']:
-    import psonic
-    SUPPORT.add('sonic-pi')
-
-csound = None
-if ARGS['--csound']:
-    csound_proc = subprocess.Popen(['csound', '-odac', '--port='+str(CSOUND_PORT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    csound = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    SUPPORT.add('csound')
-
-def csound_send(s):
-    assert csound
-    return csound.sendto(s,('localhost',CSOUND_PORT))
-
-# import logging
-
-if DCMODE=='l':
-    buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
-elif DCMODE=='c':
-    buf = ' '.join(ARGS['COMMANDS']).split(' ') # spaces
+if dc.dcmode=='l':
+    dc.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
+elif dc.dcmode=='c':
+    dc.buf = ' '.join(ARGS['COMMANDS']).split(' ') # spaces
 else: # mode n
     # if len(sys.argv)>=2:
     #     FN = sys.argv[-1]
@@ -940,28 +124,28 @@ else: # mode n
                     if ls.startswith(':'):
                         bm = ls[1:]
                         # only store INITIAL marker positions
-                        if not bm in MARKERS:
-                            MARKERS[bm] = lc
+                        if not bm in dc.markers:
+                            dc.markers[bm] = lc
                     elif ls.startswith('|') and ls.endswith(':'):
                         bm = ls[1:-1]
                         # only store INITIAL marker positions
-                        if not bm in MARKERS:
-                            MARKERS[bm] = lc
+                        if not bm in dc.markers:
+                            dc.markers[bm] = lc
 
                 lc += 1
-                buf += [line]
-            SHELL = False
+                dc.buf += [line]
+            dc.shell = False
     else:
-        if DCMODE == 'n':
-            DCMODE = ''
-        SHELL = True
+        if dc.dcmode == 'n':
+            dc.dcmode = ''
+        dc.shell = True
 
-midi.init()
-if midi.get_count()==0:
+pygame.midi.init()
+if pygame.midi.get_count()==0:
     print('No midi devices found.')
     sys.exit(1)    
 dev = -1
-for i in range(midi.get_count()):
+for i in range(pygame.midi.get_count()):
     port = pygame.midi.get_device_info(i)
     portname = port[1].decode('utf-8')
     # timidity
@@ -971,14 +155,14 @@ for i in range(midi.get_count()):
         'loopmidi'
         # helm will autoconnect
     ]
-    if PORTNAME:
-        if portname.lower().startswith(PORTNAME.lower()):
-            PORTNAME = portname
+    if dc.portname:
+        if portname.lower().startswith(dc.portname.lower()):
+            dc.portname = portname
             dev = i
             break
     for name in devs:
         if portname.lower().startswith(name):
-            PORTNAME = portname
+            dc.portname = portname
             dev = i
             break
 
@@ -990,15 +174,15 @@ PLAYER.set_instrument(0)
 mch = 0
 for i in range(NUM_CHANNELS_PER_DEVICE):
     # log("%s -> %s" % (i,mch))
-    TRACKS.append(Track(i, mch, PLAYER, SCHEDULE))
+    dc.tracks.append(Track(dc, i, mch, PLAYER, dc.schedule))
     mch += 2 if i==DRUM_CHANNEL else 1
 
-if SUSTAIN:
-    TRACKS[0].sustain = SUSTAIN
+if dc.sustain:
+    dc.tracks[0].sustain = dc.sustain
 
 # show nice output in certain modes
-if SHELL or DCMODE in 'cl':
-    SHOWTEXT = True
+if dc.shell or dc.dcmode in 'cl':
+    dc.showtext = True
 
 for i in range(len(sys.argv)):
     arg = sys.argv[i]
@@ -1007,95 +191,95 @@ for i in range(len(sys.argv)):
     if arg.startswith('+'):
         vals = arg[1:].split(',')
         try:
-            row = int(vals[0])
+            dc.row = int(vals[0])
         except ValueError:
             try:
-                row = MARKERS[vals[0]]
+                dc.row = dc.markers[vals[0]]
             except KeyError:
                 log('invalid entry point')
-                QUITFLAG = True
+                dc.quitflag = True
         try:
-            stoprow = int(vals[1])
+            dc.stoprow = int(vals[1])
         except ValueError:
             try:
                 # we cannot cut buf now, since seq might be non-linear
-                stoprow = MARKERS[vals[0]]
+                dc.stoprow = dc.markers[vals[0]]
             except KeyError:
                 log('invalid stop point')
-                QUITFLAG = True
+                dc.quitflag = True
         except IndexError:
             pass # no stop param
 
-if SHELL:
+if dc.shell:
     log(FG.BLUE + 'decadence v'+str(VERSION))
     log('Copyright (c) 2018 Grady O\'Connell')
     log('https://github.com/flipcoder/decadence')
-    s = SUPPORT_ALL & SUPPORT
-    s2 = SUPPORT_ALL - SUPPORT
-    if s:
-        log(FG.GREEN + 'Active Modules: ' + FG.WHITE +  ', '.join(s) + FG.WHITE)
-    if s2:
-        log(FG.RED + 'Inactive Modules: ' +  FG.WHITE + ', '.join(s2))
-    if PORTNAME:
-        log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (PORTNAME if PORTNAME else 'Unknown',))
-        if TRACKS[0].midich == DRUM_CHANNEL:
+    active = SUPPORT_ALL & SUPPORT
+    inactive = SUPPORT_ALL - SUPPORT
+    if active:
+        log(FG.GREEN + 'Active Modules: ' + FG.WHITE +  ', '.join(active) + FG.WHITE)
+    if inactive:
+        log(FG.RED + 'Inactive Modules: ' +  FG.WHITE + ', '.join(inactive))
+    if dc.portname:
+        log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (dc.portname if dc.portname else 'Unknown',))
+        if dc.tracks[0].midich == DRUM_CHANNEL:
             log(FG.GREEN + 'GM Percussion')
         else:
-            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[TRACKS[0].patch_num])
+            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[dc.tracks[0].patch_num])
     log('Use -h for command line options.')
     log('Read the manual and look at examples. Have fun!')
     log('')
 
 header = True # set this to false as we reached cell data
-while not QUITFLAG:
+while not dc.quitflag:
     try:
-        line = '.'
+        dc.line = '.'
         try:
-            line = buf[row]
-            if stoprow!=-1 and row == stoprow:
-                buf = []
+            dc.line = dc.buf[dc.row]
+            if dc.stoprow!=-1 and dc.row == dc.stoprow:
+                dc.buf = []
                 raise IndexError
         except IndexError:
-            row = len(buf)
+            dc.row = len(dc.buf)
             # done with file, finish playing some stuff
             
             arps_remaining = 0
-            if SHELL or DAEMON or DCMODE in ['c','l']: # finish arps in shell mode
-                for ch in TRACKS[:TRACKS_ACTIVE]:
+            if dc.shell or dc.daemon or dc.dcmode in ['c','l']: # finish arps in shell mode
+                for ch in dc.tracks[:dc.tracks_active]:
                     if ch.arp_enabled:
                         if ch.arp_cycle_limit or not ch.arp_once:
                             arps_remaining += 1
-                            line = '.'
-                if not arps_remaining and not SHELL and DCMODE not in ['c','l']:
+                            dc.line = '.'
+                if not arps_remaining and not dc.shell and dc.dcmode not in ['c','l']:
                     break
-                line = '.'
+                dc.line = '.'
             
-            if not arps_remaining and not SCHEDULE.pending():
-                if SHELL or DAEMON:
-                    for ch in TRACKS[:TRACKS_ACTIVE]:
+            if not arps_remaining and not dc.schedule.pending():
+                if dc.shell or dc.daemon:
+                    for ch in dc.tracks[:dc.tracks_active]:
                         ch.release_all()
                     
-                    if SHELL:
-                        # SHELL PROMPT
-                        # log(orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE)))
-                        cur_oct = TRACKS[0].octave
-                        # cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+str(int(TEMPO))+'bpm x'+str(int(GRID))+' '+\
-                        #     note_name(TRACKS[0].transpose) + ' ' +\
-                        #     orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
+                    if dc.shell:
+                        # dc.shell PROMPT
+                        # log(orr(dc.tracks[0].scale,dc.scale).mode_name(orr(dc.tracks[0].mode,dc.mode)))
+                        cur_oct = dc.tracks[0].octave
+                        # cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+str(int(dc.tempo))+'bpm x'+str(int(dc.grid))+' '+\
+                        #     note_name(dc.tracks[0].transpose) + ' ' +\
+                        #     orr(dc.tracks[0].scale,dc.scale).mode_name(orr(dc.tracks[0].mode,dc.mode,-1))+\
                         #     ')> '
-                        cline = 'DC> ('+str(int(TEMPO))+'bpm x'+str(int(GRID))+' '+\
-                            note_name(TRACKS[0].transpose) + ' ' +\
-                            orr(TRACKS[0].scale,SCALE).mode_name(orr(TRACKS[0].mode,MODE,-1))+\
+                        cline = 'DC> ('+str(int(dc.tempo))+'bpm x'+str(int(dc.grid))+' '+\
+                            note_name(dc.tracks[0].transpose) + ' ' +\
+                            orr(dc.tracks[0].scale,dc.scale).mode_name(orr(dc.tracks[0].mode,dc.mode,-1))+\
                             ')> '
                         # if bufline.endswith('.dc'):
                             # play file?
                         # bufline = raw_input(cline)
                         bufline = prompt(cline,
-                            history=HISTORY, vi_mode=VIMODE)
+                            history=HISTORY, vi_mode=dc.vimode)
                         bufline = list(filter(None, bufline.split(' ')))
                         bufline = list(map(lambda b: b.replace(';',' '), bufline))
-                        buf += bufline
-                    elif DAEMON:
+                        dc.buf += bufline
+                    elif dc.daemon:
                         pass
                         # wait on socket
                     continue
@@ -1103,51 +287,51 @@ while not QUITFLAG:
                 else:
                     break
             
-        log(FG.MAGENTA + line)
+        log(FG.MAGENTA + dc.line)
         
         # cells = line.split(' '*2)
         
         # if line.startswith('|'):
-        #     SEPARATORS = [] # clear
+        #     dc.separators = [] # clear
         #     # column setup!
         #     for i in range(1,len(line)):
         #         if line[i]=='|':
-        #             SEPARATORS.append(i)
+        #             dc.separators.append(i)
         
         # log(BG.RED + line)
-        fullline = line[:]
-        line = line.strip()
+        fullline = dc.line[:]
+        dc.line = dc.line.strip()
         
         # LINE COMMANDS
         ctrl = False
         cells = []
 
-        if line:
+        if dc.line:
             # COMMENTS (;)
-            if line[0] == ';':
-                follow(1)
-                row += 1
+            if dc.line[0] == ';':
+                dc.follow(1)
+                dc.row += 1
                 continue
             
             # set marker
-            if line[-1]==':': # suffix marker
+            if dc.line[-1]==':': # suffix marker
                 # allow override of markers in case of reuse
-                MARKERS[line[:-1]] = row
-                follow(1)
-                row += 1
+                dc.markers[dc.line[:-1]] = dc.row
+                dc.follow(1)
+                dc.row += 1
                 continue
                 # continue
-            elif line[0]==':': #prefix marker
+            elif dc.line[0]==':': #prefix marker
                 # allow override of markers in case of reuse
-                MARKERS[line[1:]] = row
-                follow(1)
-                row += 1
+                dc.markers[dc.line[1:]] = dc.row
+                dc.follow(1)
+                dc.row += 1
                 continue
             
             # TODO: global 'silent' commands (doesn't take time)
-            if line.startswith('%'):
-                line = line[1:].strip() # remove % and spaces
-                for tok in line.split(' '):
+            if dc.line.startswith('%'):
+                dc.line = line[1:].strip() # remove % and spaces
+                for tok in dc.line.split(' '):
                     if not tok:
                         break
                     if tok[0]==' ':
@@ -1179,31 +363,31 @@ while not QUITFLAG:
                                 op = '*'
                                 val = pow(2.0,count_seq(val))
                         if op=='/':
-                            if var=='G': GRID/=float(val)
-                            elif var=='X': GRID/=float(val)
-                            elif var=='N': GRID/=float(val) #!
-                            elif var=='T': TEMPO/=float(val)
+                            if var=='G': dc.grid/=float(val)
+                            elif var=='X': dc.grid/=float(val)
+                            elif var=='N': dc.grid/=float(val) #!
+                            elif var=='T': dc.tempo/=float(val)
                         elif op=='*':
-                            if var=='G': GRID*=float(val)
-                            elif var=='X': GRID*=float(val)
-                            elif var=='N': GRID*=float(val) #!
-                            elif var=='T': TEMPO*=float(val)
+                            if var=='G': dc.grid*=float(val)
+                            elif var=='X': dc.grid*=float(val)
+                            elif var=='N': dc.grid*=float(val) #!
+                            elif var=='T': dc.tempo*=float(val)
                         elif op=='=':
-                            if var=='G': GRID=float(val)
-                            elif var=='X': GRID=float(val)
-                            elif var=='N': GRID=float(val)/4.0 #!
+                            if var=='G': dc.grid=float(val)
+                            elif var=='X': dc.grid=float(val)
+                            elif var=='N': dc.grid=float(val)/4.0 #!
                             elif var=='T':
                                 vals = val.split('x')
-                                TEMPO=float(vals[0])
+                                dc.tempo=float(vals[0])
                                 try:
-                                    GRID = float(vals[1])
+                                    dc.grid = float(vals[1])
                                 except:
                                     pass
                             elif var=='C':
                                 vals = val.split(',')
-                                COLUMNS = int(vals[0])
+                                dc.columns = int(vals[0])
                                 try:
-                                    COLUMN_SHIFT = int(vals[1])
+                                    dc.column_shift = int(vals[1])
                                 except:
                                     pass
                             elif var=='P':
@@ -1211,19 +395,19 @@ while not QUITFLAG:
                                 for i in range(len(vals)):
                                     p = vals[i]
                                     if p.strip().isdigit():
-                                        TRACKS[i].patch(int(p))
+                                        dc.tracks[i].patch(int(p))
                                     else:
-                                        TRACKS[i].patch(p)
+                                        dc.tracks[i].patch(p)
                             elif var=='F': # flags
                                 for i in range(len(vals)):
-                                    TRACKS[i].add_flags(val.split(','))
+                                    dc.tracks[i].add_flags(val.split(','))
                             elif var=='R' or var=='S':
                                 if val:
                                     val = val.lower()
                                     # ambigous alts
                                     
                                     if val.isdigit():
-                                        modescale = (SCALE.name,int(val))
+                                        modescale = (dc.scale.name,int(val))
                                     else:
                                         alts = {'major':'ionian','minor':'aeolian'}
                                         try:
@@ -1231,46 +415,46 @@ while not QUITFLAG:
                                         except:
                                             pass
                                         val = val.lower().replace(' ','')
-                                        modescale = MODES[val]
+                                        modescale = dc.modeS[val]
                                     
                                     try:
-                                        SCALE = SCALES[modescale[0]]
-                                        MODE = modescale[1]
-                                        inter = SCALE.intervals
-                                        TRANSPOSE = 0
+                                        dc.scale = dc.scaleS[modescale[0]]
+                                        dc.mode = modescale[1]
+                                        inter = dc.scale.intervals
+                                        dc.transpose = 0
                                         
-                                        log(MODE-1)
+                                        log(dc.mode-1)
                                         if var=='R':
-                                            for i in range(MODE-1):
+                                            for i in range(dc.mode-1):
                                                 inc = 0
                                                 try:
                                                     inc = int(inter[i])
                                                 except ValueError:
                                                     pass
-                                                TRANSPOSE += inc
+                                                dc.transpose += inc
                                     except ValueError:
                                         log('no such scale')
                                         assert False
                                 else:
-                                    TRANSPOSE = 0
+                                    dc.transpose = 0
                                     
-                follow(1)
-                row += 1
+                dc.follow(1)
+                dc.row += 1
                 continue
             
             # jumps
-            if line.startswith(':') and line.endswith("|"):
-                jumpline = line[1:-1]
+            if dc.line.startswith(':') and dc.line.endswith("|"):
+                jumpline = dc.line[1:-1]
             else:
-                jumpline = line[1:]
-            if line[0]=='@':
+                jumpline = dc.line[1:]
+            if dc.line[0]=='@':
                 if len(jumpline)==0:
-                    row = 0
+                    dc.row = 0
                     continue
                 if len(jumpline)>=1 and jumpline == '@': # @@ return/pop callstack
                     frame = CALLSTACK[-1]
                     CALLSTACK = CALLSTACK[:-1]
-                    row = frame.row
+                    dc.row = frame.row
                     continue
                 jumpline = jumpline.split('*') # * repeats
                 bm = jumpline[0] # marker name
@@ -1280,61 +464,61 @@ while not QUITFLAG:
                 frame = CALLSTACK[-1]
                 frame.count = count
                 if count: # repeats remaining
-                    CALLSTACK.append(StackFrame(row))
-                    row = MARKERS[bm]
+                    CALLSTACK.append(StackFrame(dc.row))
+                    dc.row = dc.markers[bm]
                     continue
                 else:
-                    row = MARKERS[bm]
+                    dc.row = dc.markers[bm]
                     continue
             
         
         # this is not indented in blank lines because even blank lines have this logic
         gutter = ''
-        if SHELL:
-            cells = list(filter(None,line.split(' ')))
-        elif COLUMNS:
+        if dc.shell:
+            cells = list(filter(None,dc.line.split(' ')))
+        elif dc.columns:
             cells = fullline
             # shift column pos right if any
-            cells = ' ' * max(0,-COLUMN_SHIFT) + cells
+            cells = ' ' * max(0,-dc.column_shift) + cells
             # shift columns right, creating left-hand gutter
-            # cells = cells[-1*min(0,COLUMN_SHIFT):] # create gutter (if negative shift)
+            # cells = cells[-1*min(0,dc.column_shift):] # create gutter (if negative shift)
             # separate into chunks based on column width
-            cells = [cells[i:i + COLUMNS] for i in range(0, len(cells), COLUMNS)]
+            cells = [cells[i:i + dc.columns] for i in range(0, len(cells), dc.columns)]
             # log(cells)
-        elif not SEPARATORS:
-            # AUTOGENERATE CELL SEPARATORS
+        elif not dc.separators:
+            # AUTOGENERATE CELL dc.separators
             cells = fullline.split(' ')
             pos = 0
             for cell in cells:
                 if cell:
                     if pos:
-                        SEPARATORS.append(pos)
+                        dc.separators.append(pos)
                     # log(cell)
                 pos += len(cell) + 1
-            # log( "SEPARATORS " + str(SEPARATORS))
+            # log( "dc.separators " + str(dc.separators))
             cells = list(filter(None,cells))
             # if fullline.startswith(' '):
             #     cells = ['.'] + cells # dont filter first one
             autoseparate = True
         else:
-            # SPLIT BASED ON SEPARATORS
+            # SPLIT BASED ON dc.separators
             s = 0
-            seplen = len(SEPARATORS)
+            seplen = len(dc.separators)
             # log(seplen)
             pos = 0
             for i in range(seplen):
-                cells.append(fullline[pos:SEPARATORS[i]].strip())
-                pos = SEPARATORS[i]
+                cells.append(fullline[pos:dc.separators[i]].strip())
+                pos = dc.separators[i]
             lastcell = fullline[pos:].strip()
             if lastcell: cells.append(lastcell)
         
         # make sure active tracks get empty cell
         len_cells = len(cells)
-        if len_cells > TRACKS_ACTIVE:
-            TRACKS_ACTIVE = len_cells
+        if len_cells > dc.tracks_active:
+            dc.tracks_active = len_cells
         else:
             # add empty cells for active tracks to the right
-            cells += ['.'] * (len_cells - TRACKS_ACTIVE)
+            cells += ['.'] * (len_cells - dc.tracks_active)
         del len_cells
         
         cell_idx = 0
@@ -1343,7 +527,7 @@ while not QUITFLAG:
         for cell in cells:
             
             cell = cells[cell_idx]
-            ch = TRACKS[cell_idx]
+            ch = dc.tracks[cell_idx]
             fullcell = cell[:]
             ignore = False
             
@@ -1356,9 +540,9 @@ while not QUITFLAG:
                 header = False
             
             if cell.count('\"') == 1: # " is recall, but multiple " means speak
-                cell = cell.replace("\"", TRACK_HISTORY[cell_idx])
+                cell = cell.replace("\"", dc.track_history[cell_idx])
             else:
-                TRACK_HISTORY[cell_idx] = cell
+                dc.track_history[cell_idx] = cell
             
             fullcell_sub = cell[:]
             
@@ -1368,7 +552,7 @@ while not QUITFLAG:
             #     continue
 
             if cell and cell[0]=='-':
-                if SHELL:
+                if dc.shell:
                     ch.mute()
                 else:
                     ch.release_all() # don't mute sustain
@@ -1385,7 +569,7 @@ while not QUITFLAG:
                 # ch.sustain = False
                 cell = cell[1:]
             
-            notecount = len(ch.scale.intervals if ch.scale else SCALE.intervals)
+            notecount = len(ch.scale.intervals if ch.scale else dc.scale.intervals)
             # octave = int(cell[0]) / notecount
             c = cell[0] if cell else ''
             
@@ -1464,7 +648,7 @@ while not QUITFLAG:
                     # try to get roman numberal or number
                     c,ct = peel_roman_s(tok)
                     ambiguous = 0
-                    for amb in ('ion','dor','dom'): # I dim or D dim conflict w/ ionian and dorian
+                    for amb in ('ion','dor','dom','alt','dou'): # I dim or D dim conflict w/ ionian and dorian
                         ambiguous += tok.lower().startswith(amb)
                     if ct and not ambiguous:
                         lower = (c.lower()==c)
@@ -1512,8 +696,8 @@ while not QUITFLAG:
                                 except ValueError:
                                     n += 1 # passing tone
                             else:
-                                m = orr(ch.mode,MODE,-1)-1
-                                steps = orr(ch.scale,SCALE).intervals
+                                m = orr(ch.mode,dc.mode,-1)-1
+                                steps = orr(ch.scale,dc.scale).intervals
                                 idx = steps[(i-1 + m) % notecount]
                                 n += int(idx)
                         if inverted: # inverted counter
@@ -1700,20 +884,21 @@ while not QUITFLAG:
                                     chordname = noteletter + chordname # fix it
                                     n -= 1 # fix chord letter
 
-                                try:
-                                    inv_letter = ' abcdef'.index(chordname[-1])
+                                # letter inversions deprecated (use <>)
+                                # try:
+                                #     inv_letter = ' abcdef'.index(chordname[-1])
                                 
-                                    # num,ct = peel_int(tok[cut+1:])
-                                    # if ct and num!=0:
-                                    # cut += ct + 1
-                                    if inv_letter>=1:
-                                        inversion = max(1,inv_letter)
-                                        inverted = max(0,inversion-1) # keep count of pending notes to invert
-                                        # cut+=1
-                                        chordname = chordname[:-1]
+                                #     # num,ct = peel_int(tok[cut+1:])
+                                #     # if ct and num!=0:
+                                #     # cut += ct + 1
+                                #     if inv_letter>=1:
+                                #         inversion = max(1,inv_letter)
+                                #         inverted = max(0,inversion-1) # keep count of pending notes to invert
+                                #         # cut+=1
+                                #         chordname = chordname[:-1]
                                         
-                                except ValueError:
-                                    pass
+                                # except ValueError:
+                                #     pass
                                 
                                 try:
                                     chord_notes = expand_chord(chordname)
@@ -1916,7 +1101,7 @@ while not QUITFLAG:
                             notes[i%len(notes)] += 12*sign
                     notes = notes[sign*1:] + notes[:1*sign]
                     # when used w/o note/chord, track history should update
-                    # TRACK_HISTORY[cell_idx] = fullcell_sub
+                    # dc.track_history[cell_idx] = fullcell_sub
                     # log(notes)
                     if ch.arp_enabled:
                         ch.arp_notes = ch.arp_notes[1:] + ch.arp_notes[:1]
@@ -1966,7 +1151,7 @@ while not QUITFLAG:
                 elif c == '`': # mod wheel
                     ch.mod(127)
                     cell = cell[1:]
-                # SUSTAIN
+                # dc.sustain
                 elif cell.startswith('__-'):
                     ch.mute()
                     sustain = ch.sustain = True
@@ -2030,7 +1215,7 @@ while not QUITFLAG:
                     num,ct = peel_uint(cell[2:])
                     cell = cell[2+ct:]
                     ch.midi_channel(num)
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('channel')
                 elif c=='*':
                     dots = count_seq(cell)
@@ -2046,7 +1231,7 @@ while not QUITFLAG:
                             events.append(Event(num*pow(2.0,float(dots-1)), lambda _: ch.release_all(), ch))
                     else:
                         cell = cell[dots:]
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('duration(*)')
                 elif c=='.':
                     dots = count_seq(cell)
@@ -2066,7 +1251,7 @@ while not QUITFLAG:
                             events.append(Event(num*pow(0.5,float(dots)), lambda _: ch.release_all(), ch))
                     else:
                         cell = cell[dots:]
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('shorten(.)')
                 elif c=='(' or c==')': # note shift (early/delay)
                     num = ''
@@ -2082,7 +1267,7 @@ while not QUITFLAG:
                     vel,ct = peel_uint_s(cell[1:],127)
                     cell = cell[2+ct:]
                     if ct>2: ch.vel = vel # persist if numbered
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('accent(!!)')
                 elif c=='!': # accent
                     curv = ch.vel
@@ -2092,17 +1277,17 @@ while not QUITFLAG:
                     else:
                         vel = min(127,int(curv + 0.5*(127.0-curv)))
                     cell = cell[ct+1:]
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('accent(!!)')
                 elif c2=='??': # very quiet
                     vel = max(0,int(ch.vel*0.25))
                     cell = cell[2:]
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('soften(??)')
                 elif c=='?': # quiet
                     vel = max(0,int(ch.vel*0.5))
                     cell = cell[1:]
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('soften(??)')
                 # elif cell.startswith('$$') or (c=='$' and lennotes==1):
                 elif c=='$': # strum/spread/tremolo
@@ -2113,9 +1298,10 @@ while not QUITFLAG:
                     num = float('0.'+num)
                     strum = 1.0
                     if len(notes)==1: # tremolo
-                        notes = [notes[i:i + sq] for i in range(0, len(notes), sq)]
+                        notes = notes * 2
+                        # notes = [notes[i:i + sq] for i in range(0, len(notes), sq)]
                     # log('strum')
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('strum($)')
                 elif c=='&':
                     count = count_seq(cell)
@@ -2137,7 +1323,7 @@ while not QUITFLAG:
                         num,ct = peel_uint(cell[1:],1)
                         arppattern = [num]
                         cell = cell[1+ct:]
-                    if SHOWTEXT:
+                    if dc.showtext:
                         showtext.append('arpeggio(&)')
                 elif c=='t': # tuplet
                     if not ch.tuplets:
@@ -2175,8 +1361,8 @@ while not QUITFLAG:
                     cell = []
                     break
                 else:
-                    if DCMODE in 'cl':
-                        log(FG.BLUE + line)
+                    if dc.dcmode in 'cl':
+                        log(FG.BLUE + dc.line)
                     indent = ' ' * (len(fullcell)-len(cell))
                     log(FG.RED + indent +  "^ Unexpected " + cell[0] + " here")
                     cell = []
@@ -2186,7 +1372,7 @@ while not QUITFLAG:
                 # elif c=='/': # bend in
                 # elif c=='\\': # bend down
             
-            base =  (OCTAVE_BASE+octave) * 12 - 1 + TRANSPOSE + ch.transpose
+            base =  (OCTAVE_BASE+octave) * 12 - 1 + dc.transpose + ch.transpose
             p = base
             
             if arpnotes:
@@ -2202,7 +1388,7 @@ while not QUITFLAG:
                 ch.release_all()
 
             for ev in events:
-                SCHEDULE.add(ev)
+                dc.schedule.add(ev)
             
             delta = 0 # how much to separate notes
             if strum < -EPSILON:
@@ -2212,7 +1398,7 @@ while not QUITFLAG:
                 ln = len(notes)
                 delta = (1.0/(ln*forr(duration,1.0))) #t between notes
 
-            if SHOWTEXT:
+            if dc.showtext:
                 # log(FG.MAGENTA + ', '.join(map(lambda n: note_name(p+n), notes)))
                 # chordoutput = chordname
                 # if chordoutput and noletter:
@@ -2238,7 +1424,7 @@ while not QUITFLAG:
                     ch.note_on(p + n, vel, sustain)
                 else:
                     f = lambda _,ch=ch,p=p,n=n,vel=vel,sustain=sustain: ch.note_on(p + n, vel, sustain)
-                    SCHEDULE.add(Event(delay,f,ch))
+                    dc.schedule.add(Event(delay,f,ch))
                 delay += delta
                 i += 1
             
@@ -2247,55 +1433,52 @@ while not QUITFLAG:
         while True:
             try:
                 if not ctrl and not header:
-                    SCHEDULE.logic(60.0 / TEMPO / GRID)
+                    dc.schedule.logic(60.0 / dc.tempo / dc.grid)
                     break
                 else:
                     break
             except KeyboardInterrupt:
                 # log(FG.RED + traceback.format_exc())
-                QUITFLAG = True
+                dc.quitflag = True
                 break
             except:
                 log(FG.RED + traceback.format_exc())
-                if SHELL:
-                    QUITFLAG = True
+                if dc.shell:
+                    dc.quitflag = True
                     break
-                if not SHELL and not pauseDC():
-                    QUITFLAG = True
+                if not dc.shell and not dc.pause():
+                    dc.quitflag = True
                     break
 
-        if QUITFLAG:
+        if dc.quitflag:
             break
          
     except KeyboardInterrupt:
-        QUITFLAG = True
+        dc.quitflag = True
         break
     except SignalError:
-        QUITFLAG = True
+        dc.quitflag = True
         break
     except:
         log(FG.RED + traceback.format_exc())
-        if SHELL:
-            QUITFLAG = True
+        if dc.shell:
+            dc.quitflag = True
             break
-        if not SHELL and not pauseDC():
+        if not dc.shell and not dc.pause():
             break
 
-    follow(1)
-    row += 1
+    dc.follow(1)
+    dc.row += 1
 
 # TODO: turn all midi note off
 i = 0
-for ch in TRACKS:
-    if not NOMUTE:
+for ch in dc.tracks:
+    if not dc.ring:
         ch.panic()
     ch.player = None
 
 del PLAYER
-midi.quit()
-
-if csound and csound_proc:
-    csound_proc.kill()
+pygame.midi.quit()
 
 # def main():
 #     pass
@@ -2303,7 +1486,5 @@ if csound and csound_proc:
 # if __name__=='__main__':
 #     curses.wrapper(main)
 
-if BCPROC:
-    BGPIPE.send((BGCMD.QUIT,))
-    BGPROC.join()
+support_stop()
 

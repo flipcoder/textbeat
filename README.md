@@ -223,20 +223,20 @@ To control releasing of notes, use dash (-).  The period (.) is simply a placeho
 
 ; hold note 1 until next note (dots aren't notes, just empty placeholders for example)
 1
-.
-.
-.
+ 
+ 
+ 
 
 ; auto-mute by specifying note value (*):
 1*
-.
-.
-.
+ 
+ 
+ 
  
 ; manually mute with '-'
 1
-.
-.
+ 
+ 
 -
 
 ```
@@ -305,9 +305,9 @@ Be sure to rest in your song long enough to hear it cycle.
 
 ```
 maj&
-.
-.
-.
+ 
+ 
+ 
 ```
 
 After the &, you can put a number to denote the number of cycles.
@@ -372,6 +372,24 @@ Columns are separate tracks, line them up for more than one instrument
 .    1''
 ```
 
+Columns can be detected in some cases, but you'll probably want to 
+specify the column width manually at the top
+(which allows vim to mark the columns),
+
+```
+# sets column width to 8
+%c=8
+```
+
+For best view in an editor, it is recommended that you offset the first column:
+
+```
+# sets column width to 8, offset -2
+%c=8,-2
+```
+
+Offsets may be reworked in the future.
+
 # Markers
 
 Still working on this feature, it might be broken
@@ -413,7 +431,7 @@ Consider the 2 tracks:
 The spacing is not even between the sets, but the 't' value stretches them
 to make them line up in a default ratio of 3:4.
 
-# Notes
+# Chords and Notes
 
 In a traditional tracker, individual notes would take place over multiple
 channels.  You can do this in decadence if it fits your writing style,
@@ -457,6 +475,10 @@ what musicians would expect.  For example, slash chords do not imply inversions,
 but are for stacking across octaves.  Additionally, note names alone do no imply chords.
 For example, C/E means play a C note with an E in a lower octave, whereas a musician might
 interpret this as a specific chord voicing.  (Inversions use shift operator (maj> for first inversion))
+
+# Picking
+
+[Currently designing this feature](https://trello.com/c/D01rlTWp/26-picking)
 
 # Full list of scales, modes, chords, and voicings
 

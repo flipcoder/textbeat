@@ -6,7 +6,7 @@ Write music in vim or your favorite text editor.
 
 Open-source under MIT License (see LICENSE file for information)
 
-![Decadence](https://imgur.com/N3yNWyJl.png)
+![Screenshot](https://i.imgur.com/HmzNhXf.png)
 
 Copyright (c) 2018 Grady O'Connell
 

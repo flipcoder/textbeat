@@ -33,6 +33,10 @@ class Track:
         self.arp_note_spacing = 1.0
         self.arp_reverse = False
         self.vel = 100
+        self.max_vel = -1
+        self.soft_vel = -1
+        self.ghost_vel = -1
+        self.accent_vel = -1
         self.non_drum_channel = self.initial_channel
         # self.off_vel = 64
         self.staccato = False

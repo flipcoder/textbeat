@@ -166,15 +166,15 @@ for i in range(pygame.midi.get_count()):
             dev = i
             break
 
-# PLAYER = pygame.midi.Output(pygame.midi.get_default_output_id())
+# dc.player = pygame.midi.Output(pygame.midi.get_default_output_id())
 
-PLAYER = pygame.midi.Output(dev)
-INSTRUMENT = 0
-PLAYER.set_instrument(0)
+dc.player = pygame.midi.Output(dev)
+dc.instrument = 0
+dc.player.set_instrument(0)
 mch = 0
 for i in range(NUM_CHANNELS_PER_DEVICE):
     # log("%s -> %s" % (i,mch))
-    dc.tracks.append(Track(dc, i, mch, PLAYER, dc.schedule))
+    dc.tracks.append(Track(dc, i, mch, dc.player, dc.schedule))
     mch += 2 if i==DRUM_CHANNEL else 1
 
 if dc.sustain:
@@ -330,7 +330,7 @@ while not dc.quitflag:
             
             # TODO: global 'silent' commands (doesn't take time)
             if dc.line.startswith('%'):
-                dc.line = line[1:].strip() # remove % and spaces
+                dc.line = dc.line[1:].strip() # remove % and spaces
                 for tok in dc.line.split(' '):
                     if not tok:
                         break
@@ -402,41 +402,49 @@ while not dc.quitflag:
                                 for i in range(len(vals)):
                                     dc.tracks[i].add_flags(val.split(','))
                             elif var=='R' or var=='S':
-                                if val:
-                                    val = val.lower()
-                                    # ambigous alts
-                                    
-                                    if val.isdigit():
-                                        modescale = (dc.scale.name,int(val))
-                                    else:
-                                        alts = {'major':'ionian','minor':'aeolian'}
-                                        try:
-                                            modescale = (alts[modescale[0]],modescale[1])
-                                        except:
-                                            pass
-                                        val = val.lower().replace(' ','')
-                                        modescale = dc.modeS[val]
-                                    
-                                    try:
-                                        dc.scale = dc.scaleS[modescale[0]]
-                                        dc.mode = modescale[1]
-                                        inter = dc.scale.intervals
-                                        dc.transpose = 0
+                                try:
+                                    if val:
+                                        val = val.lower()
+                                        # ambigous alts
                                         
-                                        log(dc.mode-1)
-                                        if var=='R':
-                                            for i in range(dc.mode-1):
-                                                inc = 0
-                                                try:
-                                                    inc = int(inter[i])
-                                                except ValueError:
-                                                    pass
-                                                dc.transpose += inc
-                                    except ValueError:
-                                        log('no such scale')
-                                        assert False
-                                else:
-                                    dc.transpose = 0
+                                        if val.isdigit():
+                                            modescale = (dc.scale.name,int(val))
+                                        else:
+                                            alts = {'major':'ionian','minor':'aeolian'}
+                                            try:
+                                                modescale = (alts[modescale[0]],modescale[1])
+                                            except:
+                                                pass
+                                            val = val.lower().replace(' ','')
+                                            
+                                            try:
+                                                modescale = MODES[val]
+                                            except:
+                                                raise NoSuchScale()
+                                        
+                                        try:
+                                            dc.scale = SCALES[modescale[0]]
+                                            dc.mode = modescale[1]
+                                            inter = dc.scale.intervals
+                                            dc.transpose = 0
+                                            
+                                            log(dc.mode-1)
+                                            if var=='R':
+                                                for i in range(dc.mode-1):
+                                                    inc = 0
+                                                    try:
+                                                        inc = int(inter[i])
+                                                    except ValueError:
+                                                        pass
+                                                    dc.transpose += inc
+                                        except ValueError:
+                                            raise NoSuchScale()
+                                    else:
+                                        dc.transpose = 0
+                                
+                                except NoSuchScale:
+                                    print(FG.RED + 'No such scale.')
+                                    pass
                                     
                 dc.follow(1)
                 dc.row += 1
@@ -531,9 +539,9 @@ while not dc.quitflag:
             fullcell = cell[:]
             ignore = False
             
-            # if INSTRUMENT != ch.instrument:
-            #     PLAYER.set_instrument(ch.instrument)
-            #     INSTRUMENT = ch.instrument
+            # if dc.instrument != ch.instrument:
+            #     dc.player.set_instrument(ch.instrument)
+            #     dc.instrument = ch.instrument
 
             cell = cell.strip()
             if cell:
@@ -1241,7 +1249,7 @@ while not dc.quitflag:
                         if ch.arp_enabled:
                             dots -= 1
                         if dots:
-                            num,ct = peel_int_s(cell)
+                            num,ct = peel_uint_s(cell)
                             if ct:
                                 num = int('0.' + num)
                             else:
@@ -1263,10 +1271,16 @@ while not dc.quitflag:
                     assert(delay > 0.0) # TOOD: impl early notes
                 elif c=='|':
                     cell = cell[1:] # ignore
-                elif c2=='!!': # loud accent
+                elif c2=='!!': # full accent
                     vel,ct = peel_uint_s(cell[1:],127)
                     cell = cell[2+ct:]
-                    if ct>2: ch.vel = vel # persist if numbered
+                    if ct>2:
+                        ch.vel = vel # persist if numbered
+                    else:
+                        if ch.max_vel >= 0:
+                            vel = ch.max_vel
+                        else:
+                            vel = 127
                     if dc.showtext:
                         showtext.append('accent(!!)')
                 elif c=='!': # accent
@@ -1275,17 +1289,26 @@ while not dc.quitflag:
                     if ct:
                         vel = min(127,int(float('0.'+num)*127.0))
                     else:
-                        vel = min(127,int(curv + 0.5*(127.0-curv)))
+                        if ch.accent_vel >= 0:
+                            vel = ch.accent_vel
+                        else:
+                            vel = min(127,int(curv + 0.5*(127.0-curv)))
                     cell = cell[ct+1:]
                     if dc.showtext:
                         showtext.append('accent(!!)')
-                elif c2=='??': # very quiet
-                    vel = max(0,int(ch.vel*0.25))
+                elif c2=='??': # ghost
+                    if ch.ghost_vel >= 0:
+                        vel = ch.ghost_vel # max(0,int(ch.vel*0.25))
+                    else:
+                        vel = 1
                     cell = cell[2:]
                     if dc.showtext:
                         showtext.append('soften(??)')
-                elif c=='?': # quiet
-                    vel = max(0,int(ch.vel*0.5))
+                elif c=='?': # soft
+                    if ch.quiet_vel>0:
+                        vel = ch.soft_vel
+                    else:
+                        vel = max(0,int(ch.vel*0.5))
                     cell = cell[1:]
                     if dc.showtext:
                         showtext.append('soften(??)')
@@ -1477,7 +1500,7 @@ for ch in dc.tracks:
         ch.panic()
     ch.player = None
 
-del PLAYER
+del dc.player
 pygame.midi.quit()
 
 # def main():

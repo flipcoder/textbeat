@@ -43,6 +43,8 @@ class Context:
         self.gui = False
         self.portname = ''
         self.speed = 1.0
+        self.player = None
+        self.instrument = None
     
     def follow(self, count):
         if self.canfollow:

@@ -94,6 +94,8 @@ except OSError:
 
 class SignalError(BaseException):
     pass
+class NoSuchScale(BaseException):
+    pass
 class ParseError(BaseException):
     def __init__(self, s=''):
         super(BaseException,self).__init__(s)

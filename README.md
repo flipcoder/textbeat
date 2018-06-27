@@ -134,7 +134,10 @@ Both Tempo and Grid can be decimal numbers as well.
 
 Notice the bottom line has an extra apostrophe character (').  This plays the note in the next octave
 For an octave below, use a comma (,).
-You can use a number value instead to make the octave changes persistent (,2).
+
+Repeat these for additional octaves (,,, for 3 down, '' for 2 up, etc).
+
+To make octave changes persist, use a number for the octave count instead of repeating (,2).
 
 ## Holding Muting
 

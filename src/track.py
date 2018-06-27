@@ -42,7 +42,7 @@ class Track:
         self.staccato = False
         self.patch_num = 0
         self.transpose = 0
-        self.pitch = 0.0
+        self.pitchval = 0.0
         self.tuplets = False
         self.note_spacing = 1.0
         self.tuplet_count = 0
@@ -142,7 +142,7 @@ class Track:
             self.channels.append(midich)
     def pitch(self, val): # [-1.0,1.0]
         val = min(max(0,int((1.0 + val)*0x2000)),16384)
-        self.pitch = val
+        self.pitchval = val
         val2 = (val>>0x7f)
         val = val&0x7f
         for ch in self.channels:
@@ -159,7 +159,7 @@ class Track:
         if cc==1:
             self.modval = val
     def mod(self, val):
-        return cc(1,val)
+        return self.cc(1,val)
     def patch(self, p, stackidx=0):
         if isinstance(p,basestring):
             # look up instrument string in GM

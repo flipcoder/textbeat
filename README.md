@@ -336,7 +336,7 @@ In the future, articulation will be programmable, per-track or per-song.
 Notes of arpeggios can be modified as they're running,
 by having effects in a grid space, for example:
 
-`
+```
 maj7&
  .?
  .?
@@ -345,7 +345,7 @@ maj7&
  .?
  .?
  .?
-`
+```
 
 maj7& starts a repeating 4-note arpeggio, and we indent to show this.
 
@@ -402,7 +402,7 @@ Still working on this feature, it might be broken
 
 ```
 :markername
-@makername
+@markername
 ```
 
 Repeat counting, callstack, etc. coming shortly.  Code almost done.
@@ -462,7 +462,7 @@ To set the notes to match scale,
 %r=2
 ```
 
-# And here's what it looks like
+# And here's what it all looks like
 
 ```
 %t=120x4 p=piano,bass,drums c=20,-2

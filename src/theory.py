@@ -2,8 +2,7 @@
 import os, sys
 from future.utils import iteritems
 from collections import OrderedDict
-from . import def_path
-from . import load_def
+from . import get_defs
 
 FLATS=False
 SOLFEGE=False
@@ -67,14 +66,10 @@ class Scale:
             else:
                 return self.name + " mode " + str(idx)
         return m
-
-DEFS = load_def('default')
-for f in os.listdir(def_path()):
-    if f != 'default.yaml':
-        defs = load_def(f[:-len('.yaml')])
         
 SCALES = {}
 MODES = {}
+DEFS = get_defs()
 for k,v in iteritems(DEFS['scales']):
     scale = SCALES[k] = Scale(k, v['intervals'])
     i = 1

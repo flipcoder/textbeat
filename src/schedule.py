@@ -46,7 +46,8 @@ class Schedule:
                 else:
                     # sleep until next event
                     if ev.t >= 0.0:
-                        time.sleep(self.ctx.speed*t*(ev.t-self.passed))
+                        if self.ctx.cansleep:
+                            time.sleep(self.ctx.speed*t*(ev.t-self.passed))
                         ev.func(0)
                         self.passed = ev.t # only inc if positive
                     else:
@@ -56,7 +57,8 @@ class Schedule:
 
             slp = t*(1.0-self.passed) # remaining time
             if slp > 0.0:
-                time.sleep(self.ctx.speed*slp)
+                if self.ctx.cansleep:
+                    time.sleep(self.ctx.speed*slp)
             self.passed = 0.0
             self.events = self.events[processed:]
         except KeyboardInterrupt as ex:
@@ -64,5 +66,6 @@ class Schedule:
             self.events = self.events[processed:]
             raise ex
         except:
+            # log('shedule ex: ')
             QUITFLAG = True
 

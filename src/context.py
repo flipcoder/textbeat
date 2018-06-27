@@ -13,6 +13,7 @@ class Context:
         self.bcproc = None
         self.log = False
         self.canfollow = False
+        self.cansleep = True
         self.lint = False
         self.tracks_active = 1
         self.showmidi = False
@@ -45,6 +46,7 @@ class Context:
         self.speed = 1.0
         self.player = None
         self.instrument = None
+        self.t = 0.0
     
     def follow(self, count):
         if self.canfollow:

@@ -7,7 +7,7 @@ import time, subprocess, pipes
 import yaml, colorama, appdirs
 from docopt import docopt
 from collections import OrderedDict
-import pygame, pygame.midi as midi
+import pygame, pygame.midi
 from multiprocessing import Process,Pipe
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import style_from_dict
@@ -32,7 +32,6 @@ ARGS = None
 RANGE = 109
 OCTAVE_BASE = 5
 DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
-SPEECH_WORDS = ['speech','say','speak']
 CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%'
 CCHAR_START = 'T' # control chars
 PRINT = True
@@ -128,6 +127,17 @@ def load_def(fn):
         return yaml.safe_load(y)
 
 random.seed()
+
+DEFS = load_def('default')
+for f in os.listdir(def_path()):
+    if f != 'default.yaml':
+        defs = load_def(f[:-len('.yaml')])
+        c = defs.copy()
+        c.update(DEFS)
+        DEFS = c
+
+def get_defs():
+    return DEFS
 
 from .schedule import *
 from .parser import *

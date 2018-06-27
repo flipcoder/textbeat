@@ -1,6 +1,6 @@
 # ![Decadence](icon.png) decadence
 
-Plaintext music tracker and midi shell.
+Plaintext music sequencer and interactive shell.
 
 Write music in vim or your favorite text editor.
 
@@ -131,10 +131,10 @@ Notes will continue playing automatically, until they're muted or another note i
 
 You can mute all notes in a track with -
 
-To control releasing of notes, use dash (-).  The period (.) is simply a placeholder, so notes continue to be played through them.
+To control releasing of notes, use dash (-).
 ```
 
-; hold note 1 until next note (dots aren't notes, just empty placeholders for example)
+; hold note 1 until next note
 1
  
  
@@ -354,7 +354,9 @@ For staccato usage w/o a note name, an extra dot is required since '.' is simply
 
 ## Tracks
 
-Columns are separate tracks, line them up for more than one instrument
+Columns are separate tracks, line them up for more than one instrument.
+
+The dots are placeholders.
 
 ```
 1,2  1
@@ -367,8 +369,8 @@ Columns are separate tracks, line them up for more than one instrument
 ```
 
 Columns can be detected in some cases, but you'll probably want to 
-specify the column width manually at the top
-(which allows vim to mark the columns),
+specify the column width manually at the top,
+which allows vim to mark the columns.
 
 ```
 # sets column width to 8
@@ -385,13 +387,13 @@ For best view in an editor, it is recommended that you offset the first column b
 ## Patches
 
 Another useful global var is 'p', which sets midi patches by name or number
-across the tracks.  The midi names support partial matches (case-insensitive).
+across the tracks.  The midi names support partial case-insensitive matches.
 
 ```
 %t120 x2 p=piano,guitar,bass,drums c8,-2
 ```
 
-For a full list of GM names, see [config/gm.yaml](https://github.com/flipcoder/decadence/blob/master/config/gm.yaml).
+For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/decadence/blob/master/config/gm.yaml).
 
 ## Markers
 

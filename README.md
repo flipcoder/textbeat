@@ -1,6 +1,6 @@
-![Decadence](icons/icon.png)
+![Decadence](icon.png)
 
-# Decadence
+# decadence
 
 Plaintext music tracker and midi shell.
 

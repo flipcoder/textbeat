@@ -879,9 +879,9 @@ while not dc.quitflag:
                             # log(chordname)
                             # don't include tuplet in chordname
                             if 'add' in chordname:
-                                print(chordname)
+                                # print(chordname)
                                 addtoks = chordname.split('add')
-                                print(addtoks)
+                                # print(addtoks)
                                 chordname = addtoks[0]
                                 addnotes = addtoks[1:]
                         

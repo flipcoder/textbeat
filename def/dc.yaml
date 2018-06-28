@@ -1,27 +1,34 @@
 chords:
-    # experimental voicings specific to dc, just for fun
+    # experimental voicings, just for fun -- MAY BE REMOVED
     #   warnings should be emitted to beginners using these in shell,
     #   so they don't get confused when learning
     
-    # majadd2
-    wu: '3 4 5' # maadd4
-    wu7: '3 4 5 7' # ma7add4
+    # majadd4
+    wu: '3 4 5'
+    wu7: '3 4 5 7'
     wu7b5: '2 3 b5 7'
-    wu-: 'b3 4 5' # madd4
+    wu-: 'b3 4 5'
     wu-7: 'b3 4 5 7'
-    wu-7b5: 'b3 4 b5 7'    
+    wu-7b5: 'b3 4 b5 7'
     
-    # extended sus voicings
-    sq: '2 4 5' # 'square' sus2|4 sus both directions contiguous ladder (4->2)
-    sus3: 'b3 4 5 b7' # 1->b3 ccw
-    sus3+: '2 3 5 6' # 1->3 cw
-    sus7+: '2 5 6 7 9' # 1->7 cw
-    sus26: '5 6 9'
-    sus13: '4 5 9 13'
-
     # edges of scale shape along circle (i.e. darkest and brightest notes of each whole tone scale)
     eg: '3 4 7' # diatonic edges ("eg>>"=phyr "eg>3"=lyd "eg>6"=loc)
     eg-: '2 b3 7' # melodic minor edges
     arp: '3 4 5 7' # aka wu7, diatonic edge w/ 5, for inversions use '|5' eg: eg>|5
     melo: '2 b3 5 7' # eg- w/ 5 melodic minor arp
+
+# unused, future reference
+shorthand:
+    wu:
+        replace: ma
+        add: '4'
+    wu-:
+        replace: m
+        add: '4'
+    wu+:
+        replace: +
+        add: '4'
+
+chord_alts:
+    sq: sus24
 

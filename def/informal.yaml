@@ -12,6 +12,13 @@ chords:
     # jazz sus voicings
     q: '4 b7' # quartal (stacked 4ths) sus voicing
     qt: '5 9' # quintal (stacked 5ths) sus voicing
-    sus7: '4 5 b7' # 1->b7 ccw
-    sus9: '4 5 9'
+    sus7: '4 5 b7'
+    sus9: '4 5 b7 9'
+    sus24: '2 4 5'
+
+# for future reference
+shorthand:
+    mu:
+        replace: ma
+        add: '2'
 

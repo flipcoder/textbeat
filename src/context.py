@@ -39,8 +39,9 @@ class Context:
         self.dcmode = 'n' # n normal c command s sequence
         self.schedule = Schedule(self)
         self.tracks = []
-        self.shell = True
-        self.daemon = False
+        self.shell = False
+        self.remote = False
+        self.interactive = False
         self.gui = False
         self.portname = ''
         self.speed = 1.0

@@ -12,6 +12,7 @@ class Track:
         self.midich = midich # tracks primary midi channel
         self.initial_channel = midich
         self.non_drum_channel = midich
+        # self.strings = []
         self.reset()
     def reset(self):
         self.notes = [0] * RANGE

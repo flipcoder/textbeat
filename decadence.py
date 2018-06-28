@@ -85,7 +85,7 @@ for arg,val in iteritems(ARGS):
                     dc.tracks[i].patch(val)
         elif arg == '--sustain': dc.sustain=True
         elif arg == '--ring': dc.ring=True
-        elif arg == '--remote': dc.daemon = True
+        elif arg == '--remote': dc.remote = True
         elif arg == '--lint': LINT = True
         elif arg == '--quiet': set_print(False)
         elif arg == '--follow':
@@ -140,6 +140,8 @@ else: # mode n
             dc.dcmode = ''
         dc.shell = True
 
+dc.interactive = dc.shell or dc.remote
+
 pygame.midi.init()
 if pygame.midi.get_count()==0:
     print('No midi devices found.')
@@ -149,6 +151,7 @@ for i in range(pygame.midi.get_count()):
     port = pygame.midi.get_device_info(i)
     portname = port[1].decode('utf-8')
     # timidity
+    # print(portname)
     devs = [
         'timidity port 0',
         'synth input port',
@@ -244,7 +247,7 @@ while not dc.quitflag:
             # done with file, finish playing some stuff
             
             arps_remaining = 0
-            if dc.shell or dc.daemon or dc.dcmode in ['c','l']: # finish arps in shell mode
+            if dc.interactive or dc.dcmode in ['c','l']: # finish arps in shell mode
                 for ch in dc.tracks[:dc.tracks_active]:
                     if ch.arp_enabled:
                         if ch.arp_cycle_limit or not ch.arp_once:
@@ -255,7 +258,7 @@ while not dc.quitflag:
                 dc.line = '.'
             
             if not arps_remaining and not dc.schedule.pending():
-                if dc.shell or dc.daemon:
+                if dc.interactive:
                     for ch in dc.tracks[:dc.tracks_active]:
                         ch.release_all()
                     
@@ -274,14 +277,16 @@ while not dc.quitflag:
                         # if bufline.endswith('.dc'):
                             # play file?
                         # bufline = raw_input(cline)
-                        bufline = prompt(cline,
-                            history=HISTORY, vi_mode=dc.vimode)
+                        bufline = prompt(cline, history=HISTORY, vi_mode=dc.vimode)
                         bufline = list(filter(None, bufline.split(' ')))
                         bufline = list(map(lambda b: b.replace(';',' '), bufline))
-                        dc.buf += bufline
-                    elif dc.daemon:
+                    elif dc.remote:
                         pass
-                        # wait on socket
+                    else:
+                        assert False
+                        
+                    dc.buf += bufline
+                    
                     continue
                 
                 else:
@@ -576,7 +581,7 @@ while not dc.quitflag:
                 ch.release_all(True)
                 # ch.sustain = False
                 cell = cell[1:]
-            
+ 
             notecount = len(ch.scale.intervals if ch.scale else dc.scale.intervals)
             # octave = int(cell[0]) / notecount
             c = cell[0] if cell else ''
@@ -602,6 +607,12 @@ while not dc.quitflag:
             noteletter = '' # track this just in case (can include I and V)
             chordname = ''
             chordnames = []
+
+            # frets = bool(ch.frets)
+            # frets = False
+            # if cell and len(cell.strip())>1 and cell[0]=='|' and cell[-1]!=':':
+            #     cells = cells.lstrip()[1:]
+            #     frets = True
             
             cell_before_slash=cell[:]
             sz_before_slash=len(cell)
@@ -612,11 +623,11 @@ while not dc.quitflag:
             slashidx = 0
             addbottom = False # add note at bottom instead
             # slash = cell[0:min(cell.find(n) for n in '/|')]
-            
+
             # chordnameslist = []
             # chordnoteslist = []
             # chordrootslist = []
-            
+
             while True:
                 n = 1
                 roman = 0 # -1 lower, 0 none, 1 upper, 
@@ -1016,6 +1027,10 @@ while not dc.quitflag:
             notes = [i for o in slashnotes for i in o] # combine slashnotes
             cell = cell_before_slash[sz_before_slash-len(cell):]
 
+            # if frets:
+            #     ch.strings = notes
+            #     notes = []
+
             if ignore:
                 allnotes = []
                 notes = []
@@ -1305,7 +1320,7 @@ while not dc.quitflag:
                     if dc.showtext:
                         showtext.append('soften(??)')
                 elif c=='?': # soft
-                    if ch.quiet_vel>0:
+                    if ch.soft_vel >= 0:
                         vel = ch.soft_vel
                     else:
                         vel = max(0,int(ch.vel*0.5))

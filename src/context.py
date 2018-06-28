@@ -35,6 +35,7 @@ class Context:
         self.track_history = ['.'] * NUM_TRACKS
         self.fn = None
         self.row = 0
+        # self.rowno = []
         self.stoprow = -1
         self.dcmode = 'n' # n normal c command s sequence
         self.schedule = Schedule(self)
@@ -48,10 +49,15 @@ class Context:
         self.player = None
         self.instrument = None
         self.t = 0.0
+        self.last_follow = 0
     
-    def follow(self, count):
+    def follow(self):
         if self.canfollow:
-            print('\n' * max(0,count-1))
+            cursor = self.row + 1
+            if cursor != self.last_follow:
+                print(cursor)
+                self.last_cursor = cursor
+            # print(self.rowno[self.row])
 
     def pause(self):
         try:

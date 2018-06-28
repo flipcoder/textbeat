@@ -107,12 +107,12 @@ else: # mode n
     if ARGS['SONGNAME']:
         FN = ARGS['SONGNAME']
         with open(FN) as f:
+            lc = 0
             for line in f.readlines():
-                lc = 0
                 if line:
                     if line[-1] == '\n':
                         line = line[:-1]
-                    elif len(line)>2 and line[-2:0] == '\r\n':
+                    elif len(line)>=2 and line[-2:0] == '\r\n':
                         line = line[:-2]
                     
                     # if not line:
@@ -134,6 +134,7 @@ else: # mode n
 
                 lc += 1
                 dc.buf += [line]
+                # dc.rowno.append(lc)
             dc.shell = False
     else:
         if dc.dcmode == 'n':
@@ -235,6 +236,8 @@ if dc.shell:
 
 header = True # set this to false as we reached cell data
 while not dc.quitflag:
+    dc.follow()
+    
     try:
         dc.line = '.'
         try:
@@ -314,7 +317,6 @@ while not dc.quitflag:
         if dc.line:
             # COMMENTS (;)
             if dc.line[0] == ';':
-                dc.follow(1)
                 dc.row += 1
                 continue
             
@@ -322,14 +324,12 @@ while not dc.quitflag:
             if dc.line[-1]==':': # suffix marker
                 # allow override of markers in case of reuse
                 dc.markers[dc.line[:-1]] = dc.row
-                dc.follow(1)
                 dc.row += 1
                 continue
                 # continue
             elif dc.line[0]==':': #prefix marker
                 # allow override of markers in case of reuse
                 dc.markers[dc.line[1:]] = dc.row
-                dc.follow(1)
                 dc.row += 1
                 continue
             
@@ -457,7 +457,6 @@ while not dc.quitflag:
                                     print(FG.RED + 'No such scale.')
                                     pass
                                     
-                dc.follow(1)
                 dc.row += 1
                 continue
             
@@ -1476,7 +1475,7 @@ while not dc.quitflag:
                 i += 1
             
             cell_idx += 1
-
+ 
         while True:
             try:
                 if not ctrl and not header:
@@ -1514,7 +1513,6 @@ while not dc.quitflag:
         if not dc.shell and not dc.pause():
             break
 
-    dc.follow(1)
     dc.row += 1
 
 # TODO: turn all midi note off

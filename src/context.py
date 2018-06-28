@@ -36,6 +36,7 @@ class Context:
         self.fn = None
         self.row = 0
         # self.rowno = []
+        self.startrow = -1
         self.stoprow = -1
         self.dcmode = 'n' # n normal c command s sequence
         self.schedule = Schedule(self)
@@ -46,13 +47,14 @@ class Context:
         self.gui = False
         self.portname = ''
         self.speed = 1.0
+        self.muted = False # mute all except for solo tracks
         self.player = None
         self.instrument = None
         self.t = 0.0
         self.last_follow = 0
-    
+
     def follow(self):
-        if self.canfollow:
+        if self.startrow==-1 and self.canfollow:
             cursor = self.row + 1
             if cursor != self.last_follow:
                 print(cursor)
@@ -66,5 +68,5 @@ class Context:
             input(' === PAUSED === ')
         except:
             return False
-        return True 
+        return True
 

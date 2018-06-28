@@ -52,6 +52,8 @@ class Track:
         self.sustain_pedal_state = False # current midi pedal state
         self.schedule.clear_channel(self)
         self.flags = set()
+        self.enabled = True
+        self.soloed = False
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
@@ -59,7 +61,14 @@ class Track:
         if f != f & FLAGS:
             raise ParseError('invalid flags')
         self.flags |= f
-    def mute(self):
+    def enable(self, v=True):
+        was = v
+        if not was and v:
+            self.enabled = v
+            self.panic()
+    def disable(self, v=True):
+        self.enable(not v)
+    def stop(self):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
@@ -90,7 +99,9 @@ class Track:
             self.sustain_notes[n] = sustain
             # log("on " + str(n))
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch))
-            self.player.note_on(n,v,ch)
+            if (not self.ctx.muted or (self.ctx.muted and self.soloed))\
+                and self.enabled and self.ctx.startrow==-1:
+                self.player.note_on(n,v,ch)
     def note_off(self, n, v=-1):
         if v == -1:
             v = self.vel

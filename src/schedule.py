@@ -26,7 +26,7 @@ class Schedule:
         self.events = [ev for ev in self.events if ev.ch!=ch]
     def logic(self, t):
         processed = 0
-        
+
         # clock = time.clock()
         # if self.started:
         #     tdelta = (clock - self.passed)
@@ -46,18 +46,18 @@ class Schedule:
                 else:
                     # sleep until next event
                     if ev.t >= 0.0:
-                        if self.ctx.cansleep:
+                        if self.ctx.cansleep and self.ctx.startrow == -1:
                             time.sleep(self.ctx.speed*t*(ev.t-self.passed))
                         ev.func(0)
                         self.passed = ev.t # only inc if positive
                     else:
                         ev.func(0)
-                    
+
                     processed += 1
 
             slp = t*(1.0-self.passed) # remaining time
             if slp > 0.0:
-                if self.ctx.cansleep:
+                if self.ctx.cansleep and self.ctx.startrow == -1:
                     time.sleep(self.ctx.speed*slp)
             self.passed = 0.0
             self.events = self.events[processed:]

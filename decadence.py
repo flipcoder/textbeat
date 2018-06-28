@@ -195,10 +195,10 @@ for i in range(len(sys.argv)):
     if arg.startswith('+'):
         vals = arg[1:].split(',')
         try:
-            dc.row = int(vals[0])
+            dc.startrow = int(vals[0])
         except ValueError:
             try:
-                dc.row = dc.markers[vals[0]]
+                dc.startrow = dc.markers[vals[0]]
             except KeyError:
                 log('invalid entry point')
                 dc.quitflag = True
@@ -242,6 +242,8 @@ while not dc.quitflag:
         dc.line = '.'
         try:
             dc.line = dc.buf[dc.row]
+            if dc.row == dc.startrow:
+                dc.startrow = -1
             if dc.stoprow!=-1 and dc.row == dc.stoprow:
                 dc.buf = []
                 raise IndexError
@@ -571,18 +573,18 @@ while not dc.quitflag:
 
             if cell and cell[0]=='-':
                 if dc.shell:
-                    ch.mute()
+                    ch.stop()
                 else:
                     ch.release_all() # don't mute sustain
                 cell_idx += 1
                 continue
             
-            if cell and cell[0]=='=': # hard mute
-                ch.mute()
+            if cell and cell[0]=='=': # hard stop
+                ch.stop()
                 cell_idx += 1
                 continue
 
-            if cell and cell[0]=='-': # mute prefix
+            if cell and cell[0]=='-': # stop prefix
                 ch.release_all(True)
                 # ch.sustain = False
                 cell = cell[1:]
@@ -1068,7 +1070,7 @@ while not dc.quitflag:
             cell = cell.strip() # ignore spaces
 
             vel = ch.vel
-            mute = False
+            stop = False
             sustain = ch.sustain
            
             delay = 0.0
@@ -1183,10 +1185,14 @@ while not dc.quitflag:
                     ch.mod(127)
                     cell = cell[1:]
                 # dc.sustain
-                elif cell.startswith('__-'):
-                    ch.mute()
-                    sustain = ch.sustain = True
-                    cell = cell[3:]
+                elif cell.startswith('--'):
+                    ch.stop()
+                    sustain = ch.sustain = False
+                    cell = cell[2:]
+                elif cell.startswith('=='):
+                    ch.panic()
+                    sustain = ch.sustain = False
+                    cell = cell[2:]
                 elif c2=='__':
                     sustain = ch.sustain = True
                     cell = cell[2:]

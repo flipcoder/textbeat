@@ -198,7 +198,6 @@ chord_alts:
     aug: +
     aug7: '7+'
     ma#5: +
-    ma#5: +
     p4: '4'
     p5: '5'
     -: m
@@ -210,7 +209,7 @@ chord_alts:
     lyd: mab5
     lyd7: ma7b5
     plyd: ma#4
-    plyd7: ma7#4
+    lyd5: ma#4
     # Madd9: maadd9
     # maor7: ma7
     # Mb5: mab5

@@ -1,12 +1,12 @@
 #!/usr/bin/python
 from __future__ import unicode_literals, print_function, generators
 import os, sys, time, random, itertools, signal, tempfile, traceback, socket
+import time, subprocess, pipes, collections
+from collections import OrderedDict
 from builtins import range, str, input
 from future.utils import iteritems
-import time, subprocess, pipes
 import yaml, colorama, appdirs
 from docopt import docopt
-from collections import OrderedDict
 import pygame, pygame.midi
 from multiprocessing import Process,Pipe
 from prompt_toolkit import prompt
@@ -18,7 +18,7 @@ from prompt_toolkit.token import Token
 if sys.version_info[0]==3:
     basestring = str
 
-VERSION = '0.1'
+# VERSION = '0.1'
 FG = colorama.Fore
 BG = colorama.Back
 STYLE = colorama.Style
@@ -82,6 +82,7 @@ HISTORY = FileHistory(HISTORY_FN)
 SCRIPT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__,'..')))
 CFG_PATH = os.path.join(SCRIPT_PATH, 'config')
 DEF_PATH = os.path.join(SCRIPT_PATH, 'def')
+DEF_EXT = '.yaml'
 def cfg_path():
     return CFG_PATH
 def def_path():
@@ -128,13 +129,50 @@ def load_def(fn):
 
 random.seed()
 
-DEFS = load_def('default')
-for f in os.listdir(def_path()):
-    if f != 'default.yaml':
-        defs = load_def(f[:-len('.yaml')])
-        c = defs.copy()
-        c.update(DEFS)
-        DEFS = c
+class Diff:
+    NONE = 0
+    ADD = 1
+    REMOVE = 2
+    UPDATE = 3
+
+def merge(a, b, overwrite=False, skip=None, diff=None, pth=None):
+    for k,v in iteritems(b):
+        contains = k in a
+        if contains and isinstance(a[k], dict) and isinstance(b[k], collections.Mapping):
+            loc = (pth+[k]) if pth else None
+            if callable(skip):
+                if not skip(loc,v):
+                    merge(a[k],b[k], overwrite, skip, diff, loc)
+            else:
+                merge(a[k],b[k], overwrite, skip, diff, loc)
+        else:
+            if contains:
+                if callable(overwrite):
+                    loc = (pth+[k]) if pth!=None else k
+                    if overwrite(loc,v):
+                        a[k] = b[k]
+                        if diff!=None:
+                            diff.add((Diff.UPDATE,loc,v))
+                    else:
+                        pass
+                elif overwrite:
+                    if diff!=None:
+                        old = copy.copy(a[k])
+                    a[k] = b[k]
+                    if diff!=None:
+                        loc = (pth+[k]) if pth!=None else k
+                        diff.add((Diff.UPDATE,loc,v,old))
+            else:
+                a[k] = b[k]
+                if diff!=None:
+                    loc = (pth+[k]) if pth!=None else k
+                    diff.add((Diff.ADD,loc,v))
+    return a
+
+DEFS = {}
+for f in os.listdir(DEF_PATH):
+    if f.lower().endswith(DEF_EXT):
+        merge(DEFS,load_def(f[:-len(DEF_EXT)]))
 
 def get_defs():
     return DEFS

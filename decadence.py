@@ -8,8 +8,8 @@ Examples:
     decadence.py song.dc  play song
 
 Usage:
-    decadence.py [--ring | --follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
-    decadence.py [+RANGE] [--ring || --follow | --csound | --sonic-pi] [-eftnpsrxT] [SONGNAME]
+    decadence.py [--ring | --follow | --csound | --sonic-pi] [-eftnpsrxh] [SONGNAME]
+    decadence.py [+RANGE] [--ring || --follow | --csound | --sonic-pi] [-eftnpsrxh] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
 
@@ -29,7 +29,7 @@ Options:
     +<range>              play from line or maker, for range use start:end
     -e --edit             (STUB) open file in editor
     --vi                  (STUB) shell vi mode
-    -T --transpose        (STUB) transpose (in half steps)
+    -h --transpose        transpose (in half steps)
     --sustain             sustain by default
     --numbers             use note numbers in output
     --notenames           use note names in output
@@ -89,8 +89,8 @@ for arg,val in iteritems(ARGS):
         elif arg == '--lint': LINT = True
         elif arg == '--quiet': set_print(False)
         elif arg == '--follow':
-            set_print(True)
-            dc.canfollow = False
+            set_print(False)
+            dc.canfollow = True
         elif arg == '--flats': FLATS = True
         elif arg == '--sharps': SHARPS= True
         elif arg == '--edit': pass
@@ -214,7 +214,7 @@ for i in range(len(sys.argv)):
             pass # no stop param
 
 if dc.shell:
-    log(FG.BLUE + 'decadence v'+str(VERSION))
+    log(FG.BLUE + 'decadence')# v'+str(VERSION))
     log('Copyright (c) 2018 Grady O\'Connell')
     log('https://github.com/flipcoder/decadence')
     active = SUPPORT_ALL & SUPPORT
@@ -271,7 +271,7 @@ while not dc.quitflag:
                         #     orr(dc.tracks[0].scale,dc.scale).mode_name(orr(dc.tracks[0].mode,dc.mode,-1))+\
                         #     ')> '
                         cline = 'DC> ('+str(int(dc.tempo))+'bpm x'+str(int(dc.grid))+' '+\
-                            note_name(dc.tracks[0].transpose) + ' ' +\
+                            note_name(dc.transpose + dc.tracks[0].transpose) + ' ' +\
                             orr(dc.tracks[0].scale,dc.scale).mode_name(orr(dc.tracks[0].mode,dc.mode,-1))+\
                             ')> '
                         # if bufline.endswith('.dc'):
@@ -342,7 +342,7 @@ while not dc.quitflag:
                     if tok[0]==' ':
                         tok = tok[1:]
                     var = tok[0].upper()
-                    if var in 'TGNPSRMCX':
+                    if var in 'TGNPSRMCXK':
                         cmd = tok.split(' ')[0]
                         op = cmd[1]
                         try:
@@ -406,6 +406,10 @@ while not dc.quitflag:
                             elif var=='F': # flags
                                 for i in range(len(vals)):
                                     dc.tracks[i].add_flags(val.split(','))
+                            elif var=='K':
+                                dc.transpose = int(val)
+                                # for ch in TRACKS:
+                                #     ch.transpose = int(val)
                             elif var=='R' or var=='S':
                                 try:
                                     if val:
@@ -416,15 +420,15 @@ while not dc.quitflag:
                                             modescale = (dc.scale.name,int(val))
                                         else:
                                             alts = {'major':'ionian','minor':'aeolian'}
-                                            try:
-                                                modescale = (alts[modescale[0]],modescale[1])
-                                            except:
-                                                pass
+                                            # try:
+                                            #     modescale = (alts[val[0],val[1])
+                                            # except KeyError:
+                                            #     pass
                                             val = val.lower().replace(' ','')
                                             
                                             try:
                                                 modescale = MODES[val]
-                                            except:
+                                            except KeyError:
                                                 raise NoSuchScale()
                                         
                                         try:
@@ -432,8 +436,8 @@ while not dc.quitflag:
                                             dc.mode = modescale[1]
                                             inter = dc.scale.intervals
                                             dc.transpose = 0
+                                            # log(dc.mode-1)
                                             
-                                            log(dc.mode-1)
                                             if var=='R':
                                                 for i in range(dc.mode-1):
                                                     inc = 0
@@ -442,6 +446,8 @@ while not dc.quitflag:
                                                     except ValueError:
                                                         pass
                                                     dc.transpose += inc
+                                            elif var=='S':
+                                                pass
                                         except ValueError:
                                             raise NoSuchScale()
                                     else:
@@ -884,7 +890,7 @@ while not dc.quitflag:
                                 # print(addtoks)
                                 chordname = addtoks[0]
                                 addnotes = addtoks[1:]
-                        
+                            
                             if chordname.endswith('T'):
                                 chordname = chordname[:-1]
                                 cut -= 1

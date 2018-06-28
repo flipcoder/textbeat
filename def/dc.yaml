@@ -17,17 +17,16 @@ chords:
     arp: '3 4 5 7' # aka wu7, diatonic edge w/ 5, for inversions use '|5' eg: eg>|5
     melo: '2 b3 5 7' # eg- w/ 5 melodic minor arp
 
-# unused, future reference
-shorthand:
-    wu:
-        replace: ma
-        add: '4'
-    wu-:
-        replace: m
-        add: '4'
-    wu+:
-        replace: +
-        add: '4'
+#shorthand:
+#    wu:
+#        replace: ma
+#        add: '4'
+#    wu-:
+#        replace: m
+#        add: '4'
+#    wu+:
+#        replace: +
+#        add: '4'
 
 chord_alts:
     sq: sus24

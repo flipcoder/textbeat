@@ -16,9 +16,8 @@ chords:
     sus9: '4 5 b7 9'
     sus24: '2 4 5'
 
-# for future reference
-shorthand:
-    mu:
-        replace: ma
-        add: '2'
+#shorthand:
+#    mu:
+#        replace: ma
+#        add: '2'
 

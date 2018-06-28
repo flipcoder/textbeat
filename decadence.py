@@ -818,7 +818,7 @@ while not dc.quitflag:
                             nonotes = []
                             chordname = ''
                             reverse = False
-                            addhigherroot = False
+                            # addhigherroot = False
                             
                             # cut chord name from text after it
                             for char in tok:
@@ -829,9 +829,9 @@ while not dc.quitflag:
                                 if char == '\\':
                                     reverse = True
                                     break
-                                if char == '^':
-                                    addhigherroot = True
-                                    break
+                                # if char == '^':
+                                #     addhigherroot = True
+                                #     break
                                 chordname += char
                                 addnotes = []
                                 try:
@@ -853,11 +853,7 @@ while not dc.quitflag:
                                                 chordname = chordname[:-2] # cut "no
                                                 nonotes.append(str(prefix)+str(num)) # ex: b5
                                                 break
-                                          
-                                    if 'add' in chordname:
-                                        addtoks = chordname.split('add')
-                                        chordname = addtoks[0]
-                                        addnotes = addtoks[1:]
+                                        
                                 except IndexError:
                                     log('chordname length ' + str(len(chordname)))
                                     pass # chordname length
@@ -882,13 +878,20 @@ while not dc.quitflag:
                             
                             # log(chordname)
                             # don't include tuplet in chordname
+                            if 'add' in chordname:
+                                print(chordname)
+                                addtoks = chordname.split('add')
+                                print(addtoks)
+                                chordname = addtoks[0]
+                                addnotes = addtoks[1:]
+                        
                             if chordname.endswith('T'):
                                 chordname = chordname[:-1]
                                 cut -= 1
                             
                             # log(chordname)
                             if roman: # roman chordnames are sometimes empty
-                                if chordname and not chordname[1:] in 'bcdef':
+                                if chordname: #and not chordname[1:] in 'bcdef':
                                     if roman == -1: # minor
                                         if chordname[0] in '6719':
                                             chordname = 'm' + chordname

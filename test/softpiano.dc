@@ -2,19 +2,19 @@
 
 ; maj7, 40% vel, sustain
 maj7!4_
-; maj7, 1st/B inversion, 40% vel, sustain
-maj7b!4_,
+; maj7, 1st inversion, 40% vel, sustain
+maj7>!4_,
 
 maj7!7
-maj7b!4_,
+maj7>!4_,
 
-6mb,2_
+6m>,2_
 
 /7m_-_ 
 
-6mb/6_!4-_
+6m>/6_!4--
 
-7m/6_!4-_ 
+7m/6_!4--
 
 %g4
 

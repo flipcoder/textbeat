@@ -40,6 +40,8 @@ Options:
     --quiet               no output
     --csound              (STUB) enable csound
     --sonic-pi            (STUB) enable sonic-pi
+    --in=<in>             (STUB) midi input devices (comma sep)
+    --analyze             (STUB) midi input chord analyzer
 """
 from __future__ import unicode_literals, print_function, generators
 from src import *
@@ -1224,7 +1226,7 @@ while not dc.quitflag:
                     # log(notes)
                     if ch.arp_enabled:
                         ch.arp_notes = ch.arp_notes[1:] + ch.arp_notes[:1]
-                    cell = cell[1+ct:]
+                    cell = cell[ct:]
                 elif c == ',' or c=='\'':
                     cell = cell[1:]
                     sign = 1 if c=='\'' else -1
@@ -1248,21 +1250,22 @@ while not dc.quitflag:
                         shift = 1
                     ch.octave = octave
                     # row_events += 1
-                # VIBRATO
-                elif cl>1 and cell.startswith('~'): # vib/pitch wheel
-                    if c=='/' or c=='\\':
-                        num,ct = peel_int_s(cell[2:])
-                        num *= 1 if c=='/' else -1
-                        cell = cell[2:]
+                elif cl>1 and c=='~': # pitch wheel
+                    cell = cell[1:]
+                    if cell[0]=='/' or cell[0]=='\\':
+                        cell = cell[1:]
+                        num,ct = peel_uint_s(cell)
                         if ct:
+                            num = float('0.'+num)
+                            num *= 1.0 if c=='/' else -1.0
                             sign = 1
                             if num<0:
                                 num=num[1:]
                                 sign = -1
-                            vel = min(127,sign*int(float('0.'+num)*127.0))
+                            vel = constrain(sign*int(num*127.0),127)
+                            cell = cell[ct:]
                         else:
-                            vel = min(127,int(curv + 0.5*(127.0-curv)))
-                        cell = cell[ct+1:]
+                            vel = min(127,int(ch.vel + 0.5*(127.0-ch.vel)))
                         ch.pitch(vel)
                 elif c == '~': #  vibrato
                     ch.mod(127) # TODO: pitch osc in the future
@@ -1292,7 +1295,7 @@ while not dc.quitflag:
                 elif c=='_':
                     sustain = True
                     cell = cell[1:]
-                # elif cl=='v': # volume - moved to CC
+                # elif c=='v': # volume - moved to CC
                 #     cell = cell[1:]
                 #     # get number
                 #     num = ''
@@ -1321,12 +1324,12 @@ while not dc.quitflag:
                     ch.midi_channel(num)
                     if dc.showtext:
                         showtext.append('channel') 
-                elif cl=='s':
+                elif c=='s':
                     # solo if used by itself (?)
                     # scale if given args
                     # ch.soloed = True
                     cell = cell[1:]
-                elif cl=='m':
+                elif c=='m':
                     ch.enabled = (c=='m')
                     ch.panic()
                     cell = cell[1:]
@@ -1341,7 +1344,7 @@ while not dc.quitflag:
                     cell = cell[len(num):]
                     ccval = int(num)
                     ch.cc(cc,ccval)
-                elif cl=='p': # program/patch change
+                elif c=='p': # program/patch change
                     # bank select as other args?
                     cell = cell[1:]
                     p,ct = peel_int(cell)
@@ -1352,9 +1355,14 @@ while not dc.quitflag:
                 elif c=='*':
                     dots = count_seq(cell)
                     if notes:
+                        notevalue = '*' * dots
                         cell = cell[dots:]
-                        num,ct = peel_float(cell, 1.0)
-                        cell = cell[ct:]
+                        num,ct = peel_uint_s(cell)
+                        if ct:
+                            num = float('0.'+num)
+                            cell = cell[ct:]
+                        else:
+                            num = 1.0
                         if dots==1:
                             duration = num
                             events.append(Event(num, lambda _: ch.release_all(), ch))
@@ -1368,17 +1376,17 @@ while not dc.quitflag:
                 elif c=='.':
                     dots = count_seq(cell)
                     if len(c)>1 and notes:
-                        notevalue = '.' * dots
                         cell = cell[dots:]
                         if ch.arp_enabled:
                             dots -= 1
+                        notevalue = '.' * dots
                         if dots:
                             num,ct = peel_uint_s(cell)
                             if ct:
                                 num = int('0.' + num)
+                                cell = cell[ct:]
                             else:
                                 num = 1.0
-                            cell = cell[ct:]
                             duration = num*pow(0.5,float(dots))
                             events.append(Event(num*pow(0.5,float(dots)), lambda _: ch.release_all(), ch))
                     else:
@@ -1398,9 +1406,10 @@ while not dc.quitflag:
                 elif c==':':
                     cell = []
                 elif c2=='!!': # full accent
-                    vel,ct = peel_uint_s(cell[1:],127)
-                    cell = cell[2+ct:]
-                    if ct>2:
+                    cell = cell[2:]
+                    vel,ct = peel_uint_s(cell,127)
+                    if ct:
+                        cell = cell[ct:]
                         ch.vel = vel # persist if numbered
                     else:
                         if ch.max_vel >= 0:
@@ -1410,18 +1419,18 @@ while not dc.quitflag:
                     if dc.showtext:
                         showtext.append('accent(!!)')
                 elif c=='!': # accent
-                    curv = ch.vel
-                    num,ct = peel_uint_s(cell[1:])
+                    cell = cell[1:]
+                    num,ct = peel_uint_s(cell)
                     if ct:
                         vel = constrain(int(float('0.'+num)*127.0),127)
+                        cell = cell[ct:]
                     else:
                         if ch.accent_vel >= 0:
                             vel = ch.accent_vel
                         else:
-                            vel = constrain(int(curv + 0.5*(127.0-curv)),127)
-                    cell = cell[ct+1:]
+                            vel = constrain(int(ch.vel + 0.5*(127.0-ch.vel)),127)
                     if dc.showtext:
-                        showtext.append('accent(!!)')
+                        showtext.append('accent(!)')
                 elif c2=='??': # ghost
                     if ch.ghost_vel >= 0:
                         vel = ch.ghost_vel # max(0,int(ch.vel*0.25))
@@ -1437,7 +1446,7 @@ while not dc.quitflag:
                         vel = max(0,int(ch.vel*0.5))
                     cell = cell[1:]
                     if dc.showtext:
-                        showtext.append('soften(??)')
+                        showtext.append('soften(?)')
                 # elif cell.startswith('$$') or (c=='$' and lennotes==1):
                 elif c=='$': # strum/spread/tremolo
                     sq = count_seq(cell)
@@ -1475,7 +1484,7 @@ while not dc.quitflag:
                         cell = cell[1+ct:]
                     if dc.showtext:
                         showtext.append('arpeggio(&)')
-                elif cl=='t': #  tuplets
+                elif c=='t': #  tuplets
                     if not ch.tuplets:
                         ch.tuplets = True
                         pow2i = 0.0

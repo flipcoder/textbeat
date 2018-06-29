@@ -305,16 +305,16 @@ For readability, notes can be indented to imply downbeat or grouping
 Usually you'll want to control velocity through accenting('!') or softening('?')
 or using values (!30 for 30%)
 
-If you wish to control volume/gain directly, use %v
+If you wish to control volume/gain directly, use @v
  
 ```
-1maj%v9
+1maj@v9
 -
-1maj%v6
+1maj@v6
 -
-1maj%v4
+1maj@v4
 -
-1maj%v2
+1maj@v2
 -
 ```
 
@@ -394,20 +394,6 @@ across the tracks.  The midi names support partial case-insensitive matches.
 ```
 
 For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/decadence/blob/master/config/gm.yaml).
-
-## Markers / Repeats
-
-Here are the marker/repeat commands:
-
-```
-- |: set marker
-- |name: set marker 'name'
-- :| goes back to last marker, or start
-- :name| goes back to last marker 'name'
-- :N| goes back to last marker N number of times
-- :name*N| goes back to last marker 'name' N number of times
-- || return/pop to last position after marker jump
-```
 
 ## Tuplets
 
@@ -491,6 +477,21 @@ command line:
 ``` 
 
 # Advanced
+
+## Markers / Repeats
+
+Here are the marker/repeat commands:
+
+```
+- |: set marker
+- |name: set marker 'name'
+- :| goes back to last marker, or start
+- :name| goes back to last marker 'name'
+- :N| goes back to last marker N number of times
+- :name*N| goes back to last marker 'name' N number of times
+- || return/pop to last position after marker jump
+- ||| end the song here
+``` 
 
 ## Command line parameters (use -):
 

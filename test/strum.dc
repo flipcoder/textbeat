@@ -1,4 +1,4 @@
-%p=drums,piano
+%p=drums,piano,piano
 %g4
 ,2 
 1   Cmaj$
@@ -17,12 +17,12 @@
 1   
     iio7...
     iio7...
-    4,3
+    4,,,
 1   iio7...
     iio7...
-    4,3
+    4,,,
 %g1
-    1,2     Cm
+    1,2
     .
     .
     .

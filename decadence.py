@@ -830,9 +830,10 @@ while not dc.quitflag:
                         
                         # number_notes = not roman
                         
-                        if tok and tok[0]==':': # currently broken? wrong notes
-                            tok = tok[1:] # allow chord sep
-                            if not expanded: cell = cell[1:]
+                        # if tok and tok[0]==':': # currently broken? wrong notes
+                        #     n += 1
+                        #     tok = tok[1:] # allow chord sep
+                        #     if not expanded: cell = cell[1:]
                         
                         # log('note: %s' % n)
                 

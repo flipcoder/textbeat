@@ -555,10 +555,10 @@ Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
     - future: will be moved from track commands to chord parser
 - ch: assign track to a midi channel
     - midi channels exceeding max value will be spanned across outputs
-- pc: program assign
+- p: program assign
     - Set program to a given number
     - Global var (%) p is usually prefered for string matching
-- cc: control change (midi CC param)
+- c: control change (midi CC param)
     - setting CC5 to 25 would be c5:25
 - bs: bank select (not impl)
 - ~: vibrato and pitch wheel
@@ -588,9 +588,51 @@ Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
 - $: strum
     - plays the chord in a sequence, held by default
     - notes automatically fit into 1 grid beat
+- `: mod
+- at: aftertouch
+- bc: breath controller
+- fc: foot controller
+- pt: portamento time
+- v: volume
+- bl: balance
+- pn: pan
+- ex: expression
+- ga: general purpose CC 16
+- gb: " 17
+- gc: " 18
+- gd: " 19
+- sp: sustain pedal
+- ps: portamento switch
+- st: sostenuto pedal
+- sf: soft pedal
+- lg: legato pedal
+- hd: hold w/ release fade
+- o: oscillator
+- R: resonance
+- r: release
+- a: attack
+- f: filter
+- sa: sound ctrl
+- sb: " 2
+- sc: " 3
+- sd: " 4
+- se: " 5
+- pa: portmento amount
+- rv: reverb
+- tr: tremolo
+- cr: chorus
+- ph: phaser
+- mo: mono
+
+Track commands that start with letters should be separated
+from notedata by prefixing '@':
+Example: 1~ is fine, but 1v is not. Use 1@v You only need one to combine: 1@v5ex5 
 
 Note: Fractional values specified are formated like numbers after a decimal point:
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
+
+CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/decadence/blob/master/def/default.yaml).
+
 ```
 
 ## Scales, Modes, Chords, Voicings

@@ -179,6 +179,8 @@ class Track:
             self.player.write_short(status,cc,val)
         if cc==1:
             self.modval = val
+        if cc==7:
+            self.volval = val/127.0
     def mod(self, val):
         self.modval = 0
         return self.cc(1,val)
@@ -201,13 +203,13 @@ class Track:
                     gmwords = list(filter(lambda x: w in x, gmwords))
                     lengw = len(gmwords)
                     if lengw==1:
-                        log('found')
                         break
                     elif lengw==0:
-                        log('no match')
+                        log(FG.RED + 'Patch \"'+p+'\" not found')
                         assert False
                 assert len(gmwords) > 0
-                log(FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0])
+                if self.ctx.shell:
+                    log(FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0])
                 p = GM_LOWER.index(gmwords[0])
                 # for i in range(len(GM_LOWER)):
                 #     continue_search = False

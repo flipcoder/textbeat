@@ -32,7 +32,7 @@ ARGS = None
 RANGE = 109
 OCTAVE_BASE = 5
 DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
-CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%'
+CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%@'
 CCHAR_START = 'T' # control chars
 PRINT = True
 
@@ -73,6 +73,16 @@ def set_args(args):
     ARGS = args
 def get_args():
     return ARGS
+def constrain(a,n1=1,n2=0):
+    try:
+        int(a)
+    except ValueError:
+        # fix defaults for float
+        if n2==0:
+            n2 = 0.0
+        if n1==1:
+            n1 = 1.0
+    return min(max(n1,n2),max(min(n1,n2),a))
 
 APPNAME = 'decadence'
 DIR = appdirs.AppDirs(APPNAME)
@@ -173,6 +183,12 @@ DEFS = {}
 for f in os.listdir(DEF_PATH):
     if f.lower().endswith(DEF_EXT):
         merge(DEFS,load_def(f[:-len(DEF_EXT)]))
+
+CC = {}
+try:
+    CC = DEFS['cc']
+except KeyError:
+    pass
 
 def get_defs():
     return DEFS

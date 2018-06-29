@@ -1173,14 +1173,14 @@ while not dc.quitflag:
             #     BGPIPE.send((BGCMD.SAY,str(word)))
             #     cell = cell[quote+1:]
             #     ignore = True
-             
-            atsign = False
-            if cell and cell[0] == '@':
-                atsign = True
-                cell = cell[1:]
 
             notevalue = ''
             while len(cell) >= 1: # recompute len before check
+                atsign = False
+                if cell and cell[0] == '@':
+                    atsign = True
+                    cell = cell[1:] 
+
                 after = [] # after events
                 cl = len(cell)
                 # All tokens here must be listed in CCHAR
@@ -1267,10 +1267,9 @@ while not dc.quitflag:
                 elif c == '~': #  vibrato
                     ch.mod(127) # TODO: pitch osc in the future
                     cell = cell[1:]
-                elif c == '`': # mod wheel
-                    ch.mod(127)
-                    cell = cell[1:]
-                # dc.sustain
+                # elif c == '`': # mod wheel -- moved to CC
+                #     ch.mod(127)
+                #     cell = cell[1:]
                 elif cell.startswith('--'):
                     num, ct = count_seq('-')
                     sustain = ch.sustain = False
@@ -1293,19 +1292,19 @@ while not dc.quitflag:
                 elif c=='_':
                     sustain = True
                     cell = cell[1:]
-                elif cl=='v': # volume
-                    cell = cell[1:]
-                    # get number
-                    num = ''
-                    for char in cell:
-                        if char.isdigit():
-                            num += char
-                        else:
-                            break
-                    assert num != ''
-                    cell = cell[len(num):]
-                    vel = int((float(num) / float('9'*len(num)))*127)
-                    ch.cc(7,vel)
+                # elif cl=='v': # volume - moved to CC
+                #     cell = cell[1:]
+                #     # get number
+                #     num = ''
+                #     for char in cell:
+                #         if char.isdigit():
+                #             num += char
+                #         else:
+                #             break
+                #     assert num != ''
+                #     cell = cell[len(num):]
+                #     vel = int((float(num) / float('9'*len(num)))*127)
+                #     ch.cc(7,vel)
                 elif cell.startswith('Q'): # record sequence
                     cell = cell[1:]
                     r,ct = peel_uint(cell)
@@ -1414,12 +1413,12 @@ while not dc.quitflag:
                     curv = ch.vel
                     num,ct = peel_uint_s(cell[1:])
                     if ct:
-                        vel = min(127,int(float('0.'+num)*127.0))
+                        vel = constrain(int(float('0.'+num)*127.0),127)
                     else:
                         if ch.accent_vel >= 0:
                             vel = ch.accent_vel
                         else:
-                            vel = min(127,int(curv + 0.5*(127.0-curv)))
+                            vel = constrain(int(curv + 0.5*(127.0-curv)),127)
                     cell = cell[ct+1:]
                     if dc.showtext:
                         showtext.append('accent(!!)')
@@ -1444,7 +1443,8 @@ while not dc.quitflag:
                     sq = count_seq(cell)
                     cell = cell[sq:]
                     num,ct = peel_uint_s(cell,'0')
-                    cell = cell[ct:]
+                    if ct:
+                        cell = cell[ct:]
                     num = float('0.'+num)
                     strum = 1.0
                     if len(notes)==1: # tremolo
@@ -1475,18 +1475,7 @@ while not dc.quitflag:
                         cell = cell[1+ct:]
                     if dc.showtext:
                         showtext.append('arpeggio(&)')
-                elif cl=='t': #  tempo(@T) or tuplets(T)
-                    # if atsign:
-                    #     # atsign = tempo
-                    #     num,ct = peel_uint(cell)
-                    #     cell = cell[ct:]
-                    #     dc.tempo = num
-                    #     if cell.startswith(':'):
-                    #         cell = cell[1:]
-                    #         num,ct = peel_uint(cell)
-                    #         cell = cell[ct:]  
-                    # else:
-                    # tuplets
+                elif cl=='t': #  tuplets
                     if not ch.tuplets:
                         ch.tuplets = True
                         pow2i = 0.0
@@ -1517,9 +1506,27 @@ while not dc.quitflag:
                     # ctrl line
                     cell = []
                     break
+                elif c2 in CC:
+                    cell = cell[2:]
+                    num,ct = peel_uint_s(cell)
+                    if ct:
+                        num = float('0.'+num) 
+                        cell = cell[ct:] 
+                    else:
+                        num = 1.0
+                    ch.cc(CC[c2],constrain(int(num*127.0),127))
+                elif c in CC:
+                    cell = cell[1:]
+                    num,ct = peel_uint_s(cell)
+                    if ct:
+                        num = float('0.'+num)
+                        cell = cell[ct:]
+                    else:
+                        num = 1.0
+                    ch.cc(CC[c],constrain(int(num*127.0),127))
                 else:
-                    if dc.dcmode in 'cl':
-                        log(FG.BLUE + dc.line)
+                    # if dc.dcmode in 'cl':
+                    log(FG.BLUE + dc.line)
                     indent = ' ' * (len(fullcell)-len(cell))
                     log(FG.RED + indent +  "^ Unexpected " + cell[0] + " here")
                     cell = []

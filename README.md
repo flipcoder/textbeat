@@ -395,18 +395,19 @@ across the tracks.  The midi names support partial case-insensitive matches.
 
 For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/decadence/blob/master/config/gm.yaml).
 
-## Markers
+## Markers / Repeats
 
-Still working on this feature, it might be broken
-
-':' sets marker and '@' loops to it.
+Here are the marker/repeat commands:
 
 ```
-:markername
-@markername
+- |: set marker
+- |name: set marker 'name'
+- :| goes back to last marker, or start
+- :name| goes back to last marker 'name'
+- :N| goes back to last marker N number of times
+- :name*N| goes back to last marker 'name' N number of times
+- || return/pop to last position after marker jump
 ```
-
-Repeat counting, callstack, etc. coming shortly.  Code almost done.
 
 ## Tuplets
 
@@ -482,11 +483,11 @@ Then at the bottom, there is a C bass note.
 
 ## Examples
 
-Check out the examples in the test/ folder.  Play them with decadence from the
+Check out the examples/ folder.  Play them with decadence from the
 command line:
 
 ```
-./decadence.py test/jazz.dc
+./decadence.py examples/jazz.dc
 ``` 
 
 # Advanced
@@ -667,7 +668,7 @@ I'm improving this faster than I'm documenting it.  Because of that, not everyth
 
 Check out the project board for more information on current/upcoming features.
 
-Also, check out the basic text examples in the test/ folder.
+Also, check out the basic examples in the examples/ and tests/ folder.
 
 # What's the plan?
 

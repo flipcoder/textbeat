@@ -418,11 +418,8 @@ while not dc.quitflag:
                             elif var=='F': # flags
                                 for i in range(len(vals)):
                                     dc.tracks[i].add_flags(val.split(','))
-                            elif var=='K':
-                                dc.transpose = int(val)
-                                # for ch in TRACKS:
-                                #     ch.transpose = int(val)
-                            elif var=='R' or var=='S':
+                            elif var=='R' or var=='K' or var=='S':
+                                # var R=relative usage deprecated
                                 try:
                                     if val:
                                         val = val.lower()
@@ -450,7 +447,7 @@ while not dc.quitflag:
                                             dc.transpose = 0
                                             # log(dc.mode-1)
                                             
-                                            if var=='R':
+                                            if var=='R' or var=='K':
                                                 for i in range(dc.mode-1):
                                                     inc = 0
                                                     try:
@@ -652,9 +649,18 @@ while not dc.quitflag:
                     ch.release_all() # don't mute sustain
                 cell_idx += 1
                 continue
+            if cell=='--':
+                ch.sustain = False
+                cell_idx += 1
+                continue
             
             if cell and cell[0]=='=': # hard stop
-                ch.stop()
+                ch.panic()
+                cell_idx += 1
+                continue
+            if cell=='==':
+                ch.panic()
+                ch.sustain = False
                 cell_idx += 1
                 continue
 
@@ -1168,6 +1174,11 @@ while not dc.quitflag:
             #     cell = cell[quote+1:]
             #     ignore = True
              
+            atsign = False
+            if cell and cell[0] == '@':
+                atsign = True
+                cell = cell[1:]
+
             notevalue = ''
             while len(cell) >= 1: # recompute len before check
                 after = [] # after events
@@ -1253,33 +1264,37 @@ while not dc.quitflag:
                             vel = min(127,int(curv + 0.5*(127.0-curv)))
                         cell = cell[ct+1:]
                         ch.pitch(vel)
-                elif c == '~': # pitch wheel
-                    ch.pitch(127)
+                elif c == '~': #  vibrato
+                    ch.mod(127) # TODO: pitch osc in the future
                     cell = cell[1:]
                 elif c == '`': # mod wheel
                     ch.mod(127)
                     cell = cell[1:]
                 # dc.sustain
                 elif cell.startswith('--'):
-                    ch.stop()
+                    num, ct = count_seq('-')
                     sustain = ch.sustain = False
-                    cell = cell[2:]
-                elif cell.startswith('=='):
-                    ch.panic()
-                    sustain = ch.sustain = False
-                    cell = cell[2:]
+                    cell = cell[ct:]
+                elif cell.startswith('='):
+                    num, ct = count_seq('=')
+                    if num==2:
+                        ch.stop()
+                    elif num==3:
+                        ch.panic()
+                    if num<=3:
+                        sustain = ch.sustain = False
+                    cell = cell[ct:]
                 elif c2=='__':
                     sustain = ch.sustain = True
                     cell = cell[2:]
-                elif c2=='_-':
+                elif c2=='_-': # deprecated
                     sustain = False
                     cell = cell[2:]
                 elif c=='_':
                     sustain = True
                     cell = cell[1:]
-                elif cell.startswith('%v'): # volume
-                    pass
-                    cell = cell[2:]
+                elif cl=='v': # volume
+                    cell = cell[1:]
                     # get number
                     num = ''
                     for char in cell:
@@ -1291,21 +1306,32 @@ while not dc.quitflag:
                     cell = cell[len(num):]
                     vel = int((float(num) / float('9'*len(num)))*127)
                     ch.cc(7,vel)
-                # elif c=='v': # velocity - may be deprecated for !
-                #     cell = cell[1:]
-                #     # get number
-                #     num = ''
-                #     for char in cell:
-                #         if char.isdigit():
-                #             num += char
-                #         else:
-                #             break
-                #     assert num != ''
-                #     cell = cell[len(num):]
-                #     vel = int((float(num) / 100)*127)
-                #     ch.vel = vel
-                #     # log(vel)
-                elif c=='cc': # MIDI CC
+                elif cell.startswith('Q'): # record sequence
+                    cell = cell[1:]
+                    r,ct = peel_uint(cell)
+                    # ch.record(r)
+                    cell = cell[ct:]
+                elif cell.startswith('q'): # replay sequence
+                    cell = cell[1:]
+                    r,ct = peel_uint(cell)
+                    # ch.replay(r)
+                    cell = cell[ct:]
+                elif c2=='ch': # midi channel
+                    num,ct = peel_uint(cell[1:])
+                    cell = cell[1+ct:]
+                    ch.midi_channel(num)
+                    if dc.showtext:
+                        showtext.append('channel') 
+                elif cl=='s':
+                    # solo if used by itself (?)
+                    # scale if given args
+                    # ch.soloed = True
+                    cell = cell[1:]
+                elif cl=='m':
+                    ch.enabled = (c=='m')
+                    ch.panic()
+                    cell = cell[1:]
+                elif c=='c': # MIDI CC
                     # get number
                     cell = cell[1:]
                     cc,ct = peel_int(cell)
@@ -1316,19 +1342,14 @@ while not dc.quitflag:
                     cell = cell[len(num):]
                     ccval = int(num)
                     ch.cc(cc,ccval)
-                elif cl>=2 and c=='pc': # program/patch change
-                    cell = cell[2:]
+                elif cl=='p': # program/patch change
+                    # bank select as other args?
+                    cell = cell[1:]
                     p,ct = peel_int(cell)
                     assert ct
                     cell = cell[len(num):]
                     # ch.cc(0,p)
                     ch.patch(p)
-                elif c2=='ch': # midi channel
-                    num,ct = peel_uint(cell[2:])
-                    cell = cell[2+ct:]
-                    ch.midi_channel(num)
-                    if dc.showtext:
-                        showtext.append('channel')
                 elif c=='*':
                     dots = count_seq(cell)
                     if notes:
@@ -1454,7 +1475,18 @@ while not dc.quitflag:
                         cell = cell[1+ct:]
                     if dc.showtext:
                         showtext.append('arpeggio(&)')
-                elif c=='t': # tuplet
+                elif cl=='t': #  tempo(@T) or tuplets(T)
+                    # if atsign:
+                    #     # atsign = tempo
+                    #     num,ct = peel_uint(cell)
+                    #     cell = cell[ct:]
+                    #     dc.tempo = num
+                    #     if cell.startswith(':'):
+                    #         cell = cell[1:]
+                    #         num,ct = peel_uint(cell)
+                    #         cell = cell[ct:]  
+                    # else:
+                    # tuplets
                     if not ch.tuplets:
                         ch.tuplets = True
                         pow2i = 0.0
@@ -1477,10 +1509,6 @@ while not dc.quitflag:
                     else:
                         cell = cell[1:]
                         pass
-                elif c=='@':
-                    if not notes:
-                        cell = []
-                        continue # ignore jump
                 # elif c==':':
                 #     if not notes:
                 #         cell = []

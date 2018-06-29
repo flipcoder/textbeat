@@ -1,0 +1,38 @@
+cc:
+    '`': 1 # mod
+    at: 2 # aftertouch
+    bc: 2 # breath controller
+    fc: 4 # foot controller
+    pt: 5 # portamento time
+    v: 7 # volume
+    bl: 8 # balance
+    pn: 10 # pan
+    ex: 11 # expression
+    ga: 16 # general purpose
+    gb: 17 # "
+    gc: 18 # "
+    gd: 19 # "
+    sp: 64 # sustain pedal
+    ps: 65 # portamento switch
+    st: 66 # sostenuto pedal
+    sf: 67 # soft pedal
+    lg: 68 # legato pedal
+    hd: 69 # hold w/ release fade
+    o: 70 # osc
+    R: 71 # res
+    r: 72 # release
+    a: 73 # attack
+    f: 74 # filter
+    sa: 75 # sound ctrl
+    sb: 76 # "
+    sc: 77 # "
+    sd: 78 # "
+    se: 79 # "
+    pa: 84 # portmento amount
+    rv: 91 # reverb
+    tr: 92 # tremolo
+    cr: 93 # chorus
+    ph: 94 # phaser
+    mo: 126 # mono
+    po: 127 # poly
+

@@ -1,10 +1,14 @@
 from . import *
 
 class StackFrame:
-    def __init__(self, row):
+    def __init__(self, row, caller, count):
         self.row = row
-        self.counter = 0 # repeat call counter
-        
+        self.caller = caller
+        self.count = count # repeat call counter
+        self.markers = {} # marker name -> line
+        self.returns = {} # repeat row -> number of rpts left
+        # self.returns[row] = 0
+
 class Context:
     
     def __init__(self):
@@ -29,7 +33,9 @@ class Context:
         self.ring = False # disables midi muting on program exit
         self.buf = []
         self.markers = {}
-        self.callstack = [StackFrame(-1)]
+        f = StackFrame(-1,-1,0)
+        f.returns[''] = 0
+        self.callstack = [f]
         self.schedule = []
         self.separators = []
         self.track_history = ['.'] * NUM_TRACKS
@@ -52,6 +58,7 @@ class Context:
         self.instrument = None
         self.t = 0.0
         self.last_follow = 0
+        self.last_marker = -1
 
     def follow(self):
         if self.startrow==-1 and self.canfollow:

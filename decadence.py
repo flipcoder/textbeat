@@ -106,6 +106,7 @@ else: # mode n
     #     FN = sys.argv[-1]
     if ARGS['SONGNAME']:
         FN = ARGS['SONGNAME']
+        # dc.markers[''] = 0 # start marker
         with open(FN) as f:
             lc = 0
             for line in f.readlines():
@@ -234,6 +235,9 @@ if dc.shell:
     log('Read the manual and look at examples. Have fun!')
     log('')
 
+for ch in dc.tracks:
+    ch.refresh()
+
 header = True # set this to false as we reached cell data
 while not dc.quitflag:
     dc.follow()
@@ -323,15 +327,21 @@ while not dc.quitflag:
                 continue
             
             # set marker
-            if dc.line[-1]==':': # suffix marker
+            # if dc.line[-1]==':': # suffix marker
+            #     # allow override of markers in case of reuse
+            #     dc.markers[dc.line[:-1]] = dc.row
+            #     dc.callstack[-1].returns[dc.row] = 0
+            #     dc.row += 1
+            #     continue
+            #     # continue
+            if dc.line[0]=='|' and dc.line[-1]==':':
                 # allow override of markers in case of reuse
-                dc.markers[dc.line[:-1]] = dc.row
-                dc.row += 1
-                continue
-                # continue
-            elif dc.line[0]==':': #prefix marker
-                # allow override of markers in case of reuse
-                dc.markers[dc.line[1:]] = dc.row
+                frame = dc.callstack[-1]
+                bm = dc.line[1:-1]
+                dc.markers[bm] = dc.row
+                frame.markers[bm] = dc.row
+                # dc.callstack[-1].returns[dc.row] = 0
+                dc.last_marker = dc.row
                 dc.row += 1
                 continue
             
@@ -463,35 +473,99 @@ while not dc.quitflag:
                 continue
             
             # jumps
-            if dc.line.startswith(':') and dc.line.endswith("|"):
-                jumpline = dc.line[1:-1]
-            else:
-                jumpline = dc.line[1:]
-            if dc.line[0]=='@':
-                if len(jumpline)==0:
-                    dc.row = 0
-                    continue
-                if len(jumpline)>=1 and jumpline == '@': # @@ return/pop callstack
-                    frame = CALLSTACK[-1]
-                    CALLSTACK = CALLSTACK[:-1]
-                    dc.row = frame.row
-                    continue
-                jumpline = jumpline.split('*') # * repeats
-                bm = jumpline[0] # marker name
-                count = 0
-                if len(jumpline)>=1:
-                    count = int(jumpline) if len(jumpline)>=1 else 1
-                frame = CALLSTACK[-1]
-                frame.count = count
-                if count: # repeats remaining
-                    CALLSTACK.append(StackFrame(dc.row))
-                    dc.row = dc.markers[bm]
-                    continue
+            # if dc.line.startswith(':'):
+            #     jumpline = dc.line[1:]
+            #     if dc.line.endswith("|"):
+            #         jumpline = dc.line[1:-1]
+            #     else:
+            #         jumpline = dc.line[1:]
+            if dc.line.startswith('|||'):
+                dc.quitflag = True
+                continue
+            elif dc.line.startswith('||'):
+                if len(dc.callstack)>1:
+                    frame = dc.callstack[-1]
+                    frame.count = max(0,frame.count-1)
+                    if frame.count:
+                        dc.row = frame.row + 1
+                        continue
+                    else:
+                        dc.row = frame.caller + 1
+                        dc.callstack = dc.callstack[:-1]
+                        continue
                 else:
-                    dc.row = dc.markers[bm]
+                    dc.quitflag = True
                     continue
-            
-        
+            if dc.line[0]==':' and dc.line[-1]=='|':
+                jumpline = dc.line[1:-1]
+                frame = dc.callstack[-1]
+                jumpline = jumpline.split('*') # *n = n repeats
+                bm = jumpline[0]
+                if bm.isdigit():
+                    bm = ''
+                    count = int(jumpline[0])
+                else:
+                    count = int(jumpline[1]) if len(jumpline)>1 else 1
+                # frame = dc.callstack[-1]
+                # if count: # repeats remaining
+
+                if bm:
+                    bmrow = dc.markers[bm]
+                else:
+                    bmrow = dc.last_marker
+
+                # if not bm:
+                #     frame.count = max(0,frame.count-1)
+                #     if frame.count:
+                #         dc.row = frame.row + 1
+                #         continue
+                #     else:
+                #         dc.row += 1
+                #         continue
+                
+                # if bmrow in frame.returns:
+                    
+                    # return to marker (no pushing)
+                    #     dc.callstack.append(StackFrame(bmrow, dc.row, count))
+                #     dc.markers[jumpline[0]] = bmrow
+                #     dc.row = bmrow + 1
+                #     dc.last_marker = bmrow
+                
+                if bmrow==dc.last_marker or bm in frame.markers: # call w/o push?
+                    # ctx already passed bookmark, call w/o pushing (return to mark)
+                    if dc.row in frame.returns: # have we repeated yet?
+                        rpt = frame.returns[dc.row]
+                        if rpt>0:
+                            frame.returns[dc.row] = rpt - 1
+                            dc.row = bmrow + 1 # repeat
+                        else:
+                            del frame.returns[dc.row] # reset
+                            dc.row += 1
+                    else:
+                        # start return count
+                        frame.returns[dc.row] = count - 1
+                        dc.row = bmrow + 1 # repeat
+                else:
+                    # mark not yet passed, do push/pop
+                    dc.callstack.append(StackFrame(bmrow, dc.row, count))
+                    dc.markers[bm] = bmrow
+                    dc.row = bmrow + 1
+                    dc.last_marker = bmrow
+
+                # else:
+                #     retcount = frame.returns[dc.row]
+                #     if retcount > count:
+                #         dc.row = bmrow + 1
+                #         frame.returns[dc.row] -= 1
+                #     else:
+                #         dc.row += 1
+                # else:
+                #     dc.callstack.append(StackFrame(bmrow, dc.row, count))
+                #     dc.markers[jumpline[0]] = bmrow
+                #     dc.row = bmrow + 1
+                #     dc.last_marker = bmrow
+                continue
+
         # this is not indented in blank lines because even blank lines have this logic
         gutter = ''
         if dc.shell:
@@ -1299,7 +1373,9 @@ while not dc.quitflag:
                     delay = -1*(c=='(')*float('0.'+num) if num else 0.5
                     assert(delay > 0.0) # TOOD: impl early notes
                 elif c=='|':
-                    cell = cell[1:] # ignore
+                    cell = []
+                elif c==':':
+                    cell = []
                 elif c2=='!!': # full accent
                     vel,ct = peel_uint_s(cell[1:],127)
                     cell = cell[2+ct:]

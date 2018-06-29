@@ -54,9 +54,18 @@ class Track:
         self.flags = set()
         self.enabled = True
         self.soloed = False
+        self.volval = 1.0
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
+    def volume(self,v=None):
+        if v==None:
+            return self.volval
+        self.volval = v
+        self.cc(7,int(v*127.0))
+    def refresh(self):
+        self.cc(1,0)
+        self.volume(self.volval)
     def add_flags(self, f):
         if f != f & FLAGS:
             raise ParseError('invalid flags')
@@ -74,7 +83,7 @@ class Track:
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
             self.player.write_short(status, 120, 0)
             if self.modval>0:
-                ch.cc(1,0)
+                self.refresh()
                 self.modval = False
     def panic(self):
         for ch in self.channels:
@@ -82,7 +91,7 @@ class Track:
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
             self.player.write_short(status, 123, 0)
             if self.modval>0:
-                ch.cc(1,0)
+                self.refresh()
                 self.modval = False
     def note_on(self, n, v=-1, sustain=False):
         if self.use_sustain_pedal:
@@ -171,6 +180,7 @@ class Track:
         if cc==1:
             self.modval = val
     def mod(self, val):
+        self.modval = 0
         return self.cc(1,val)
     def patch(self, p, stackidx=0):
         if isinstance(p,basestring):

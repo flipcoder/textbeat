@@ -10,7 +10,7 @@ scales:
             - aeolian
             - locrian
     chromatic: 
-        intervals: '1;1111111111'
+        intervals: '11111111111'
     wholetone:
         human: 'whole tone'
         intervals: '222222'

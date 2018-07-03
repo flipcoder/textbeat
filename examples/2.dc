@@ -1,5 +1,5 @@
 %t100 x1 p=piano,piano c16,-2
-ma#4/1$@v8__   1'1
+ma#4/1$@v5__   1'1
 ma#4/1$
 ma#4/1$        7,1
 ma#4/1$        
@@ -15,23 +15,23 @@ ma#4/1$
 2wu/2$        
 2wu/2$         
 2wu/2$        
-%t100 x4
-3              3,2
-5mu7          
-5mu7          
-5mu7          
+%t100 x4 k3
+1              1,2
+b3mu7          
+b3mu7          
+b3mu7          
 
-3
-5mu7
-5mu7
-5mu7
+1
+b3mu7
+b3mu7
+b3mu7
 
-3              3,1
-5mu7          
-5mu7          
-5mu7          
+1              1,1
+b3mu7          
+b3mu7          
+b3mu7          
 
-3
-5mu7
-5mu7
-5mu7
+1
+b3mu7
+b3mu7
+b3mu7

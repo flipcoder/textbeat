@@ -10,7 +10,6 @@ Open-source under MIT License (see LICENSE file for information)
 
 Copyright (c) 2018 Grady O'Connell
 
-- [Gitter Chat](https://gitter.im/flipcoder/decadence)
 - [Project Board](https://trello.com/b/S8AsJaaA/decadence)
 - Vim integration: [vim-decadence](https://github.com/flipcoder/vim-decadence)
 
@@ -40,7 +39,7 @@ Decadence is a new project, but you can already do lots of cool things:
 - Note length
 - Delays
 - Scales and modes by name
-- Markers, repeats (WIP)
+- Markers, repeats, callstack
 
 # Setup
 
@@ -524,6 +523,13 @@ Here are the marker/repeat commands:
 
 ```
 - %: set var (ex. %P=piano T=120x2 S=dorian)
+    - K: set key/transpose
+        - Both absolute and relative values supported
+        - Relative values are 1-indexed using numbered note name
+            - whole step: %k+2 whole step
+            - half step: %k+#1 or %k+b2
+            - invalid example (because of 1-index): %k+1
+    - O: set global octave
     - R: set scale (relative)
         - Names and numbers supported
     - S: set scale (parallel)
@@ -533,13 +539,10 @@ Here are the marker/repeat commands:
         - Supports midi patch numbers
         - General MIDI name matching
 - ;: comment
-- :: set marker (requires name)
-- @: go back to last marker, or start
-- @@: pop mark, go back to last area
-- @start: return to start
-- @end: end song
+- ;;: cell comment (not yet impl)
 
-Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
+To do relative values, drop the equals sign:
+%k-2
 ```
 
 ## Track commands
@@ -555,14 +558,6 @@ Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
     - future: will be moved from track commands to chord parser
 - <: lower inversion (repeatable)
     - future: will be moved from track commands to chord parser
-- ch: assign track to a midi channel
-    - midi channels exceeding max value will be spanned across outputs
-- p: program assign
-    - Set program to a given number
-    - Global var (%) p is usually prefered for string matching
-- c: control change (midi CC param)
-    - setting CC5 to 25 would be c5:25
-- bs: bank select (not impl)
 - ~: vibrato and pitch wheel
 - `: mod wheel
 - ": repeat last cell (ignoring dots, blanks, mutes, modified repeats don't repeat)
@@ -591,44 +586,55 @@ Future: Repeat and region markers may be changed to '|:' and ':|' symbols.
     - plays the chord in a sequence, held by default
     - notes automatically fit into 1 grid beat
 - `: mod
-- at: aftertouch
-- bc: breath controller
-- fc: foot controller
-- pt: portamento time
-- v: volume
-- bl: balance
-- pn: pan
-- ex: expression
-- ga: general purpose CC 16
-- gb: " 17
-- gc: " 18
-- gd: " 19
-- sp: sustain pedal
-- ps: portamento switch
-- st: sostenuto pedal
-- sf: soft pedal
-- lg: legato pedal
-- hd: hold w/ release fade
-- o: oscillator
-- R: resonance
-- r: release
-- a: attack
-- f: filter
-- sa: sound ctrl
-- sb: " 2
-- sc: " 3
-- sd: " 4
-- se: " 5
-- pa: portmento amount
-- rv: reverb
-- tr: tremolo
-- cr: chorus
-- ph: phaser
-- mo: mono
+- ch: assign track to a midi channel
+    - midi channels exceeding max value will be spanned across outputs
+- p: program assign
+    - Set program to a given number
+    - Global var (%) p is usually prefered for string matching
+- c: control change (midi CC param)
+    - setting CC5 to 25 would be c5:25
+- q: play recording
+- Q: record
+- midi cc mappings
+    - bs: bank select (not impl)
+    - at: aftertouch
+    - bc: breath controller
+    - fc: foot controller
+    - pt: portamento time
+    - v: volume
+    - bl: balance
+    - pn: pan
+    - e: expression
+    - ga: general purpose CC 16
+    - gb: " 17
+    - gc: " 18
+    - gd: " 19
+    - sp: sustain pedal
+    - ps: portamento switch
+    - st: sostenuto pedal
+    - sf: soft pedal
+    - lg: legato pedal
+    - hd: hold w/ release fade
+    - o: oscillator
+    - R: resonance
+    - r: release
+    - a: attack
+    - f: filter
+    - sa: sound ctrl
+    - sb: " 2
+    - sc: " 3
+    - sd: " 4
+    - se: " 5
+    - pa: portmento amount
+    - rv: reverb
+    - tr: tremolo
+    - cr: chorus
+    - ph: phaser
+    - mo: mono
 
 Track commands that start with letters should be separated
 from notedata by prefixing '@':
-Example: 1~ is fine, but 1v is not. Use 1@v You only need one to combine: 1@v5ex5 
+Example: 1~ is fine, but 1v is not. Use 1@v You only need one to combine: 1@v5e5
 
 Note: Fractional values specified are formated like numbers after a decimal point:
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
@@ -683,7 +689,7 @@ Things I'm planning on adding soon:
 - MIDI input/output
 - MIDI stabilization
 - Headless VST rack integration
-- Csound and Sonic Pi instrument integration
+- Csound and supercollider instrument integration
 - libGME for classic chiptune
 - Text-to-speech and singing (Espeak/Festival)
 ```
@@ -703,5 +709,5 @@ without doing a C++ rewrite.
 
 # Can I Help?
 
-Yes!  Join the [chat](https://gitter.im/flipcoder/decadence) or contact [flipcoder](https://github.com/flipcoder).
+Yes!  Contact [flipcoder](https://github.com/flipcoder).
 

@@ -1,0 +1,7 @@
+dev:
+    - timidity port 0
+    - synth input port
+    - loopmidi
+    - fluidsynth-midi
+    #- qjackctl
+    # helm will autoconnect

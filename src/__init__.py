@@ -7,6 +7,7 @@ from builtins import range, str, input
 from future.utils import iteritems
 import yaml, colorama, appdirs
 from docopt import docopt
+import mido
 import pygame, pygame.midi
 from multiprocessing import Process,Pipe
 from prompt_toolkit import prompt
@@ -104,8 +105,6 @@ except OSError:
 
 class SignalError(BaseException):
     pass
-class NoSuchScale(BaseException):
-    pass
 class ParseError(BaseException):
     def __init__(self, s=''):
         super(BaseException,self).__init__(s)
@@ -194,10 +193,10 @@ def get_defs():
     return DEFS
 
 from .schedule import *
-from .parser import *
 from .theory import *
 from .midi import *
 from .track import *
-from .context import *
+from .parser import *
 from .remote import *
+from .player import *
 

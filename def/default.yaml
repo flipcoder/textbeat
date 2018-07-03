@@ -10,7 +10,7 @@ scales:
             - aeolian
             - locrian
     chromatic: 
-        intervals: '111111111111'
+        intervals: '1;1111111111'
     wholetone:
         human: 'whole tone'
         intervals: '222222'
@@ -84,7 +84,7 @@ scales:
 
 chords:
     '1': ''
-    '#1': '#1'
+    #'#1': '#1'
     ':#2': '#1'
     ':b2': 'b2'
     ':2': '2'
@@ -97,10 +97,10 @@ chords:
     ':5': '5'
     ':#5': '#5'
     ':b6': 'b6'
-    ':6': '6'
+    #':6': '6'
     ':#6': '#6'
     ':b7': 'b7'
-    ':7': '7'
+    #':7': '7'
     ':8': '8'
     '2': '2'
     '#2': '#2'
@@ -134,7 +134,6 @@ chords:
     ma7b9: '3 5 7 b9'
     ma7b13: '3 5 7 9 11 b13'
     ma9: '3 5 7 9'
-    # 'maadd9: '3 5 9'
     ma9b5: '3 b5 7 9'
     ma9+: '3 #5 7 9'
     ma#11: '3 b5 7 9 #11'
@@ -142,8 +141,6 @@ chords:
     ma11b5: '3 b5 7 9 11'
     ma11+: '3 #5 7 9 11'
     ma11b13: '3 #5 7 9 11 b13'
-    # 'maadd11: '3 5 11'
-    # 'maadd#11: '3 5 #11'
     ma13: '3 5 7 9 11 13'
     ma13b5: '3 b5 7 9 11 13'
     ma13+: '3 #5 7 9 11 13'
@@ -153,7 +150,6 @@ chords:
     m7: 'b3 5 b7'
     m69: 'b3 5 6 9'
     m769: 'b3 5 6 7 9'
-    # 'madd9: '3 b5 9'
     m7b5: 'b3 b5 b7'
     m7+: 'b3 #5 b7'
     m9: 'b3 5 b7 9'
@@ -182,6 +178,7 @@ chords:
     7+: '3 #5 b7'
     7b9: '3 5 b7 b9'
     '9': '3 5 b7 9'
+    '#9': '3 5 b7 #9'
     9b5: '3 b5 b7 9'
     9+: '3 #5 b7 9'
     '9#11': '3 5 b7 9 #11'
@@ -203,13 +200,12 @@ chords:
     dim11: 'b3 b5 bb7 9 11'
     sus: '4 5'
     sus2: '2 5'
-
+    mm7: 'b3 5 7'
+    mm9: 'b3 5 7 9'
     pow: '5 8'
 
 chord_alts:
     r: '1'
-    #M2: '2'
-    #M3: '3'
     aug: +
     aug7: '7+'
     ma#5: +
@@ -218,22 +214,12 @@ chord_alts:
     -: m
     M: ma
     sus4: sus
-    # major: maj
     ma7: ma7
     ma9: ma9
     lyd: mab5
     lyd7: ma7b5
     plyd: ma#4
     lyd5: ma#4
-    # Madd9: maadd9
-    # maor7: ma7
-    # Mb5: mab5
-    # M7: ma7
-    # M7b5: ma7b5
-    # min: m
-    # minor: m
-    # min7: m7
-    # minor7: m7
     p: pow
     o: dim
     o7: dim7
@@ -242,8 +228,4 @@ chord_alts:
     9o: dim9
     o11: dim11
     11o: dim11
-    # mma7: mm7
-    # mma9: mm9
-    # mma11: mm11
-    # mma13: mm13
-
+    

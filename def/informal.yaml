@@ -1,13 +1,16 @@
 chords:
 
-    # majadd2
+    # add2
     mu: '2 3 5'
     mu7: '2 3 5 7'
     mu7#4: '2 3 #4 5 7' # lyd7 3sus2|sus2
-    mu-: '2 b3 5'
-    mu-7: '2 b3 5 7'
-    mu-7b5: '2 3 b5 7'
     mu7b5: '2 3 b5 7'
+    'mu-': '2 b3 5'
+    'mu-7': '2 b3 5 b7'
+    'mu-7b5': '2 3 b5 b7'
+    'mmu7': '2 b3 5 7'
+    'mmu7#4': '2 b3 #4 5 7'
+    'mmu7b5': '2 b3 b5 7'
     
     # jazz sus voicings
     q: '4 b7' # quartal (stacked 4ths) sus voicing

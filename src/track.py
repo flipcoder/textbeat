@@ -1,13 +1,18 @@
 from . import *
 
+class Recording:
+    def __init__(self, name, slot):
+        self.name = slot
+        self.content = []
+
 class Track:
     FLAGS = set('auto_roman')
-    def __init__(self, ctx, idx, midich, player, schedule):
+    def __init__(self, ctx, idx, midich):
         self.idx = idx
         self.ctx = ctx
         # self.players = [player]
-        self.player = player
-        self.schedule = schedule
+        self.player = ctx.player
+        self.schedule = ctx.schedule
         self.channels = [midich]
         self.midich = midich # tracks primary midi channel
         self.initial_channel = midich
@@ -25,6 +30,7 @@ class Track:
         self.sustain = False # sustain everything?
         self.arp_notes = [] # list of notes to arpegiate
         self.arp_idx = 0
+        self.arp_notes_left = 0
         self.arp_cycle_limit = 0 # cycles remaining, only if limit != 0
         self.arp_pattern = [] # relative steps to
         self.arp_enabled = False
@@ -55,6 +61,10 @@ class Track:
         self.enabled = True
         self.soloed = False
         self.volval = 1.0
+        self.slots = {} # slot -> Recording
+        self.slot = None # careful, this can be 0
+        self_slot_idx = 0
+        self.ccs = {}
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
@@ -63,9 +73,11 @@ class Track:
             return self.volval
         self.volval = v
         self.cc(7,int(v*127.0))
+        self.ccs[1] = v
     def refresh(self):
         self.cc(1,0)
         self.volume(self.volval)
+        self.ccs[7] = v
     def add_flags(self, f):
         if f != f & FLAGS:
             raise ParseError('invalid flags')
@@ -111,6 +123,10 @@ class Track:
             if (not self.ctx.muted or (self.ctx.muted and self.soloed))\
                 and self.enabled and self.ctx.startrow==-1:
                 self.player.note_on(n,v,ch)
+                if self.ctx.midifile:
+                    self.ctx.midifile.tracks[ch].append(mido.Message(
+                        'note_on',velocity=v,time=self.ctx.t,channel=ch
+                    ))
     def note_off(self, n, v=-1):
         if v == -1:
             v = self.vel
@@ -177,6 +193,7 @@ class Track:
             status = (MIDI_CC<<4) + ch
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
             self.player.write_short(status,cc,val)
+            self.ccs[cc] = v
         if cc==1:
             self.modval = val
         if cc==7:
@@ -240,6 +257,7 @@ class Track:
         self.arp_cycle = count
         self.arp_pattern = pattern
         self.arp_pattern_idx = 0
+        self.arp_notes_left = len(notes) * count
         self.arp_idx = 0 # use inversions to move this start point (?)
         self.arp_once = False
         self.arp_sustain = False
@@ -247,8 +265,13 @@ class Track:
         self.arp_enabled = False
         self.release_all()
     def arp_next(self):
+        stop = False
         assert self.arp_enabled
         note = self.arp_notes[self.arp_idx]
+        if self.arp_notes_left != 0:
+            stop = True 
+            self.arp_notes_left -= 1
+            self.arp_enabled = False
         if self.arp_idx+1 == len(self.arp_notes): # cycle?
             self.arp_once = True
             if self.arp_cycle_limit:
@@ -279,5 +302,4 @@ class Track:
         self.tuplet_count = 0
         self.note_spacing = 1.0
         self.tuplet_offset = 0.0
-
 

@@ -1,11 +1,11 @@
 from . import get_args
 ARGS = get_args()
 SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['sonic-pi','csound','midi']) # gme,mpe
+SUPPORT_ALL = set(['supercollider','csound','midi']) # gme,mpe
 psonic = None
-if ARGS['--sonic-pi']:
-    import psonic
-    SUPPORT.add('sonic-pi')
+if ARGS['--supercollider']:
+    import osc
+    SUPPORT.add('supercollider')
 
 csound = None
 if ARGS['--csound']:

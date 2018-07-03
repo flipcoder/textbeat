@@ -3,10 +3,19 @@ import os, sys
 from future.utils import iteritems
 from collections import OrderedDict
 from . import get_defs
+from .parser import *
 
 FLATS=False
 SOLFEGE=False
 NOTENAMES=True # show note names instead of numbers
+
+class NoSuchScale(BaseException):
+    pass
+class NoSuchNote(BaseException):
+    pass
+
+NOTE_OFFSET_VALUES = [None,1,None,2,None,3,4,None,5,None,6,None,7]
+# LETTER_OFFSET_VALUES = [None,'C',None,'D',None,'E','F',None,'G',None,'A',None,'B']
 
 SOLFEGE_NOTES ={
     'do': '1',
@@ -174,4 +183,30 @@ def expand_chord(c):
     if c.endswith('-'):
         c = c[:-1] + 'm'
     return CHORDS[normalize_chord(c)].split(' ')
+
+ALIGNED_NOTE_NAMES = [
+    ['1','b2','2','b3','3','4','b5','5','b6','6','b7','7'],
+    ['','#1','','#2','','','#4','','#5','','#6',''],
+    ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'],
+    ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],
+    ['bb2','bbb3','bb3','bb4','b4','bb5','bbb6','bb6','bbb7','bb7',''],
+    ['','','###1','##2','###2','##3','##4','###4','##5','###5','##6',''],
+    ['Dbb','Ebbb','Ebb','Fbb','Fb','Gbb','Abbb','Abb','Bbbb','Bbb',''],
+    ['','','C###','D##','D###','E##','F##','F###','G##','G###','A##','']
+]
+
+def note_offset(s):
+    n = 0
+    sharps = count_seq(s,'#')
+    n += sharps
+    flats = count_seq(s,'b')
+    n -= flats
+    s = s[:sharps + flats]
+    if s:
+        for names in ALIGNED_NOTE_NAMES:
+            try:
+                return n + names.index(s)
+            except ValueError:
+                pass
+    raise NoSuchNote()
 

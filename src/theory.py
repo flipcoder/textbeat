@@ -201,8 +201,9 @@ def note_offset(s):
     n += sharps
     flats = count_seq(s,'b')
     n -= flats
-    s = s[:sharps + flats]
+    s = s[sharps + flats:]
     if s:
+        s = s.lower()
         for names in ALIGNED_NOTE_NAMES:
             try:
                 return n + names.index(s)

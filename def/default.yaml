@@ -14,7 +14,7 @@ scales:
     wholetone:
         human: 'whole tone'
         intervals: '222222'
-    bebop: 
+    bebopmajor:
         intervals: '2212p121'
     pentatonic: 
         intervals: '23223'
@@ -22,19 +22,27 @@ scales:
             - yo
             - minorpentatonic
             - majorpentatonic
-            - egyption
+            - egyptian
             - mangong
     blues: 
         intervals: '32p132'
     melodicminor: 
         intervals: '2122221'
+        modes:
+            - melodicminor
+            - assyrian
+            - lydianaug
+            - acoustic
+            - melodicmajor
+            - halfdim
+            - altered
     harmonicminor: 
         human: 'harmonic minor'
         intervals: '2122132'
         modes:
             - harmonicminor
             - locriann6
-            - ionianaug#5
+            - ionianaug
             - dorian#4
             - phyrigianminor
             - lydian#9
@@ -43,6 +51,7 @@ scales:
         human: 'harmonic major'
         intervals: '2122132'
         modes:
+            - harmonicmajor
             - dorianb5
             - phyrgianb4
             - lydianb3
@@ -58,7 +67,7 @@ scales:
             - ultraphyrigian
             - hungarianminor
             - oriental
-            - ionianaug
+            - ionian#2#5
             - locrianbb3bb7
     neapolitan:
         intervals: '1222221'
@@ -123,13 +132,13 @@ chords:
 
     ma: '3 5'
     mab5: '3 b5' # lyd
-    ma#4: '3 #4 5' # lydadd5
+    ma#4: '3 #4 5' # lyd5
     ma6: '3 5 6'
     ma69: '3 5 6 9'
     ma769: '3 5 6 7 9'
     m69: 'b3 5 6 9'
     ma7: '3 5 7'
-    ma7#4: '3 #4 5 7' # lyd7add5
+    ma7#4: '3 #4 5 7' # lyd75
     ma7b5: '3 b5 7' # lyd7
     ma7b9: '3 5 7 b9'
     ma7b13: '3 5 7 9 11 b13'
@@ -198,11 +207,24 @@ chords:
     dim7: 'b3 b5 bb7'
     dim9: 'b3 b5 bb7 9'
     dim11: 'b3 b5 bb7 9 11'
+    dimma7: 'b3 b5 7'
     sus: '4 5'
     sus2: '2 5'
     mm7: 'b3 5 7'
     mm9: 'b3 5 7 9'
     pow: '5 8'
+
+    # tunings (1 = lowest)
+    guitar: '4 b7 b10 12 15' # 1=E
+    bass: '4 b7 b10' # 1=E
+    bass5: '4 b7 b10 b13' # 1=B
+    bass6: '4 b7 b10 b13 16' # 1=B
+
+tune:
+    guitar: 'E,'
+    bass: 'E,,'
+    bass5: 'B,,'
+    bass6: 'B,,'
 
 chord_alts:
     r: '1'
@@ -216,10 +238,7 @@ chord_alts:
     sus4: sus
     ma7: ma7
     ma9: ma9
-    lyd: mab5
-    lyd7: ma7b5
-    plyd: ma#4
-    lyd5: ma#4
+    oma7: dimma7
     p: pow
     o: dim
     o7: dim7

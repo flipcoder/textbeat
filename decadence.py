@@ -8,33 +8,33 @@ Examples:
     decadence.py song.dc  play song
 
 Usage:
-    decadence.py [--midi=<fn> | --ring | --follow | --csound | --supercollider] [-eftnpsrxh] [SONGNAME]
-    decadence.py [+RANGE] [--ring || --follow | --csound | --supercollider] [-eftnpsrxh] [SONGNAME]
+    decadence.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --csound | --supercollider] [-eftnpsrxhv] [SONGNAME]
+    decadence.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --csound | --supercollider] [-eftnpsrxhv] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
 
 Options:
     -h --help             show this
     -v --verbose          verbose
-    -t --tempo=<bpm>      (STUB) set tempo
-    -x --grid=<g>         (STUB) set grid
-    -n --note=<n>         (STUB) set grid using note value
-    -s --speed=<s>        (STUB) playback speed
+    -t --tempo=<bpm>      (STUB) set tempo [default: 120]
+    -x --grid=<g>         (STUB) set grid [default: 4]
+    -n --note=<n>         (STUB) set grid using note value [default: 1]
+    -s --speed=<s>        (STUB) playback speed [speed: 1.0]
     --dev=<device>        output device, partial match
     -p --patch=<patch>    (STUB) default midi patch, partial match
     -c                    execute commands sequentially
     -l                    execute commands simultaenously
-    -r --remote           (STUB) remote, keep alive as daemon
+    -r --remote           (STUB) remote/daemon mode, keep alive
     --ring                don't mute midi on end
     --midi=<fn>           generate midi file
     +<range>              play from line or maker, for range use start:end
     -e --edit             (STUB) open file in editor
     --vi                  (STUB) shell vi mode
     -h --transpose        transpose (in half steps)
-    --sustain             sustain by default
+    --sustain             start with sustain enabled
     --numbers             use note numbers in output
     --notenames           use note names in output
-    --flats               prefer flats in output
+    --flats               prefer flats in output (default)
     --sharps              prefer sharps in output
     --lint                (STUB) analyze file
     --follow              (old) print newlines every line, no output
@@ -79,7 +79,8 @@ for arg,val in iteritems(ARGS):
         elif arg == '--note': dc.grid = float(val)/4.0
         elif arg == '--speed': dc.speed = float(val)
         elif arg == '--verbose': dc.showtext = True
-        elif arg == '--dev': dc.portname = val
+        elif arg == '--dev':
+            dc.portname = val
         elif arg == '--vi': dc.vimode = True
         elif arg == '--patch':
             vals = val.split(',')
@@ -155,21 +156,27 @@ if pygame.midi.get_count()==0:
     print('No midi devices found.')
     sys.exit(1)    
 dev = -1
+
+# if dc.showtext:
+#     for i in range(pygame.midi.get_count()):
+#         print(pygame.midi.get_device_info(i))
+
+DEVS = get_defs()['dev']
 for i in range(pygame.midi.get_count()):
     port = pygame.midi.get_device_info(i)
+    # print(port)
     portname = port[1].decode('utf-8')
-    # print(portname)
-    devs = get_defs()['dev']
     if dc.portname:
-        if portname.lower().startswith(dc.portname.lower()):
+        if dc.portname.lower() in portname.lower():
             dc.portname = portname
             dev = i
             break
-    for name in devs:
-        if portname.lower().startswith(name):
-            dc.portname = portname
-            dev = i
-            break
+    else:
+        for name in DEVS:
+            if portname.lower().startswith(name):
+                dc.portname = portname
+                dev = i
+                break
 
 # dc.player = pygame.midi.Output(pygame.midi.get_default_output_id())
 

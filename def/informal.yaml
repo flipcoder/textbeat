@@ -24,3 +24,12 @@ chords:
 #        replace: ma
 #        add: '2'
 
+chord_alts:
+    lyd: mab5
+    lyd7: ma7b5
+    plyd: ma#4
+    lyd5: ma#4
+    lyd57: ma7#4
+    plyd7: ma7#4
+    lyd75: ma7#4
+

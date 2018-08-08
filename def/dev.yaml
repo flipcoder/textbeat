@@ -1,7 +1,10 @@
 dev:
+    - synth input port # linux qsynth
     - timidity port 0
-    - synth input port
     - loopmidi
+    - loopbe
     - fluidsynth-midi
+    - bassmidi driver (port a)
     #- qjackctl
     # helm will autoconnect
+    - microsoft midi mapper # lowest preference

@@ -8,7 +8,12 @@ from future.utils import iteritems
 import yaml, colorama, appdirs
 from docopt import docopt
 import mido
-import pygame, pygame.midi
+with open(os.devnull, 'w') as devnull:
+    # suppress pygame messages
+    stdout = sys.stdout
+    sys.stdout = devnull
+    import pygame, pygame.midi
+    sys.stdout = stdout
 from multiprocessing import Process,Pipe
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import style_from_dict
@@ -33,8 +38,8 @@ ARGS = None
 RANGE = 109
 OCTAVE_BASE = 5
 DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
-CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%@'
-CCHAR_START = 'T' # control chars
+CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%@;'
+CCHAR_START = 'TV' # control chars
 PRINT = True
 
 def cmp(a,b):

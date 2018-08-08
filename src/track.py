@@ -5,29 +5,47 @@ class Recording:
         self.name = slot
         self.content = []
 
-class Track:
-    FLAGS = set('auto_roman')
-    def __init__(self, ctx, idx, midich):
+class Tuplet:
+    def __init__(self):
+        # self.tuplets = False
+        self.note_spacing = 1.0
+        self.tuplet_count = 0
+        self.tuplet_offset = 0.0
+
+class Lane(object):
+    def __init__(self, ctx, idx, midich, parent=None):
         self.idx = idx
-        self.ctx = ctx
-        # self.players = [player]
         self.player = ctx.player
-        self.schedule = ctx.schedule
+        self.ctx = ctx
+        self.schedule = self.ctx.schedule
+    def master(self):
+        return self.parent if self.parent else self
+    def reset(self):
+        self.notes = [0] * RANGE
+        self.sustain_notes = [False] * RANGE
+
+class Track(Lane):
+    FLAGS = set([
+        'roman', # STUB: fit roman chord in scale shape
+        'transpose', # allow transposition of note letters
+    ])
+    def __init__(self, ctx, idx, midich):
+        Lane.__init__(self,ctx,idx,midich)
+        # self.players = [player]
         self.channels = [midich]
         self.midich = midich # tracks primary midi channel
         self.initial_channel = midich
         self.non_drum_channel = midich
-        # self.strings = []
         self.reset()
     def reset(self):
-        self.notes = [0] * RANGE
-        self.sustain_notes = [False] * RANGE
+        Lane.reset(self)
         self.mode = 0 # 0 is NONE which inherits global mode
         self.scale = None
-        self.instrument = 0
+        # self.instrument = 0
         self.octave = 0 # rel to OCTAVE_BASE
         self.modval = 0 # dont read in mod, just track its change by this channel
         self.sustain = False # sustain everything?
+        self.arp_note = None # current arp note
         self.arp_notes = [] # list of notes to arpegiate
         self.arp_idx = 0
         self.arp_notes_left = 0
@@ -38,7 +56,7 @@ class Track:
         self.arp_delay = 0.0
         self.arp_sustain = False
         self.arp_note_spacing = 1.0
-        self.arp_reverse = False
+        # self.arp_reverse = False
         self.vel = 100
         self.max_vel = -1
         self.soft_vel = -1
@@ -50,13 +68,14 @@ class Track:
         self.patch_num = 0
         self.transpose = 0
         self.pitchval = 0.0
+        self.tuplet = [] # future
         self.tuplets = False
         self.note_spacing = 1.0
         self.tuplet_count = 0
         self.tuplet_offset = 0.0
         self.use_sustain_pedal = False # whether to use midi sustain instead of track
         self.sustain_pedal_state = False # current midi pedal state
-        self.schedule.clear_channel(self)
+        # self.schedule.clear_channel(self)
         self.flags = set()
         self.enabled = True
         self.soloed = False
@@ -64,10 +83,18 @@ class Track:
         self.slots = {} # slot -> Recording
         self.slot = None # careful, this can be 0
         self_slot_idx = 0
+        self.lane = None
+        self.lanes = []
         self.ccs = {}
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
+    def master(self):
+        return self
+    def get_track(self):
+        return self.lanes[self.lane] if self.lane!=None else self
+    # def get_lane(self):
+    #     return self.lanes[self.lane] if self.lanes else lane
     def volume(self,v=None):
         if v==None:
             return self.volval
@@ -90,6 +117,7 @@ class Track:
     def disable(self, v=True):
         self.enable(not v)
     def stop(self):
+        self.release_all(True)
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
@@ -98,6 +126,7 @@ class Track:
                 self.refresh()
                 self.modval = False
     def panic(self):
+        self.release_all(True)
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
@@ -136,7 +165,8 @@ class Track:
             # log("off " + str(n))
             for ch in self.channels:
                 if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
-                self.player.note_off(n,v,ch)
+                self.player.note_on(self.notes[n],0,ch)
+                self.player.note_off(self.notes[n],v,ch)
                 self.notes[n] = 0
                 self.sustain_notes[n] = 0
             self.cc(MIDI_SUSTAIN_PEDAL, True)
@@ -151,6 +181,7 @@ class Track:
             if self.notes[n] and mutesus_cond:
                 for ch in self.channels:
                     if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
+                    self.player.note_on(n,0,ch)
                     self.player.note_off(n,v,ch)
                     self.notes[n] = 0
                     self.sustain_notes[n] = 0
@@ -159,7 +190,7 @@ class Track:
         if self.modval>0:
             self.cc(1,0)
         # self.arp_enabled = False
-        self.schedule.clear_channel(self)
+        # self.schedule.clear_channel(self)
     # def cut(self):
     def midi_channel(self, midich, stackidx=-1):
         if midich==DRUM_CHANNEL: # setting to drums
@@ -248,54 +279,71 @@ class Track:
         status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
         if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
         self.player.write_short(status,p)
-    def arp(self, notes, count=0, sustain=False, pattern=[1], reverse=False):
+    def arp(self, notes, count=0, sustain=False, pattern=[], reverse=False):
         self.arp_enabled = True
         if reverse:
             notes = notes[::-1]
         self.arp_notes = notes
         self.arp_cycle_limit = count
         self.arp_cycle = count
-        self.arp_pattern = pattern
+        self.arp_pattern = pattern if pattern else [1]
         self.arp_pattern_idx = 0
-        self.arp_notes_left = len(notes) * count
+        self.arp_notes_left = len(notes) * max(1,count)
         self.arp_idx = 0 # use inversions to move this start point (?)
         self.arp_once = False
         self.arp_sustain = False
     def arp_stop(self):
         self.arp_enabled = False
         self.release_all()
-    def arp_next(self):
+    def arp_next(self, stop_infinite=True):
         stop = False
         assert self.arp_enabled
-        note = self.arp_notes[self.arp_idx]
-        if self.arp_notes_left != 0:
-            stop = True 
-            self.arp_notes_left -= 1
-            self.arp_enabled = False
-        if self.arp_idx+1 == len(self.arp_notes): # cycle?
+        # if not self.arp_enabled:
+        #     self.arp_note = None
+        #     return False
+        # print(self.arp_idx + 1)
+        if self.arp_notes_left != -1 or stop_infinite:
+            if self.arp_notes_left != -1:
+                self.arp_notes_left = max(0, self.arp_notes_left - 1)
+            if self.arp_notes_left <= 0:
+                if self.arp_cycle_limit or stop_infinite:
+                    self.arp_note = None
+                    self.arp_enabled = False
+        self.arp_note = self.arp_notes[self.arp_idx]
+        self.arp_idx = self.arp_idx + self.arp_pattern[self.arp_pattern_idx]
+        self.arp_pattern_idx = (self.arp_pattern_idx + 1) % len(self.arp_pattern)
+        self.arp_delay = (self.arp_delay + self.arp_note_spacing) - 1.0
+        if self.arp_idx >= len(self.arp_notes) or self.arp_idx < 0: # cycle?
             self.arp_once = True
             if self.arp_cycle_limit:
                 self.arp_cycle -= 1
                 if self.arp_cycle == 0:
                     self.arp_enabled = False
-        # increment according to pattern order
-        self.arp_idx = (self.arp_idx+self.arp_pattern[self.arp_pattern_idx])%len(self.arp_notes)
-        self.arp_pattern_idx = (self.arp_pattern_idx + 1) % len(self.arp_pattern)
-        self.arp_delay = (self.arp_note_spacing+1.0) % 1.0
-        return (note, self.arp_delay)
+            self.arp_idx = 0
+        # else:
+        #     self.arp_idx += 1
+        return bool(self.arp_note)
+    def arp_restart(self, count = None):
+        self.arp_enabled = True
+        if count != None: # leave same (could be -1, so use -2)
+            self.arp_count = count
+        self.arp_idx = 0
     def tuplet_next(self):
         delay = 0.0
         if self.tuplets:
             delay = self.tuplet_offset
-            self.tuplet_offset = (self.tuplet_offset+self.note_spacing) % 1.0
+            self.tuplet_offset += self.note_spacing - 1.0
+            # if self.tuplet_offset >= 1.0 - EPSILON:
+            #     print('!!!')
+                # self.tuplet_offset = 0.0
             self.tuplet_count -= 1
             if not self.tuplet_count:
-                self.tuplets = False
-        else:
-            self.tuplet_stop()
-        if feq(delay,1.0):
-            return 0.0
-        # log(delay)
+                self.tuplet_stop()
+        # else:
+        #     self.tuplet_stop()
+        # if feq(delay,1.0):
+        #     return 0.0
+        # print(delay)
         return delay
     def tuplet_stop(self):
         self.tuplets = False

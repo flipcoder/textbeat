@@ -3,10 +3,12 @@ from . import *
 def count_seq(seq, match=''):
     if not seq:
         return 0
+    r = 0
     if match == '':
-        match = seq[0]
-        seq = seq[1:]
-    r = 1
+        try:
+            match = seq[0]
+        except IndexError:
+            return 0
     for c in seq:
         if c != match:
             break
@@ -14,7 +16,7 @@ def count_seq(seq, match=''):
     return r
 
 def peel_uint(s, d=None):
-    a,b = peel_uint_s(s,d)
+    a,b = peel_uint_s(s,str(d))
     return (int(a),b)
 
 # don't cast

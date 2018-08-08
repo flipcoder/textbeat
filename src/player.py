@@ -75,7 +75,8 @@ class Player:
         try:
             for ch in self.tracks[:self.tracks_active]:
                 ch.release_all(True)
-            input(' === PAUSED === ')
+            print('')
+            input('PAUSED: Press ENTER to resume. Press Ctrl-C To quit.')
         except:
             return False
         return True
@@ -169,7 +170,7 @@ class Player:
 
                 if self.line:
                     # COMMENTS (;)
-                    if self.line[0] == ';':
+                    if self.line[0] == ';' and not self.line.startswith(';;'):
                         self.row += 1
                         continue
                     
@@ -183,17 +184,6 @@ class Player:
                     #     # continue
                     if self.line[0]=='#' and self.line[-1]=='#':
                         # track title, ignore
-                        self.row += 1
-                        continue
-                    
-                    if self.line[0]=='|' and self.line[-1]==':':
-                        # allow override of markers in case of reuse
-                        frame = self.callstack[-1]
-                        bm = self.line[1:-1]
-                        self.markers[bm] = self.row
-                        frame.markers[bm] = self.row
-                        # self.callstack[-1].returns[self.row] = 0
-                        self.last_marker = self.row
                         self.row += 1
                         continue
                     
@@ -348,13 +338,24 @@ class Player:
                         self.row += 1
                         continue
                     
-                    # jumps
-                    # if self.line.startswith(':'):
-                    #     jumpline = self.line[1:]
-                    #     if self.line.endswith("|"):
-                    #         jumpline = self.line[1:-1]
-                    #     else:
-                    #         jumpline = self.line[1:]
+                    # set marker here
+                    if (self.line[0]=='|' or self.line.startswith(':|')) and self.line[-1]==':':
+                        # allow override of markers in case of reuse
+                        frame = self.callstack[-1]
+                        if self.line[0]==':': # :|:
+                            bm = self.line[self.line.index('|')+1:-1]
+                        else: 
+                            bm = self.line[1:-1] # |:
+                        self.markers[bm] = self.row
+                        frame.markers[bm] = self.row
+                        # self.callstack[-1].returns[self.row] = 0
+                        self.last_marker = self.row
+                        self.row += 1
+                        if self.line[0]!=':': # |blah:
+                            # marker only, not repeat
+                            continue
+                        # marker AND repeat, continue to repeat parser section
+                    
                     if self.line.startswith('|||'):
                         self.quitflag = True
                         continue
@@ -372,8 +373,8 @@ class Player:
                         else:
                             self.quitflag = True
                             continue
-                    if self.line[0]==':' and self.line[-1]=='|':
-                        jumpline = self.line[1:-1]
+                    if self.line[0]==':' and self.line[-1] in '|:' and '|' in self.line:
+                        jumpline = self.line[1:self.line.index('|')]
                         frame = self.callstack[-1]
                         jumpline = jumpline.split('*') # *n = n repeats
                         bm = jumpline[0]
@@ -488,12 +489,13 @@ class Player:
                     self.tracks_active = len_cells
                 else:
                     # add empty cells for active tracks to the right
-                    cells += ['.'] * (len_cells - self.tracks_active)
+                    cells += ['.'] * (self.tracks_active - len_cells)
                 del len_cells
                 
                 cell_idx = 0
                 
                 # CELL LOGIC
+                # cells += ['.'] * (tracks_active - len(cells))
                 for cell in cells:
                     
                     cell = cells[cell_idx]
@@ -633,7 +635,7 @@ class Player:
                             # try to get roman numberal or number
                             c,ct = peel_roman_s(tok)
                             ambiguous = 0
-                            for amb in ('ion','dor','dom','alt','dou','egy'): #  TODO: make these auto
+                            for amb in ('ion','dor','dim','dom','alt','dou','egy','aeo','dia','gui','bas','aug'): #  TODO: make these auto
                                 ambiguous += tok.lower().startswith(amb)
                             if ct and not ambiguous:
                                 lower = (c.lower()==c)
@@ -770,6 +772,11 @@ class Player:
                                     elif nn > 10:
                                         n -= 12
                                     tok = tok[1:]
+                                    
+                                    if 'transpose' not in ch.flags:
+                                        # compensate so note letters are absolute
+                                        n -= self.transpose + ch.transpose
+                                    
                                     if not expanded: cell = cell[1:]
                                 except ValueError:
                                     ignore = True
@@ -791,6 +798,8 @@ class Player:
                                     # cut chord name from text after it
                                     for char in tok:
                                         if cut==0 and char in CCHAR_START:
+                                            break
+                                        if cut!=1 and char.isupper():
                                             break
                                         if char in CCHAR:
                                             break
@@ -927,9 +936,13 @@ class Player:
                                     if is_chord:
                                         # assert not accidentals # accidentals with no note name?
                                         if reverse:
-                                            chord_notes = chord_notes[::-1] + ['1']
+                                            if '1' in nonotes:
+                                                chord_notes = chord_notes[::-1]
+                                            else:
+                                                chord_notes = chord_notes[::-1] + ['1']
                                         else:
-                                            chord_notes = ['1'] + chord_notes
+                                            if '1' not in nonotes:
+                                                chord_notes = ['1'] + chord_notes
 
                                         chord_notes += addnotes # TODO: sort
                                         # slashnotes[0].append(n + chord_root - 1 - slashidx*12)
@@ -1020,11 +1033,11 @@ class Player:
                             ch.arp_stop()
                         else:
                             # continue arp
-                            arpnext = ch.arp_next()
-                            notes = [arpnext[0]]
-                            delay = arpnext[1]
-                            if not fzero(delay):
-                                ignore = False
+                            if ch.arp_next(self.shell or self.dcmode in 'lc'):
+                                notes = [ch.arp_note]
+                                delay = ch.arp_delay
+                                if not fzero(delay):
+                                    ignore = False
                             #   schedule=True
 
                     # if notes:
@@ -1060,7 +1073,10 @@ class Player:
                     
                     accent = ''
                     notevalue = ''
+                    tuplets = False
                     while len(cell) >= 1: # recompute len before check
+                        if fullcell=='.':
+                            break
                         atsign = False
                         if cell and cell[0] == '@':
                             atsign = True
@@ -1097,7 +1113,10 @@ class Player:
                         #     p = base + (octave+shift) * 12
                         # INVERSION
                         ct = 0
-                        if c == '>' or c=='<':
+                        if c2==';;':
+                            cell = []
+                            break
+                        elif c == '>' or c=='<':
                             sign = (1 if c=='>' else -1)
                             ct = count_seq(cell)
                             for i in range(ct):
@@ -1232,8 +1251,7 @@ class Player:
                             cell = cell[1:]
                             p,ct = peel_int(cell)
                             assert ct
-                            cell = cell[len(num):]
-                            # ch.cc(0,p)
+                            cell = cell[ct:]
                             ch.patch(p)
                         elif c=='*':
                             dots = count_seq(cell)
@@ -1353,49 +1371,55 @@ class Player:
                                 showtext.append('strum($)')
                         elif c=='&':
                             count = count_seq(cell)
-                            num,ct = peel_uint(cell[count:],0)
+                            arpcount,ct = peel_uint(cell[count:],0)
                                 # notes = list(itertools.chain.from_iterable(itertools.repeat(\
                                 #     x, count) for x in notes\
                                 # ))
                             cell = cell[ct+count:]
-                            if count>1: arpreverse = True
+                            if count==2: arpreverse = True
                             if not notes:
                                 # & restarts arp (if no note)
-                                ch.arp_enabled = True
-                                ch.arp_count = num
-                                ch.arp_idx = 0
+                                ch.arp_restart()
                             else:
                                 arpnotes = True
-
-                            if cell.startswith(':'):
-                                num,ct = peel_uint(cell[1:],1)
-                                arppattern = [num]
-                                cell = cell[1+ct:]
+                                arppattern = []
+                                while True:
+                                    if not (not arppattern and cell.startswith(':')) or\
+                                        (arppattern and cell.startswith('|')):
+                                        break
+                                    print(cell[1:])
+                                    num,ct = peel_int(cell[1:],1)
+                                    if not ct:
+                                        break
+                                    arppattern += [num]
+                                    cell = cell[1+ct:]
                             if self.showtext:
                                 showtext.append('arpeggio(&)')
                         elif c=='t': #  tuplets
+                            tuplets = True
+                            tups = count_seq(cell,'t')
+                            Tups = count_seq(cell[tups:],'T')
+                            cell = cell[tups+Tups:]
                             if not ch.tuplets:
                                 ch.tuplets = True
                                 pow2i = 0.0
-                                cell = cell[1:]
                                 num,ct = peel_uint(cell,'3')
                                 cell = cell[ct:]
                                 ct2=0
                                 denom = 0
                                 if cell and cell[0]==':':
-                                    denom,ct2 = peel_float(cell)
+                                    denom,ct2 = peel_float(cell[1:])
                                     cell = cell[1+ct2:]
                                 if not ct2:
                                     for i in itertools.count():
                                         denom = 1 << i
                                         if denom > num:
                                             break
+                                # print('denom' + str(denom))
+                                # print('num ' + str(num))
                                 ch.note_spacing = denom/float(num) # !
                                 ch.tuplet_count = int(num)
-                                cell = cell[ct:]
-                            else:
-                                cell = cell[1:]
-                                pass
+                                ch.tuplet_offset = 0.0
                         # elif c==':':
                         #     if not notes:
                         #         cell = []
@@ -1455,19 +1479,20 @@ class Player:
                     p = base
                     
                     if arpnotes:
-                        ch.arp(notes, num, sustain, arppattern, arpreverse)
-                        arpnext = ch.arp_next()
-                        notes = [arpnext[0]]
-                        delay = arpnext[1]
+                        ch.arp(notes, arpcount, sustain, arppattern, arpreverse)
+                        arpnext = ch.arp_next(self.shell or self.dcmode in 'lc')
+                        notes = [ch.arp_note]
+                        delay = ch.arp_delay
                         # if not fcmp(delay):
                         #     pass
                             # schedule=True
 
-                    if notes:
+                    if notes and not tuplets:
                         ch.release_all()
 
                     for ev in events:
                         self.schedule.add(ev)
+                    events = []
                     
                     delta = 0 # how much to separate notes
                     if strum < -EPSILON:
@@ -1492,6 +1517,8 @@ class Player:
                             #     log(FG.CYAN + noteletter + cn + " ("+ \)
                             #         (', '.join(map(lambda n,base=base: note_name(base+n),allnotes)))+")"
 
+                    if not tuplets:
+                        ch.tuplet_stop();
                     delay += ch.tuplet_next()
                     
                     i = 0
@@ -1517,34 +1544,35 @@ class Player:
                         else:
                             break
                     except KeyboardInterrupt:
-                        # log(FG.RED + traceback.format_exc())
-                        self.quitflag = True
-                        break
+                        if self.shell or not self.pause():
+                            self.quitflag = True
+                            break
+                    except SignalError:
+                        if self.shell or not self.pause():
+                            self.quitflag = True
+                            break
                     except:
-                        log(FG.RED + traceback.format_exc())
-                        if self.shell:
-                            self.quitflag = True
-                            break
-                        if not self.shell and not self.pause():
-                            self.quitflag = True
-                            break
+                        raise
+                        # log(FG.RED + traceback.format_exc())
+                        # if self.shell or self.pause():
+                        #     self.quitflag = True
+                        #     break
 
                 if self.quitflag:
                     break
                  
             except KeyboardInterrupt:
-                self.quitflag = True
-                break
-            except SignalError:
-                self.quitflag = True
-                break
-            except:
-                log(FG.RED + traceback.format_exc())
-                if self.shell:
+                if self.shell or not self.pause():
                     self.quitflag = True
                     break
-                if not self.shell and not self.pause():
+            except SignalError:
+                if self.shell or not self.pause():
+                    self.quitflag = True
                     break
+            except:
+                log(FG.RED + traceback.format_exc())
+                self.quitflag = True
+                break
 
             self.row += 1
 

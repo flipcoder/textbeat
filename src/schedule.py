@@ -9,7 +9,7 @@ class Event:
 class Schedule:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.events = [] # time,func,ch,skippable
+        self.events = []
         # store this just in case logic() throws
         # we'll need to reenter knowing this value
         self.passed = 0.0 
@@ -21,11 +21,14 @@ class Schedule:
     def add(self, e):
         self.events.append(e)
     def clear(self):
+        assert False
         self.events = []
     def clear_channel(self, ch):
+        assert False
         self.events = [ev for ev in self.events if ev.ch!=ch]
     def logic(self, t):
         processed = 0
+        self.passed = 0
 
         # clock = time.clock()
         # if self.started:
@@ -54,18 +57,20 @@ class Schedule:
                         ev.func(0)
 
                     processed += 1
-
+            
             slp = t*(1.0-self.passed) # remaining time
             if slp > 0.0:
                 if self.ctx.cansleep and self.ctx.startrow == -1:
                     time.sleep(self.ctx.speed*slp)
             self.passed = 0.0
             self.events = self.events[processed:]
-        except KeyboardInterrupt as ex:
-            # don't replay events
+        except KeyboardInterrupt:
             self.events = self.events[processed:]
-            raise ex
-        except:
-            # log('shedule ex: ')
-            QUITFLAG = True
+            raise
+        except SignalError:
+            self.events = self.events[processed:]
+            raise
+        except EOFError:
+            self.events = self.events[processed:]
+            raise
 

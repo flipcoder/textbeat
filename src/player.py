@@ -823,7 +823,7 @@ class Player:
                                         n -= 12
                                     tok = tok[1:]
                                     
-                                    if 'transpose' not in ch.flags:
+                                    if ch.flags & Player.Flag.TRANSPOSE:
                                         # compensate so note letters are absolute
                                         n -= self.transpose + ch.transpose
                                     

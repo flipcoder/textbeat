@@ -13,6 +13,22 @@ class StackFrame:
         # self.returns[row] = 0
 
 class Player:
+    
+    class Flag:
+        ROMAN = bit(0)
+        TRANSPOSE = bit(1)
+        LOOP = bit(2)
+    FLAGS = [
+        'roman',
+        'transpose',
+        'loop'
+    ]
+    # FLAGS = set([
+    #     'roman', # STUB: fit roman chord in scale shape
+    #     'transpose', # allow transposition of note letters
+    #     'loop'
+    # ])
+
     def __init__(self):
         self.quitflag = False
         self.vimode = False
@@ -62,6 +78,35 @@ class Player:
         self.last_follow = 0
         self.last_marker = -1
         self.midifile = None
+        self.flags = 0
+
+    def add_flags(self, f):
+        if isinstance(f, basestring):
+            f = 1 << self.FLAGS.index(f)
+        elif isinstance(f, int):
+            assert f > 0
+        else:
+            for e in f:
+                self.add_flags(e)
+            return
+        self.flags |= f
+    def has_flags(self, f):
+        if isinstance(f, basestring):
+            f = 1 << self.FLAGS.index(f)
+        elif isinstance(f, int):
+            assert f > 0
+        else:
+            vals = f
+            f = 0
+            i = 0
+            for e in self.FLAGS:
+                if e in vals:
+                    f |= 1 << i
+                i += 1
+            # for e in vals:
+            #     f |= 1 << self.FLAGS.index(e)
+            return
+        return self.flags & f
 
     def follow(self):
         if self.startrow==-1 and self.canfollow:
@@ -100,6 +145,10 @@ class Player:
                         self.buf = []
                         raise IndexError
                 except IndexError:
+                    if self.has_flags(Player.Flag.LOOP):
+                        self.row = 0
+                        continue
+                    
                     self.row = len(self.buf)
                     # done with file, finish playing some stuff
                     
@@ -196,7 +245,7 @@ class Player:
                             if tok[0]==' ':
                                 tok = tok[1:]
                             var = tok[0].upper()
-                            if var in 'TGXNPSRCKO': # global vars %
+                            if var in 'TGXNPSRCKOF': # global vars %
                                 cmd = tok.split(' ')[0]
                                 op = cmd[1]
                                 try:
@@ -277,8 +326,9 @@ class Player:
                                             else:
                                                 self.tracks[i].patch(p)
                                     elif var=='F': # flags
-                                        for i in range(len(vals)):
-                                            self.tracks[i].add_flags(val.split(','))
+                                        self.add_flags(val.split(','))
+                                        # for i in range(len(vals)): # TODO: ?
+                                        #     self.tracks[i].add_flags(val.split(','))
                                     elif var=='O':
                                         self.octave = int(val)
                                     elif var=='K':

@@ -25,10 +25,13 @@ class Lane(object):
         self.sustain_notes = [False] * RANGE
 
 class Track(Lane):
-    FLAGS = set([
+    class Flag:
+        ROMAN = bit(0)
+        # TRANSPOSE = bit(1)
+    FLAGS = [
         'roman', # STUB: fit roman chord in scale shape
-        'transpose', # allow transposition of note letters
-    ])
+        # 'transpose', # allow transposition of note letters
+    ]
     def __init__(self, ctx, idx, midich):
         Lane.__init__(self,ctx,idx,midich)
         # self.players = [player]
@@ -76,7 +79,7 @@ class Track(Lane):
         self.use_sustain_pedal = False # whether to use midi sustain instead of track
         self.sustain_pedal_state = False # current midi pedal state
         # self.schedule.clear_channel(self)
-        self.flags = set()
+        self.flags = 0 # set()
         self.enabled = True
         self.soloed = False
         self.volval = 1.0
@@ -106,9 +109,21 @@ class Track(Lane):
         self.volume(self.volval)
         self.ccs[7] = v
     def add_flags(self, f):
-        if f != f & FLAGS:
-            raise ParseError('invalid flags')
+        if isinstance(f, str):
+            f = 1 << FLAGS.index(f)
+        else:
+            assert f > 0
+        # if f != f & FLAGS:
+        #     raise ParseError('invalid flags')
         self.flags |= f
+    def has_flags(self, f):
+        if isinstance(f, str):
+            f = 1 << FLAGS.index(f)
+        else:
+            assert f > 0
+        # if f != f & FLAGS:
+        #     raise ParseError('invalid flags')
+        return self.flags & f
     def enable(self, v=True):
         was = v
         if not was and v:

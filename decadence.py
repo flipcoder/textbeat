@@ -8,8 +8,8 @@ Examples:
     decadence.py song.dc  play song
 
 Usage:
-    decadence.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --csound | --supercollider] [-eftnpsrxhv] [SONGNAME]
-    decadence.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --csound | --supercollider] [-eftnpsrxhv] [SONGNAME]
+    decadence.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --csound | --supercollider | --loop] [-eftnpsrxhv] [SONGNAME]
+    decadence.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --csound | --supercollider | --loop] [-eftnpsrxhv] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
 
@@ -26,6 +26,7 @@ Options:
     -l                    execute commands simultaenously
     -r --remote           (STUB) remote/daemon mode, keep alive
     --ring                don't mute midi on end
+    --loop                loop song
     --midi=<fn>           generate midi file
     +<range>              play from line or maker, for range use start:end
     -e --edit             (STUB) open file in editor
@@ -103,6 +104,7 @@ for arg,val in iteritems(ARGS):
         elif arg == '--edit': pass
         elif arg == '-l' and val: dc.dcmode = 'l'
         elif arg == '-c' and val: dc.dcmode = 'c'
+        elif arg == '--loop': dc.add_flags(Player.Flag.LOOP)
 
 if dc.dcmode=='l':
     dc.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;

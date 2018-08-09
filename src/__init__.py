@@ -42,6 +42,8 @@ CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%@;'
 CCHAR_START = 'TV' # control chars
 PRINT = True
 
+def bit(x):
+    return 1 << x
 def cmp(a,b):
     return bool(a>b) - bool(a<b)
 def sgn(a):

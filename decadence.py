@@ -180,7 +180,8 @@ for i in range(pygame.midi.get_count()):
                 dev = i
                 break
 
-# dc.player = pygame.midi.Output(pygame.midi.get_default_output_id())
+if dev == -1:
+    dev = pygame.midi.get_default_output_id()
 
 dc.player = pygame.midi.Output(dev)
 dc.instrument = 0

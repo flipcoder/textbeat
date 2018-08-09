@@ -72,7 +72,7 @@ scales:
     neapolitan:
         intervals: '1222221'
         modes:
-            - neapolitan
+            - neapolitanmajor
             - leadingwholetone
             - lydianaugdom
             - minorlydian
@@ -81,7 +81,7 @@ scales:
             - superlocrianbb3
     neapolitanminor:
         human: 'neapolitan minor'
-        intervals: '222222'
+        intervals: '1222131'
         modes:
             - neapolitanminor
             - lydian#6

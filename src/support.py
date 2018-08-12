@@ -1,17 +1,51 @@
+from . import *
 from . import get_args
+import shutil
 ARGS = get_args()
 SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['supercollider','csound','midi']) # gme,mpe
+SUPPORT_ALL = set(['carla','supercollider','csound','midi','gme']) # gme,mpe
 psonic = None
-if ARGS['--supercollider']:
-    import osc
-    SUPPORT.add('supercollider')
+if shutil.which('carla'):
+    SUPPORT.add('carla')
+    
+if shutil.which('scsynth'):
+    try:
+        import osc
+        SUPPORT.add('supercollider')
+    except:
+        pass
 
 csound = None
-if ARGS['--csound']:
-    csound_proc = subprocess.Popen(['csound', '-odac', '--port='+str(CSOUND_PORT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    csound = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+if shutil.which('csound'):
     SUPPORT.add('csound')
+
+def supports(dev):
+    global SUPPORT
+    return dev in SUPPORT
+
+csound_inited = False
+def csound_init():
+    global csound_inited
+    if not csound_inited:
+        import subprocess
+        csound_proc = subprocess.Popen(['csound', '-odac', '--port='+str(CSOUND_PORT)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        csound = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    csound_inited = True
+
+carla_inited = False
+carla_proc = None
+def carla_init():
+    global carla_proc
+    if not carla_proc:
+        fn = ARGS['SONGNAME']
+        if not fn:
+            fn = 'default'
+        carla_proc = subprocess.Popen(['carla', '--nogui', fn.split('.')[0]+'.carxp'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+support_init = {
+    'csound': csound_init,
+    'carla': carla_init
+}
 
 def csound_send(s):
     assert csound
@@ -69,6 +103,8 @@ BGPROC = None
 def support_stop():
     if csound and csound_proc:
         csound_proc.kill()
+    if carla_proc:
+        carla_proc.kill()
     if BGPROC:
         BGPIPE.send((BGCMD.QUIT,))
         BGPROC.join()

@@ -16,8 +16,12 @@ def count_seq(seq, match=''):
     return r
 
 def peel_uint(s, d=None):
-    a,b = peel_uint_s(s,str(d))
-    return (int(a),b)
+    a,b = peel_uint_s(s,str(d) if d!=None else None)
+    return (int(a) if a!=None and a!='' else None,b)
+
+def peel_int(s, d=None):
+    a,b = peel_uint_s(s,str(d) if d!=None else None)
+    return (int(a) if a!=None and a!='' else None,b)
 
 # don't cast
 def peel_uint_s(s, d=None):
@@ -46,10 +50,6 @@ def peel_roman_s(s, d=None):
             break
     if not r: return (d,0) if d!=None else ('',0)
     return (r,len(r))
-
-def peel_int(s, d=None):
-    a,b = peel_int_s(s,d)
-    return (int(a),b)
 
 def peel_int_s(s, d=None):
     r = ''

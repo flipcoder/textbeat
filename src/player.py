@@ -47,7 +47,7 @@ class Player:
         self.grid = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
         self.columns = 0
         self.column_shift = 0
-        self.showtext = True # nice output (-v), only shell and cmd modes by default
+        self.showtext = False # nice output (-v), only shell and cmd modes by default
         self.sustain = False # start sustained
         self.ring = False # disables midi muting on program exit
         self.buf = []
@@ -72,7 +72,7 @@ class Player:
         self.portname = ''
         self.speed = 1.0
         self.muted = False # mute all except for solo tracks
-        self.player = None
+        self.midi = []
         self.instrument = None
         self.t = 0.0 # actual time
         self.last_follow = 0
@@ -80,6 +80,24 @@ class Player:
         self.midifile = None
         self.flags = 0
 
+        # require enable at top of file
+        self.devices = ['midi']
+        
+        self.renderman = False
+        
+    def refresh_devices(self):
+        # determine output device support and load external programs
+        from . import support
+        for dev in self.devices:
+            if not support.supports(dev):
+                print('device not supported by system: ' + dev)
+                assert False
+            try:
+                support.support_init[dev]()
+            except KeyError:
+                # no init needed, silent
+                pass
+        
     def add_flags(self, f):
         if isinstance(f, basestring):
             f = 1 << self.FLAGS.index(f)
@@ -245,7 +263,7 @@ class Player:
                             if tok[0]==' ':
                                 tok = tok[1:]
                             var = tok[0].upper()
-                            if var in 'TGXNPSRCKOF': # global vars %
+                            if var in 'TGXNPSRCKOFD': # global vars %
                                 cmd = tok.split(' ')[0]
                                 op = cmd[1]
                                 try:
@@ -301,6 +319,9 @@ class Player:
                                     #     self.transpose = self.transpose%12
                                 elif op=='=':
                                     if var in 'GX': self.grid=float(val)
+                                    elif var=='D':
+                                        self.devices = val.split(',')
+                                        self.refresh_devices()
                                     elif var=='O': self.octave = int(val)
                                     elif var=='N': self.grid=float(val)/4.0 #!
                                     elif var=='T':
@@ -1127,10 +1148,10 @@ class Player:
                     while len(cell) >= 1: # recompute len before check
                         if fullcell=='.':
                             break
-                        atsign = False
-                        if cell and cell[0] == '@':
-                            atsign = True
-                            cell = cell[1:] 
+                        spacer = False
+                        if cell.strip() and cell[0] in '@ ':
+                            spacer = True
+                            cell = cell[count_seq(cell):] 
 
                         after = [] # after events
                         cl = len(cell)
@@ -1204,21 +1225,27 @@ class Player:
                             # row_events += 1
                         elif cl>1 and c=='~': # pitch wheel
                             cell = cell[1:]
+                            # sn = 1.0
                             if cell[0]=='/' or cell[0]=='\\':
+                                # sn = 1.0 if cell[0]=='/' else -1.0
                                 cell = cell[1:]
-                                num,ct = peel_uint_s(cell)
-                                if ct:
+                            num,ct = peel_uint_s(cell)
+                            if ct:
+                                onum = num
+                                num = float('0.'+num)
+                                num *= 1.0 if c=='/' else -1.0
+                                sign = 1
+                                if num<0:
+                                    num=onum[1:]
                                     num = float('0.'+num)
-                                    num *= 1.0 if c=='/' else -1.0
-                                    sign = 1
-                                    if num<0:
-                                        num=num[1:]
-                                        sign = -1
-                                    vel = constrain(sign*int(num*127.0),127)
-                                    cell = cell[ct:]
-                                else:
-                                    vel = min(127,int(ch.vel + 0.5*(127.0-ch.vel)))
-                                ch.pitch(vel)
+                                    sign = -1
+                                vel = constrain(sign*int(num*127.0),127)
+                                cell = cell[ct:]
+                            else:
+                                if cell and cell[0]=='|':
+                                    cell = cell[1:]
+                                vel = min(127,int(ch.vel + 0.5*(127.0-ch.vel)))
+                            ch.pitch(vel)
                         elif c == '~': #  vibrato
                             ch.mod(127) # TODO: pitch osc in the future
                             cell = cell[1:]
@@ -1290,10 +1317,10 @@ class Player:
                             cell = cell[1:]
                             cc,ct = peel_int(cell)
                             assert ct
-                            cell = cell[len(num)+1:]
+                            cell = cell[ct+1:]
                             ccval,ct = peel_int(cell)
                             assert ct
-                            cell = cell[len(num):]
+                            cell = cell[ct:]
                             ccval = int(num)
                             ch.cc(cc,ccval)
                         elif c=='p': # program/patch change
@@ -1303,6 +1330,19 @@ class Player:
                             assert ct
                             cell = cell[ct:]
                             ch.patch(p)
+                        elif c2=='bs': # program/patch change
+                            cell = cell[2:]
+                            num,ct = peel_uint(cell)
+                            cell = cell[ct:]
+                            b = num
+                            if cell and cell[0]==':':
+                                cell = cell[1:]
+                                num2,ct = peel_uint(cell)
+                                assert ct
+                                cell = cell[ct:]
+                                b = num2 # second val -> lsb
+                                b |= num << 8 # first value -> msb
+                            ch.bank(b)
                         elif c=='*':
                             dots = count_seq(cell)
                             if notes:
@@ -1415,7 +1455,7 @@ class Player:
                                 notes = notes * 2
                                 # notes = [notes[i:i + sq] for i in range(0, len(notes), sq)]
                             # log('strum')
-                            if atsign:
+                            if spacer:
                                 ch.soft_vel = vel 
                             if self.showtext:
                                 showtext.append('strum($)')

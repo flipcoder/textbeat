@@ -8,8 +8,8 @@ Examples:
     decadence.py song.dc  play song
 
 Usage:
-    decadence.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --csound | --supercollider | --loop] [-eftnpsrxhv] [SONGNAME]
-    decadence.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --csound | --supercollider | --loop] [-eftnpsrxhv] [SONGNAME]
+    decadence.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
+    decadence.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
     decadence.py -c [COMMANDS ...]
     decadence.py -l [LINE_CONTENT ...]
 
@@ -40,8 +40,6 @@ Options:
     --lint                (STUB) analyze file
     --follow              (old) print newlines every line, no output
     --quiet               no output
-    --csound              (STUB) enable csound
-    --supercollider       (STUB) enable supercollider
     --input               (STUB) midi input chord analyzer
 """
 from __future__ import unicode_literals, print_function, generators
@@ -105,6 +103,7 @@ for arg,val in iteritems(ARGS):
         elif arg == '-l' and val: dc.dcmode = 'l'
         elif arg == '-c' and val: dc.dcmode = 'c'
         elif arg == '--loop': dc.add_flags(Player.Flag.LOOP)
+        elif arg == '--renderman': dc.renderman = True
 
 if dc.dcmode=='l':
     dc.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
@@ -164,28 +163,68 @@ dev = -1
 #         print(pygame.midi.get_device_info(i))
 
 DEVS = get_defs()['dev']
-for i in range(pygame.midi.get_count()):
-    port = pygame.midi.get_device_info(i)
-    # print(port)
-    portname = port[1].decode('utf-8')
-    if dc.portname:
-        if dc.portname.lower() in portname.lower():
-            dc.portname = portname
-            dev = i
-            break
-    else:
-        for name in DEVS:
+if dc.showtext:
+    print('MIDI Devices:')   
+portnames = []
+breakall = False
+for name in DEVS:
+    firstpass = True
+    for i in range(pygame.midi.get_count()):
+        port = pygame.midi.get_device_info(i)
+        portname = port[1].decode('utf-8')
+        if port[3]!=1:
+            continue
+        if dc.showtext:
+            print(' '*4 + portname) 
+        if dc.portname:
+            if dc.portname.lower() in portname.lower():
+                dc.portname = portname
+                dev = i
+                breakall = True
+                break
+        else:
             if portname.lower().startswith(name):
                 dc.portname = portname
                 dev = i
+                breakall = True
                 break
+        if firstpass:
+            portnames += [portname]
+            
+        # if port[3]==1:
+        #     continue
+    firstpass = False
+    if breakall:
+        break
+        
+# for i in range(pygame.midi.get_count()):
+#     port = pygame.midi.get_device_info(i)
+#     # if port[3]==1:
+#     #     continue
+#     portname = port[1].decode('utf-8')
+#     if dc.showtext:
+#         print(' '*4 + portname) 
+#     if dc.portname:
+#         if dc.portname.lower() in portname.lower():
+#             dc.portname = portname
+#             dev = i
+#             break
+#     else:
+#         for name in DEVS:
+#             if portname.lower().startswith(name):
+#                 dc.portname = portname
+#                 dev = i
+#                 break
+#     portnames += [portname]
+if dc.showtext:
+    print('')  
 
 if dev == -1:
     dev = pygame.midi.get_default_output_id()
 
-dc.player = pygame.midi.Output(dev)
+dc.midi += [pygame.midi.Output(dev)]
 dc.instrument = 0
-dc.player.set_instrument(0)
+dc.midi[0].set_instrument(0)
 mch = 0
 for i in range(NUM_CHANNELS_PER_DEVICE):
     # log("%s -> %s" % (i,mch))
@@ -237,10 +276,13 @@ if dc.shell:
         log(FG.RED + 'Inactive Modules: ' +  FG.WHITE + ', '.join(inactive))
     if dc.portname:
         log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (dc.portname if dc.portname else 'Unknown',))
+    log(FG.RED + 'Other Devices: ' + FG.WHITE + '%s' % (', '.join(portnames)))
+    if dc.portname:
         if dc.tracks[0].midich == DRUM_CHANNEL:
             log(FG.GREEN + 'GM Percussion')
         else:
-            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[dc.tracks[0].patch_num])
+            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[dc.tracks[0].patch_num]) 
+
     log('Use -h for command line options.')
     log('Read the manual and look at examples. Have fun!')
     log('')
@@ -255,9 +297,11 @@ i = 0
 for ch in dc.tracks:
     if not dc.ring:
         ch.panic()
-    ch.player = None
+    ch.midi = None
 
-del dc.player
+for mididev in dc.midi:
+    del mididev
+dc.midi = []
 pygame.midi.quit()
 
 # def main():

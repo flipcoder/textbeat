@@ -4,7 +4,13 @@ dev:
     - loopmidi
     - loopbe
     - fluidsynth-midi
+    - fluid-synth
     - bassmidi driver (port a)
-    #- qjackctl
     # helm will autoconnect
     - microsoft midi mapper # lowest preference
+    - midi in
+    - hexter
+    - virtual raw midi # carla
+    - virmidi # linux virtual midi
+    - qjackctl
+

@@ -15,7 +15,7 @@ class Tuplet:
 class Lane(object):
     def __init__(self, ctx, idx, midich, parent=None):
         self.idx = idx
-        self.player = ctx.player
+        self.midi = ctx.midi
         self.ctx = ctx
         self.schedule = self.ctx.schedule
     def master(self):
@@ -34,8 +34,8 @@ class Track(Lane):
     ]
     def __init__(self, ctx, idx, midich):
         Lane.__init__(self,ctx,idx,midich)
-        # self.players = [player]
-        self.channels = [midich]
+        # self.midis = [player]
+        self.channels = [(0,midich)]
         self.midich = midich # tracks primary midi channel
         self.initial_channel = midich
         self.non_drum_channel = midich
@@ -89,9 +89,18 @@ class Track(Lane):
         self.lane = None
         self.lanes = []
         self.ccs = {}
+        self.dev = 0
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
+    def device(self, dev, stackidx=-1):
+        if stackidx == -1:
+            self.dev = dev
+            for ch in self.channels:
+                self.device(dev,ch)
+            return
+        ch = self.channels[stackidx]
+        self.channels[stackidx] = (dev,ch[1])
     def master(self):
         return self
     def get_track(self):
@@ -134,18 +143,18 @@ class Track(Lane):
     def stop(self):
         self.release_all(True)
         for ch in self.channels:
-            status = (MIDI_CC<<4) + ch
+            status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
-            self.player.write_short(status, 120, 0)
+            self.midi[ch[0]].write_short(status, 120, 0)
             if self.modval>0:
                 self.refresh()
                 self.modval = False
     def panic(self):
         self.release_all(True)
         for ch in self.channels:
-            status = (MIDI_CC<<4) + ch
+            status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
-            self.player.write_short(status, 123, 0)
+            self.midi[ch[0]].write_short(status, 123, 0)
             if self.modval>0:
                 self.refresh()
                 self.modval = False
@@ -166,10 +175,10 @@ class Track(Lane):
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch))
             if (not self.ctx.muted or (self.ctx.muted and self.soloed))\
                 and self.enabled and self.ctx.startrow==-1:
-                self.player.note_on(n,v,ch)
+                self.midi[ch[0]].note_on(n,v,ch[1])
                 if self.ctx.midifile:
                     self.ctx.midifile.tracks[ch].append(mido.Message(
-                        'note_on',velocity=v,time=self.ctx.t,channel=ch
+                        'note_on',velocity=v,time=self.ctx.t,channel=ch[1]
                     ))
     def note_off(self, n, v=-1):
         if v == -1:
@@ -180,8 +189,8 @@ class Track(Lane):
             # log("off " + str(n))
             for ch in self.channels:
                 if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
-                self.player.note_on(self.notes[n],0,ch)
-                self.player.note_off(self.notes[n],v,ch)
+                self.midi[ch[0]].note_on(self.notes[n],0,ch[1])
+                self.midi[ch[0]].note_off(self.notes[n],v,ch[1])
                 self.notes[n] = 0
                 self.sustain_notes[n] = 0
             self.cc(MIDI_SUSTAIN_PEDAL, True)
@@ -196,8 +205,8 @@ class Track(Lane):
             if self.notes[n] and mutesus_cond:
                 for ch in self.channels:
                     if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
-                    self.player.note_on(n,0,ch)
-                    self.player.note_off(n,v,ch)
+                    self.midi[ch[0]].note_on(n,0,ch[1])
+                    self.midi[ch[0]].note_off(n,v,ch[1])
                     self.notes[n] = 0
                     self.sustain_notes[n] = 0
                 # log("off " + str(n))
@@ -209,18 +218,18 @@ class Track(Lane):
     # def cut(self):
     def midi_channel(self, midich, stackidx=-1):
         if midich==DRUM_CHANNEL: # setting to drums
-            if self.channels[stackidx] != DRUM_CHANNEL:
-                self.non_drum_channel = self.channels[stackidx]
+            if self.channels[stackidx][1] != DRUM_CHANNEL:
+                self.non_drum_channel = self.channels[stackidx][1]
             self.octave = DRUM_OCTAVE
         else:
             for ch in self.channels:
                 if ch!=DRUM_CHANNEL:
-                    midich = ch
+                    midich = ch[1]
             if midich != DRUMCHANNEL: # no suitable channel in span?
                 midich = self.non_drum_channel
         if stackidx == -1: # all
             self.release_all()
-            self.channels = [midich]
+            self.channels = [(0,midich)]
         elif midich not in self.channels:
             self.channels.append(midich)
     def pitch(self, val): # [-1.0,1.0]
@@ -229,16 +238,15 @@ class Track(Lane):
         val2 = (val>>0x7f)
         val = val&0x7f
         for ch in self.channels:
-            status = (MIDI_PITCH<<4) + self.midich
+            status = (MIDI_PITCH<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2))
-            self.player.write_short(status,val,val2)
-            self.mod(0)
+            self.midi[ch[0]].write_short(status,val,val2)
     def cc(self, cc, val): # control change
         if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
         for ch in self.channels:
-            status = (MIDI_CC<<4) + ch
+            status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
-            self.player.write_short(status,cc,val)
+            self.midi[ch[0]].write_short(status,cc,val)
             self.ccs[cc] = v
         if cc==1:
             self.modval = val
@@ -247,14 +255,14 @@ class Track(Lane):
     def mod(self, val):
         self.modval = 0
         return self.cc(1,val)
-    def patch(self, p, stackidx=0):
+    def patch(self, p, stackidx=-1):
         if isinstance(p,basestring):
             # look up instrument string in GM
             i = 0
             inst = p.replace('_',' ').replace('.',' ').lower()
             
             if p in DRUM_WORDS:
-                self.midi_channel(DRUM_CHANNEL)
+                self.midi__channel(DRUM_CHANNEL)
                 p = 0
             else:
                 if self.midich == DRUM_CHANNEL:
@@ -291,9 +299,19 @@ class Track(Lane):
 
         self.patch_num = p
         # log('PATCH SET - ' + str(p))
-        status = (MIDI_PROGRAM<<4) + self.channels[stackidx]
-        if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
-        self.player.write_short(status,p)
+        if stackidx==-1:
+            for ch in self.channels:
+                status = (MIDI_PROGRAM<<4) + ch[1]
+                if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
+                self.midi[ch[0]].write_short(status,p)
+        else:
+            status = (MIDI_PROGRAM<<4) + self.channels[stackidx][1]
+            if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PROGRAM (%s, %s)' % (status,p))
+            self.midi[self.channels[stackidx][0]].write_short(status,p)
+
+    def bank(self, b):
+        self.ccs[0] = b
+        self.cc(0,b)
     def arp(self, notes, count=0, sustain=False, pattern=[], reverse=False):
         self.arp_enabled = True
         if reverse:

@@ -1,25 +1,25 @@
 %t=120x4 p=piano,bass,drums c=20,-2
 
-M.                 3                   1
+ma.                 3,1                 1
  m?.
  m?.
-M.                   
+ma.                   
  m?.                                   3
-M.                   
+ma.                   
  m?.
  m?.                                    
-M.                                     1
+ma.                                     1
  m?.    
  m?.    
-M.                 b7
+ma.                 b7
  m?.                                   3
  m?.
-M.                   
+ma.                   
  m?.
-M.                                     1
+ma.                                     1
  m?.
  m?.
-M.                   
+ma.                   
  m?.                                   3
  m?.               5
  

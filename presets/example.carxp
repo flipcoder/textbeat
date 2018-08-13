@@ -1,0 +1,63 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE CARLA-PROJECT>
+<CARLA-PROJECT VERSION='2.0'>
+ <EngineSettings>
+  <ForceStereo>true</ForceStereo>
+  <PreferPluginBridges>false</PreferPluginBridges>
+  <PreferUiBridges>true</PreferUiBridges>
+  <UIsAlwaysOnTop>false</UIsAlwaysOnTop>
+  <MaxParameters>200</MaxParameters>
+  <UIBridgesTimeout>4000</UIBridgesTimeout>
+ </EngineSettings>
+
+ <Plugin>
+  <Info>
+   <Type>LV2</Type>
+   <Name>amsynth</Name>
+   <URI>http://code.google.com/p/amsynth/amsynth</URI>
+  </Info>
+
+  <Data>
+   <Active>Yes</Active>
+   <ControlChannel>N</ControlChannel>
+   <Options>0x0</Options>
+  </Data>
+ </Plugin>
+
+ <Plugin>
+  <Info>
+   <Type>LV2</Type>
+   <Name>Helm</Name>
+   <URI>http://tytel.org/helm</URI>
+  </Info>
+
+  <Data>
+   <Active>Yes</Active>
+   <ControlChannel>N</ControlChannel>
+   <Options>0x1</Options>
+  </Data>
+ </Plugin>
+
+ <ExternalPatchbay>
+  <Connection>
+   <Source>Carla:AudioOut1</Source>
+   <Target>AudioOut:playback_1</Target>
+  </Connection>
+  <Connection>
+   <Source>Carla:AudioOut1</Source>
+   <Target>AudioOut:playback_1</Target>
+  </Connection>
+  <Connection>
+   <Source>Carla:AudioOut2</Source>
+   <Target>AudioOut:playback_2</Target>
+  </Connection>
+  <Connection>
+   <Source>Carla:AudioOut2</Source>
+   <Target>AudioOut:playback_2</Target>
+  </Connection>
+  <Connection>
+   <Source>MidiIn:Virtual Raw MIDI 1-0:VirMIDI 1-0 20:0</Source>
+   <Target>Carla:MidiIn</Target>
+  </Connection>
+ </ExternalPatchbay>
+</CARLA-PROJECT>

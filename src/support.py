@@ -1,22 +1,23 @@
 from . import *
 from . import get_args
-import shutil
+from shutilwhich import which
 ARGS = get_args()
 SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['carla','supercollider','csound','midi','gme']) # gme,mpe
+SUPPORT_ALL = set(['auto','carla','supercollider','csound','midi','gme']) # gme,mpe
 psonic = None
-if shutil.which('carla'):
+if which('carla'):
     SUPPORT.add('carla')
+    SUPPORT.add('auto')
     
-if shutil.which('scsynth'):
+if which('scsynth'):
     try:
-        import osc
+        import oscpy
         SUPPORT.add('supercollider')
     except:
         pass
 
 csound = None
-if shutil.which('csound'):
+if which('csound'):
     SUPPORT.add('csound')
 
 def supports(dev):
@@ -34,17 +35,31 @@ def csound_init():
 
 carla_inited = False
 carla_proc = None
-def carla_init():
+def carla_init(auto=False):
     global carla_proc
     if not carla_proc:
+        import oscpy
         fn = ARGS['SONGNAME']
         if not fn:
             fn = 'default'
-        carla_proc = subprocess.Popen(['carla', '--nogui', fn.split('.')[0]+'.carxp'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if auto:
+            # embedded file -> /tmp/proj
+            # TODO: use tmp file of embedded file
+            proj = fn.split('.')[0]+'.carxp' # TEMP: generate
+        else:
+            proj = fn.split('.')[0]+'.carxp'
+        if os.path.exists(proj):
+            carla_proc = subprocess.Popen(['carla', '--nogui', proj], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        elif not auto:
+            log('To load a Carla project headless, create a \'%s\' file.' % proj)
+
+def auto_init():
+    carla_init(True)
 
 support_init = {
     'csound': csound_init,
-    'carla': carla_init
+    'carla': carla_init,
+    'auto': auto_init,
 }
 
 def csound_send(s):

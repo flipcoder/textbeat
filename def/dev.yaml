@@ -6,11 +6,12 @@ dev:
     - fluidsynth-midi
     - fluid-synth
     - bassmidi driver (port a)
-    # helm will autoconnect
     - microsoft midi mapper # lowest preference
-    - midi in
+    - zynaddsubfx
     - hexter
+    - midi in
     - virtual raw midi # carla
-    - virmidi # linux virtual midi
+    - midi through
+    - virmidi
     - qjackctl
 

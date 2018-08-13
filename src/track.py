@@ -262,7 +262,7 @@ class Track(Lane):
             inst = p.replace('_',' ').replace('.',' ').lower()
             
             if p in DRUM_WORDS:
-                self.midi__channel(DRUM_CHANNEL)
+                self.midi_channel(DRUM_CHANNEL)
                 p = 0
             else:
                 if self.midich == DRUM_CHANNEL:

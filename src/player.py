@@ -79,6 +79,7 @@ class Player:
         self.last_marker = -1
         self.midifile = None
         self.flags = 0
+        self.version = '0'
 
         # require enable at top of file
         self.devices = ['midi']
@@ -319,6 +320,7 @@ class Player:
                                     #     self.transpose = self.transpose%12
                                 elif op=='=':
                                     if var in 'GX': self.grid=float(val)
+                                    elif var=='V': self.version = val
                                     elif var=='D':
                                         self.devices = val.split(',')
                                         self.refresh_devices()

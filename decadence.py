@@ -167,8 +167,8 @@ if dc.showtext:
     print('MIDI Devices:')   
 portnames = []
 breakall = False
+firstpass = True
 for name in DEVS:
-    firstpass = True
     for i in range(pygame.midi.get_count()):
         port = pygame.midi.get_device_info(i)
         portname = port[1].decode('utf-8')

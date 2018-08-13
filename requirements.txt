@@ -6,3 +6,4 @@ appdirs
 pyyaml
 docopt
 future
+shutilwhich

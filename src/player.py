@@ -379,12 +379,14 @@ class Player:
                                     #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
                                     #     self.transpose = self.transpose%12
                                 elif op=='-':
-                                    if var=='K': self.transpose -= note_offset('#1' if val=='-' else val)
+                                    if var=='K':
+                                        self.transpose -= note_offset(val)
+                                        print(note_offset(val))
                                     elif var=='O': self.octave -= int(1 if val=='-' else val)
                                     elif var=='T': self.tempo -= max(0,float(val))
                                     elif var in 'GX': self.grid -= max(0,float(val))
                                     else: assert False
-                                    self.octave += -1*sgn(self.transpose)*(self.transpose//12)
+                                    # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
                                     # if var=='K':
                                     #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
                                     #     self.transpose = self.transpose%12

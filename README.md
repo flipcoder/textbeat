@@ -404,22 +404,22 @@ If no denominator is given, it will default to the next power of two
 (so 3:4, 5:8, 7:8, 11:16).
 So in other words if you need a 5:6, you'll need to write t5:6. :)
 The ratio of the beat saves.  You only need to specify it once per group.
-For nested tripets, group those by adding an extra 't'.
+For nested tripets, group those by adding an extra 'T'.
 
 Consider the 2 tracks:
 
 ```
-1     1t
-2     2t
-3     3t
+1     1T
+2     2T
+3     3T
 4
-1     1t
-2     2t
-3     3t
+1     1T
+2     2T
+3     3T
 4
 ```
 
-The spacing is not even between the sets, but the 't' value stretches them
+The spacing is not even between the sets, but the 'T' value stretches them
 to make them line up in a default ratio of 3:4.
 
 ## Picking
@@ -428,25 +428,21 @@ to make them line up in a default ratio of 3:4.
 
 ## Key changes
 
-The following behavior is optional and probably not useful to many musicians.
-
-However, beginners may find inspiration by picking a scale instead of using
-sharps and flats.
-
-The current scale is currently accessible as a global variable (this will be per-track soon).
-
-To set the notes to match scale, 
-
 ```
-# set notes to dorian mode (won't change key)
+# change key (this will change the key of the current scale to 3 (E))
+%k=3
+
+# to set a relative key, this will go from a major scale to relative minor scale
+%k+6
+
+# you can also go down to relative minor below
+%k-6
+
+# scale names are supported, this changes the scale shape to dorian
 %s=dorian
 
-# rotate/relative scale (will move the key note)
-%r=dorian
-
-# in either case, you can also use mode numbers
+# you can also use mode numbers
 %s=2
-%r=2
 ```
 
 ## Chords (Advanced)

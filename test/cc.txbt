@@ -1,0 +1,7 @@
+; run this using Helm synth
+%f=loop c15,-2
+1@bs0:0
+b3
+5
+b3
+:|

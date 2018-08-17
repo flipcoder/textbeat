@@ -1,0 +1,6 @@
+; test autoloading plugins
+
+`rack
+    - amsynth
+    - helm
+

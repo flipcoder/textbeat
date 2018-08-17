@@ -1,17 +1,17 @@
 #!/usr/bin/python
-"""decadence
+"""textbeat
 Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
 
 Examples:
-    decadence.py          shell
-    decadence.py song.dc  play song
+    textbeat.py            shell
+    textbeat.py song.txbt  play song
 
 Usage:
-    decadence.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
-    decadence.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
-    decadence.py -c [COMMANDS ...]
-    decadence.py -l [LINE_CONTENT ...]
+    textbeat.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
+    textbeat.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
+    textbeat.py -c [COMMANDS ...]
+    textbeat.py -l [LINE_CONTENT ...]
 
 Options:
     -h --help             show this
@@ -53,68 +53,69 @@ from src.support import *
 
 style = style_from_dict({
     Token:          '#ff0066',
-    Token.DC:       '#00aa00',
+    Token.Prompt:   '#00aa00',
     Token.Info:     '#000088',
 })
 colorama.init(autoreset=True)
 
 # logging.basicConfig(filename=LOG_FN,level=logging.DEBUG)
 
-dc = Player()
+player = Player()
 
 # class Marker:
 #     def __init__(self,name,row):
 #         self.name = name
 #         self.line = row
 
-midifn = ARGS['--midi']
-if midifn:
-    dc.midifile = mido.MidiFile(midifn)
+midifn = None
 
 for arg,val in iteritems(ARGS):
     if val:
-        if arg == '--tempo': dc.tempo = float(val)
-        elif arg == '--grid': dc.grid = float(val)
-        elif arg == '--note': dc.grid = float(val)/4.0
-        elif arg == '--speed': dc.speed = float(val)
-        elif arg == '--verbose': dc.showtext = True
+        if arg == '--tempo': player.tempo = float(val)
+        elif arg == '--midi':
+            midifn = val
+            player.midifile = mido.MidiFile()
+        elif arg == '--grid': player.grid = float(val)
+        elif arg == '--note': player.grid = float(val)/4.0
+        elif arg == '--speed': player.speed = float(val)
+        elif arg == '--verbose': player.showtext = True
         elif arg == '--dev':
-            dc.portname = val
-        elif arg == '--vi': dc.vimode = True
+            player.portname = val
+        elif arg == '--vi': player.vimode = True
         elif arg == '--patch':
             vals = val.split(',')
             for i in range(len(vals)):
                 val = vals[i]
                 if val.isdigit():
-                    dc.tracks[i].patch(int(val))
+                    player.tracks[i].patch(int(val))
                 else:
-                    dc.tracks[i].patch(val)
-        elif arg == '--sustain': dc.sustain=True
-        elif arg == '--ring': dc.ring=True
-        elif arg == '--remote': dc.remote = True
+                    player.tracks[i].patch(val)
+        elif arg == '--sustain': player.sustain=True
+        elif arg == '--ring': player.ring=True
+        elif arg == '--remote': player.remote = True
         elif arg == '--lint': LINT = True
         elif arg == '--quiet': set_print(False)
         elif arg == '--follow':
             set_print(False)
-            dc.canfollow = True
+            player.canfollow = True
         elif arg == '--flats': FLATS = True
         elif arg == '--sharps': SHARPS= True
         elif arg == '--edit': pass
-        elif arg == '-l' and val: dc.dcmode = 'l'
-        elif arg == '-c' and val: dc.dcmode = 'c'
-        elif arg == '--loop': dc.add_flags(Player.Flag.LOOP)
-        elif arg == '--renderman': dc.renderman = True
+        elif arg == '-l' and val: player.cmdmode = 'l'
+        elif arg == '-c' and val: player.cmdmode = 'c'
+        elif arg == '--loop': player.add_flags(Player.Flag.LOOP)
+        elif arg == '--renderman': player.renderman = True
 
-if dc.dcmode=='l':
-    dc.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
-elif dc.dcmode=='c':
-    dc.buf = ' '.join(ARGS['COMMANDS']).split(' ') # spaces
+if player.cmdmode=='l':
+    player.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
+elif player.cmdmode=='c':
+    player.buf = ' '.join(ARGS['COMMANDS']).split(' ') # spaces
 else: # mode n
     # if len(sys.argv)>=2:
     #     FN = sys.argv[-1]
     if ARGS['SONGNAME']:
         FN = ARGS['SONGNAME']
-        # dc.markers[''] = 0 # start marker
+        # player.markers[''] = 0 # start marker
         with open(FN) as f:
             lc = 0
             for line in f.readlines():
@@ -133,24 +134,24 @@ else: # mode n
                     if ls.startswith(':'):
                         bm = ls[1:]
                         # only store INITIAL marker positions
-                        if not bm in dc.markers:
-                            dc.markers[bm] = lc
+                        if not bm in player.markers:
+                            player.markers[bm] = lc
                     elif ls.startswith('|') and ls.endswith(':'):
                         bm = ls[1:-1]
                         # only store INITIAL marker positions
-                        if not bm in dc.markers:
-                            dc.markers[bm] = lc
+                        if not bm in player.markers:
+                            player.markers[bm] = lc
 
                 lc += 1
-                dc.buf += [line]
-                # dc.rowno.append(lc)
-            dc.shell = False
+                player.buf += [line]
+                # player.rowno.append(lc)
+            player.shell = False
     else:
-        if dc.dcmode == 'n':
-            dc.dcmode = ''
-        dc.shell = True
+        if player.cmdmode == 'n':
+            player.cmdmode = ''
+        player.shell = True
 
-dc.interactive = dc.shell or dc.remote
+player.interactive = player.shell or player.remote
 
 pygame.midi.init()
 if pygame.midi.get_count()==0:
@@ -158,12 +159,12 @@ if pygame.midi.get_count()==0:
     sys.exit(1)    
 dev = -1
 
-# if dc.showtext:
+# if player.showtext:
 #     for i in range(pygame.midi.get_count()):
 #         print(pygame.midi.get_device_info(i))
 
 DEVS = get_defs()['dev']
-if dc.showtext:
+if player.showtext:
     print('MIDI Devices:')   
 portnames = []
 breakall = False
@@ -174,17 +175,17 @@ for name in DEVS:
         portname = port[1].decode('utf-8')
         if port[3]!=1:
             continue
-        if dc.showtext:
+        if player.showtext:
             print(' '*4 + portname) 
-        if dc.portname:
-            if dc.portname.lower() in portname.lower():
-                dc.portname = portname
+        if player.portname:
+            if player.portname.lower() in portname.lower():
+                player.portname = portname
                 dev = i
                 breakall = True
                 break
         else:
             if portname.lower().startswith(name):
-                dc.portname = portname
+                player.portname = portname
                 dev = i
                 breakall = True
                 break
@@ -202,106 +203,82 @@ for name in DEVS:
 #     # if port[3]==1:
 #     #     continue
 #     portname = port[1].decode('utf-8')
-#     if dc.showtext:
+#     if player.showtext:
 #         print(' '*4 + portname) 
-#     if dc.portname:
-#         if dc.portname.lower() in portname.lower():
-#             dc.portname = portname
+#     if player.portname:
+#         if player.portname.lower() in portname.lower():
+#             player.portname = portname
 #             dev = i
 #             break
 #     else:
 #         for name in DEVS:
 #             if portname.lower().startswith(name):
-#                 dc.portname = portname
+#                 player.portname = portname
 #                 dev = i
 #                 break
 #     portnames += [portname]
-if dc.showtext:
+if player.showtext:
     print('')  
 
 if dev == -1:
     dev = pygame.midi.get_default_output_id()
 
-dc.midi += [pygame.midi.Output(dev)]
-dc.instrument = 0
-dc.midi[0].set_instrument(0)
+player.midi += [pygame.midi.Output(dev)]
+player.instrument = 0
+player.midi[0].set_instrument(0)
 mch = 0
 for i in range(NUM_CHANNELS_PER_DEVICE):
     # log("%s -> %s" % (i,mch))
-    dc.tracks.append(Track(dc, i, mch))
+    player.tracks.append(Track(player, i, mch))
     mch += 2 if i==DRUM_CHANNEL else 1
 
-if dc.sustain:
-    dc.tracks[0].sustain = dc.sustain
+if player.sustain:
+    player.tracks[0].sustain = player.sustain
 
 # show nice output in certain modes
-if dc.shell or dc.dcmode in 'cl':
-    dc.showtext = True
+if player.shell or player.cmdmode in 'cl':
+    player.showtext = True
 
-for i in range(len(sys.argv)):
-    arg = sys.argv[i]
-    
-    # play range (+ param, comma-separated start and end)
-    if arg.startswith('+'):
-        vals = arg[1:].split(',')
-        try:
-            dc.startrow = int(vals[0])
-        except ValueError:
-            try:
-                dc.startrow = dc.markers[vals[0]]
-            except KeyError:
-                log('invalid entry point')
-                dc.quitflag = True
-        try:
-            dc.stoprow = int(vals[1])
-        except ValueError:
-            try:
-                # we cannot cut buf now, since seq might be non-linear
-                dc.stoprow = dc.markers[vals[0]]
-            except KeyError:
-                log('invalid stop point')
-                dc.quitflag = True
-        except IndexError:
-            pass # no stop param
+player.init()
 
-if dc.shell:
-    log(FG.BLUE + 'decadence')# v'+str(VERSION))
+if player.shell:
+    log(FG.BLUE + 'textbeat')# v'+str(VERSION))
     log('Copyright (c) 2018 Grady O\'Connell')
-    log('https://github.com/flipcoder/decadence')
+    log('https://github.com/flipcoder/textbeat')
     active = SUPPORT_ALL & SUPPORT
     inactive = SUPPORT_ALL - SUPPORT
     if active:
         log(FG.GREEN + 'Active Modules: ' + FG.WHITE +  ', '.join(active) + FG.WHITE)
     if inactive:
         log(FG.RED + 'Inactive Modules: ' +  FG.WHITE + ', '.join(inactive))
-    if dc.portname:
-        log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (dc.portname if dc.portname else 'Unknown',))
+    if player.portname:
+        log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (player.portname if player.portname else 'Unknown',))
     log(FG.RED + 'Other Devices: ' + FG.WHITE + '%s' % (', '.join(portnames)))
-    if dc.portname:
-        if dc.tracks[0].midich == DRUM_CHANNEL:
+    if player.portname:
+        if player.tracks[0].midich == DRUM_CHANNEL:
             log(FG.GREEN + 'GM Percussion')
         else:
-            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[dc.tracks[0].patch_num]) 
+            log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[player.tracks[0].patch_num]) 
 
     log('Use -h for command line options.')
     log('Read the manual and look at examples. Have fun!')
     log('')
 
-dc.run()
+player.run()
 
-if dc.midifile:
-    dc.save(midifn)
+if player.midifile:
+    player.midifile.save(midifn)
 
 # TODO: turn all midi note off
 i = 0
-for ch in dc.tracks:
-    if not dc.ring:
+for ch in player.tracks:
+    if not player.ring:
         ch.panic()
     ch.midi = None
 
-for mididev in dc.midi:
+for mididev in player.midi:
     del mididev
-dc.midi = []
+player.midi = []
 pygame.midi.quit()
 
 # def main():

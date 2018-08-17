@@ -62,7 +62,7 @@ class Player:
         # self.rowno = []
         self.startrow = -1
         self.stoprow = -1
-        self.dcmode = 'n' # n normal c command s sequence
+        self.cmdmode = 'n' # n normal c command s sequence
         self.schedule = Schedule(self)
         self.tracks = []
         self.shell = False
@@ -80,12 +80,63 @@ class Player:
         self.midifile = None
         self.flags = 0
         self.version = '0'
+        self.auto = False
+        self.embedded_files = {}
 
         # require enable at top of file
         self.devices = ['midi']
         
-        self.renderman = False
+    def init(self):
         
+        for i in range(len(sys.argv)):
+            arg = sys.argv[i]
+
+            # play range (+ param, comma-separated start and end)
+            if arg.startswith('+'):
+                vals = arg[1:].split(',')
+                try:
+                    self.startrow = int(vals[0])
+                except ValueError:
+                    try:
+                        self.startrow = self.markers[vals[0]]
+                    except KeyError:
+                        log('invalid entry point')
+                        self.quitflag = True
+                try:
+                    self.stoprow = int(vals[1])
+                except ValueError:
+                    try:
+                        # we cannot cut buf now, since seq might be non-linear
+                        self.stoprow = self.markers[vals[0]]
+                    except KeyError:
+                        log('invalid stop point')
+                        self.quitflag = True
+                except IndexError:
+                    pass # no stop param
+        
+        # read embedded files
+        for row in self.buf:
+            embedded_fn = None
+            embedded_file = []
+            base_indent = ''
+            if embedded_fn:
+                if row.startswith(' ') or row.startswith('\t'):
+                    if not base_indent:
+                        base_indent = row[0] * count_seq(row)
+                        embedded_file = self.row
+                    embedded_file += [row[base_indent:]]
+                else:
+                    base_indent = ''
+                    self.embedded_files[embedded_fn] = embedded_file
+                    embedded_fn = None
+                    embedded_file = []
+            
+            if row.startswith('`'):
+                embedded_fn = row[1:]
+                embedded_file = []
+            
+        # print(self.embedded_files.keys())
+
     def refresh_devices(self):
         # determine output device support and load external programs
         from . import support
@@ -94,10 +145,15 @@ class Player:
                 print('device not supported by system: ' + dev)
                 assert False
             try:
-                support.support_init[dev]()
+                support.support_init[dev](self.rack)
             except KeyError:
                 # no init needed, silent
                 pass
+        self.auto = 'auto' in self.devices
+
+    def set_rack(self, plugins):
+        self.rack = plugins
+        self.refresh_devices()
         
     def add_flags(self, f):
         if isinstance(f, basestring):
@@ -150,6 +206,7 @@ class Player:
             ch.refresh()
         
         self.header = True
+        embedded_file = False
         
         while not self.quitflag:
             self.follow()
@@ -172,13 +229,13 @@ class Player:
                     # done with file, finish playing some stuff
                     
                     arps_remaining = 0
-                    if self.interactive or self.dcmode in ['c','l']: # finish arps in shell mode
+                    if self.interactive or self.cmdmode in ['c','l']: # finish arps in shell mode
                         for ch in self.tracks[:self.tracks_active]:
                             if ch.arp_enabled:
                                 if ch.arp_cycle_limit or not ch.arp_once:
                                     arps_remaining += 1
                                     self.line = '.'
-                        if not arps_remaining and not self.shell and self.dcmode not in ['c','l']:
+                        if not arps_remaining and not self.shell and self.cmdmode not in ['c','l']:
                             break
                         self.line = '.'
                     
@@ -191,15 +248,15 @@ class Player:
                                 # self.shell PROMPT
                                 # log(orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode)))
                                 # cur_oct = self.tracks[0].octave
-                                # cline = FG.GREEN + 'DC> '+FG.BLUE+ '('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
+                                # cline = FG.GREEN + 'txbt> '+FG.BLUE+ '('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
                                 #     note_name(self.tracks[0].transpose) + ' ' +\
                                 #     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
                                 #     ')> '
-                                cline = 'DC> ('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
+                                cline = 'txbt> ('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
                                     note_name(self.transpose + self.tracks[0].transpose) + ' ' +\
                                     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
                                     ')> '
-                                # if bufline.endswith('.dc'):
+                                # if bufline.endswith('.txbt'):
                                     # play file?
                                 # bufline = raw_input(cline)
                                 bufline = prompt(cline, history=HISTORY, vi_mode=self.vimode)
@@ -229,6 +286,19 @@ class Player:
                 #             self.separators.append(i)
                 
                 # log(BG.RED + line)
+
+                # skip reading embedded files, since they're already in mem
+                if self.line.startswith('`'):
+                    embedded_file = True
+                    self.row += 1
+                    continue
+                elif self.line.startswith(' ') or self.line.startswith('\t'):
+                    if embedded_file:
+                        self.row += 1
+                        continue
+                else:
+                    embedded_file = False
+                
                 fullline = self.line[:]
                 self.line = self.line.strip()
                 
@@ -264,7 +334,7 @@ class Player:
                             if tok[0]==' ':
                                 tok = tok[1:]
                             var = tok[0].upper()
-                            if var in 'TGXNPSRCKOFD': # global vars %
+                            if var in 'TGXNPSRCKOFDR': # global vars %
                                 cmd = tok.split(' ')[0]
                                 op = cmd[1]
                                 try:
@@ -320,6 +390,10 @@ class Player:
                                     #     self.transpose = self.transpose%12
                                 elif op=='=':
                                     if var in 'GX': self.grid=float(val)
+                                    elif var=='R':
+                                        if not 'auto' in self.devices:
+                                            self.devices = ['auto'] + self.devices
+                                        self.set_rack(val.split(','))
                                     elif var=='V': self.version = val
                                     elif var=='D':
                                         self.devices = val.split(',')
@@ -358,7 +432,7 @@ class Player:
                                         self.transpose = note_offset(val)
                                         # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
                                         # self.transpose = self.transpose%12
-                                    elif var=='R' or var=='S':
+                                    elif var=='S':
                                         # var R=relative usage deprecated
                                         try:
                                             if val:
@@ -1106,7 +1180,7 @@ class Player:
                             ch.arp_stop()
                         else:
                             # continue arp
-                            if ch.arp_next(self.shell or self.dcmode in 'lc'):
+                            if ch.arp_next(self.shell or self.cmdmode in 'lc'):
                                 notes = [ch.arp_note]
                                 delay = ch.arp_delay
                                 if not fzero(delay):
@@ -1556,7 +1630,7 @@ class Player:
                                 num = 1.0
                             ch.cc(CC[c],constrain(int(num*127.0),127))
                         else:
-                            # if self.dcmode in 'cl':
+                            # if self.cmdmode in 'cl':
                             log(FG.BLUE + self.line)
                             indent = ' ' * (len(fullcell)-len(cell))
                             log(FG.RED + indent +  "^ Unexpected " + cell[0] + " here")
@@ -1572,7 +1646,7 @@ class Player:
                     
                     if arpnotes:
                         ch.arp(notes, arpcount, sustain, arppattern, arpreverse)
-                        arpnext = ch.arp_next(self.shell or self.dcmode in 'lc')
+                        arpnext = ch.arp_next(self.shell or self.cmdmode in 'lc')
                         notes = [ch.arp_note]
                         delay = ch.arp_delay
                         # if not fcmp(delay):

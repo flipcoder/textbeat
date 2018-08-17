@@ -92,10 +92,10 @@ def constrain(a,n1=1,n2=0):
             n1 = 1.0
     return min(max(n1,n2),max(min(n1,n2),a))
 
-APPNAME = 'decadence'
+APPNAME = 'textbeat'
 DIR = appdirs.AppDirs(APPNAME)
 # LOG_FN = os.path.join(DIR.user_log_dir,'.log')
-HISTORY_FN = os.path.join(DIR.user_config_dir, '.history')
+HISTORY_FN = os.path.join(DIR.user_config_dir, 'history')
 HISTORY = FileHistory(HISTORY_FN)
 SCRIPT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__,'..')))
 CFG_PATH = os.path.join(SCRIPT_PATH, 'config')

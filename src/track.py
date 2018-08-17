@@ -177,8 +177,10 @@ class Track(Lane):
                 and self.enabled and self.ctx.startrow==-1:
                 self.midi[ch[0]].note_on(n,v,ch[1])
                 if self.ctx.midifile:
-                    self.ctx.midifile.tracks[ch].append(mido.Message(
-                        'note_on',velocity=v,time=self.ctx.t,channel=ch[1]
+                    while ch[0] >= len(self.ctx.midifile.tracks):
+                        self.ctx.midifile.tracks.append(mido.MidiTrack())
+                    self.ctx.midifile.tracks[ch[0]].append(mido.Message(
+                        'note_on',velocity=v,time=int(self.ctx.t),channel=ch[1]
                     ))
     def note_off(self, n, v=-1):
         if v == -1:

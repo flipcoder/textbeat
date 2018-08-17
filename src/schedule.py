@@ -50,6 +50,7 @@ class Schedule:
                     # sleep until next event
                     if ev.t >= 0.0:
                         if self.ctx.cansleep and self.ctx.startrow == -1:
+                            self.ctx.t += self.ctx.speed*t*(ev.t-self.passed)
                             time.sleep(self.ctx.speed*t*(ev.t-self.passed))
                         ev.func(0)
                         self.passed = ev.t # only inc if positive
@@ -61,8 +62,10 @@ class Schedule:
             slp = t*(1.0-self.passed) # remaining time
             if slp > 0.0:
                 if self.ctx.cansleep and self.ctx.startrow == -1:
+                    self.ctx.t += self.ctx.speed*slp
                     time.sleep(self.ctx.speed*slp)
             self.passed = 0.0
+            
             self.events = self.events[processed:]
         except KeyboardInterrupt:
             self.events = self.events[processed:]

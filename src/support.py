@@ -1,13 +1,14 @@
 from . import *
 from . import get_args
 from shutilwhich import which
+# from xml.dom import minidom
 ARGS = get_args()
 SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['auto','carla','supercollider','csound','midi','gme']) # gme,mpe
+SUPPORT_ALL = set(['carla','supercollider','csound','midi']) # gme,mpe
 psonic = None
 if which('carla'):
     SUPPORT.add('carla')
-    SUPPORT.add('auto')
+    SUPPORT.add('rack') # auto generate
     
 if which('scsynth'):
     try:
@@ -25,7 +26,7 @@ def supports(dev):
     return dev in SUPPORT
 
 csound_inited = False
-def csound_init():
+def csound_init(rack=[]):
     global csound_inited
     if not csound_inited:
         import subprocess
@@ -35,31 +36,31 @@ def csound_init():
 
 carla_inited = False
 carla_proc = None
-def carla_init(auto=False):
+def carla_init(rack):
     global carla_proc
     if not carla_proc:
         import oscpy
         fn = ARGS['SONGNAME']
         if not fn:
             fn = 'default'
-        if auto:
+        if devs:
+            # generate proj file from devs
             # embedded file -> /tmp/proj
-            # TODO: use tmp file of embedded file
             proj = fn.split('.')[0]+'.carxp' # TEMP: generate
         else:
             proj = fn.split('.')[0]+'.carxp'
         if os.path.exists(proj):
             carla_proc = subprocess.Popen(['carla', '--nogui', proj], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        elif not auto:
+        elif not devs:
             log('To load a Carla project headless, create a \'%s\' file.' % proj)
 
-def auto_init():
-    carla_init(True)
+def rack_init(rack):
+    carla_init(rack)
 
 support_init = {
     'csound': csound_init,
     'carla': carla_init,
-    'auto': auto_init,
+    'rack': rack_init,
 }
 
 def csound_send(s):

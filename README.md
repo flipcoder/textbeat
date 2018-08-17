@@ -1,4 +1,4 @@
-# ![Decadence](icon.png) decadence
+# textbeat
 
 Plaintext music sequencer and interactive shell.
 
@@ -10,8 +10,8 @@ Open-source under MIT License (see LICENSE file for information)
 
 Copyright (c) 2018 Grady O'Connell
 
-- [Project Board](https://trello.com/b/S8AsJaaA/decadence)
-- Vim integration: [vim-decadence](https://github.com/flipcoder/vim-decadence)
+- [Project Board](https://trello.com/b/S8AsJaaA/textbeat)
+- Vim integration: [vim-textbeat](https://github.com/flipcoder/vim-textbeat)
 
 **This project is still very new.  Despite number of features, you may quickly
 run into issues, especially with editor integration.**
@@ -24,7 +24,7 @@ but with syntax inspired by jazz/music theory.
 
 # Features
 
-Decadence is a new project, but you can already do lots of cool things:
+Textbeat is a new project, but you can already do lots of cool things:
 
 - Strumming
 - Arpeggiation
@@ -99,7 +99,7 @@ Both Tempo and Grid can be decimal numbers as well.
 Both note numbers and letters are supported.
 This tutorial will use 1,2,3,4,5,6,7 instead of C,D,E,F,G,A,B.
 I'm a fan of thinking about notes without implying a key.
-For this reason, decadence prefers the relative/transposed note numbers
+For this reason, textbeat prefers the relative/transposed note numbers
 over arbitrary note names.
 If you're writing a song in D minor, you may choose to set the global or track key
 to D, making D note 1. (You could also set D to 6 if you're thinking modally)
@@ -155,7 +155,7 @@ To control releasing of notes, use dash (-).
 
 Note durations can be manually controlled by adding * to increase value by powers of two, 
 You can also add a fractional value to multiply this.  These types of fraction
-values are used throughout decadence.
+values are used throughout textbeat.
 The opposite of this is the dot (.) which halves note values
 
 
@@ -392,11 +392,11 @@ across the tracks.  The midi names support partial case-insensitive matches.
 %t120 x2 p=piano,guitar,bass,drums c8,-2
 ```
 
-For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/decadence/blob/master/config/gm.yaml).
+For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/textbeat/blob/master/config/gm.yaml).
 
 ## Tuplets
 
-Very early support for this. See tuplet.dc example.
+Very early support for this. See tuplet example.
 The 't' command spreads a set of notes across a tuplet grid,
 starting at the first occurence of t in that group.
 Ratios provided will control expansion.  Default is 3:4.
@@ -468,11 +468,11 @@ Then at the bottom, there is a C bass note.
 
 ## Examples
 
-Check out the examples/ folder.  Play them with decadence from the
+Check out the examples/ folder.  Play them with textbeat from the
 command line:
 
 ```
-./decadence.py examples/jazz.dc
+./textbeat.py examples/jazz
 ``` 
 
 # Advanced
@@ -639,7 +639,7 @@ Example: 1~ is fine, but 1v is not. Use 1@v You only need one to combine: 1@v5e5
 Note: Fractional values specified are formated like numbers after a decimal point:
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
 
-CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/decadence/blob/master/def/default.yaml).
+CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/textbeat/blob/master/def/default.yaml).
 
 ```
 
@@ -663,9 +663,9 @@ CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/dec
 
 A majority of the music index is contained in inside these files:
 
-- Default: [def/default.yaml](https://github.com/flipcoder/decadence/blob/master/def/default.yaml).
-- Informal: [def/informal.yaml](https://github.com/flipcoder/decadence/blob/master/def/informal.yaml).
-- Experimental: [def/dc.yaml](https://github.com/flipcoder/decadence/blob/master/def/dc.yaml).
+- Default: [def/default.yaml](https://github.com/flipcoder/textbeat/blob/master/def/default.yaml).
+- Informal: [def/informal.yaml](https://github.com/flipcoder/textbeat/blob/master/def/informal.yaml).
+- Experimental: [def/exp.yaml](https://github.com/flipcoder/textbeat/blob/master/def/exp.yaml).
 
 These lists does not include certain chord modifications (add, no, drop, etc.).
 

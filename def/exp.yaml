@@ -1,0 +1,35 @@
+chords:
+    # experimental voicings, just for fun -- MAY BE REMOVED
+    #   warnings should be emitted to beginners using these in shell,
+    #   so they don't get confused when learning
+    
+    # majadd4
+    wu: '3 4 5'
+    wu7: '3 4 5 7'
+    wu7b5: '2 3 b5 7'
+    wu-: 'b3 4 5'
+    wu-7: 'b3 4 5 b7'
+    wu-7b5: 'b3 4 b5 b7'
+    wwu-7: 'b3 4 5 7'
+    wwu-7b5: 'b3 4 b5 7'
+    
+    # edges of scale shape along circle (i.e. darkest and brightest notes of each whole tone scale)
+    eg: '3 4 7' # diatonic edges ("eg>>"=phyr "eg>3"=lyd "eg>6"=loc)
+    eg-: '2 b3 7' # melodic minor edges
+    arp: '3 4 5 7' # aka wu7, diatonic edge w/ 5, for inversions use '|5' eg: eg>|5
+
+#shorthand:
+#    wu:
+#        replace: ma
+#        add: '4'
+#    'wu-':
+#        replace: m
+#        add: '4'
+#    'wu+':
+#        replace: +
+#        add: '4'
+
+chord_alts:
+    sq: sus24
+    melo: mmu7 # melodic minor edges w/ 5
+

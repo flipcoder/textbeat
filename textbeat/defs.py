@@ -16,10 +16,10 @@ with open(os.devnull, 'w') as devnull:
     sys.stdout = stdout
 from multiprocessing import Process,Pipe
 from prompt_toolkit import prompt
-from prompt_toolkit.styles import style_from_dict
+# from prompt_toolkit.styles import style_from_dict
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.history import FileHistory
-from prompt_toolkit.token import Token
+# from prompt_toolkit.token import Token
 
 if sys.version_info[0]==3:
     basestring = str

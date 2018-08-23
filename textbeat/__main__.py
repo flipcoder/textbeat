@@ -58,11 +58,11 @@ def main():
     # from .support import *
     # from .support import *
 
-    style = style_from_dict({
-        Token:          '#ff0066',
-        Token.Prompt:   '#00aa00',
-        Token.Info:     '#000088',
-    })
+    # style = style_from_dict({
+    #     Token:          '#ff0066',
+    #     Token.Prompt:   '#00aa00',
+    #     Token.Info:     '#000088',
+    # })
     colorama.init(autoreset=True)
 
 # logging.basicConfig(filename=LOG_FN,level=logging.DEBUG)

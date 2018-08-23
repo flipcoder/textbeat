@@ -2,7 +2,7 @@
 import os, sys
 from future.utils import iteritems
 from collections import OrderedDict
-from . import get_defs
+from .defs import get_defs
 from .parser import *
 
 FLATS=False

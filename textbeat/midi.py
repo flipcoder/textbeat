@@ -1,4 +1,4 @@
-from . import *
+from .defs import *
 MIDI_CC = 0B1011
 MIDI_PROGRAM = 0B1100
 MIDI_PITCH = 0B1110

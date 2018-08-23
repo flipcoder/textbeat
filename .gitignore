@@ -1,2 +1,5 @@
 __pycache__/
+build/
+dist/
+textbeat.egg-info/
 *.pyc

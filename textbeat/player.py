@@ -1,9 +1,9 @@
-# TODO: This file includes code from prototype that will be reorganized into
+# TODO: This file includes code prototype that will be reorganized into
 #  other modules
 
-from . import *
+from .defs import *
 
-class StackFrame:
+class StackFrame(object):
     def __init__(self, row, caller, count):
         self.row = row
         self.caller = caller
@@ -12,7 +12,7 @@ class StackFrame:
         self.returns = {} # repeat row -> number of rpts left
         # self.returns[row] = 0
 
-class Player:
+class Player(object):
     
     class Flag:
         ROMAN = bit(0)
@@ -139,7 +139,10 @@ class Player:
 
     def refresh_devices(self):
         # determine output device support and load external programs
-        from . import support
+        # try:
+        import support
+        # except:
+        #     import textbeat.support as support
         for dev in self.devices:
             if not support.supports(dev):
                 print('device not supported by system: ' + dev)
@@ -155,6 +158,8 @@ class Player:
         self.rack = plugins
         self.refresh_devices()
         
+    # def remove_flags(self, f):
+    #     pass
     def add_flags(self, f):
         if isinstance(f, basestring):
             f = 1 << self.FLAGS.index(f)
@@ -162,7 +167,13 @@ class Player:
             assert f > 0
         else:
             for e in f:
-                self.add_flags(e)
+                if e.startswith('-'):
+                    # TODO: cancel flag?
+                    # e = e[1:]
+                    # self.flags &= ~e
+                    pass
+                else:
+                    self.add_flags(e)
             return
         self.flags |= f
     def has_flags(self, f):
@@ -252,9 +263,11 @@ class Player:
                                 #     note_name(self.tracks[0].transpose) + ' ' +\
                                 #     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
                                 #     ')> '
+                                modename = orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))
+                                
                                 cline = 'txbt> ('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
                                     note_name(self.transpose + self.tracks[0].transpose) + ' ' +\
-                                    orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
+                                    ('diatonic' if modename=='ionian' else modename) + \
                                     ')> '
                                 # if bufline.endswith('.txbt'):
                                     # play file?
@@ -334,7 +347,7 @@ class Player:
                             if tok[0]==' ':
                                 tok = tok[1:]
                             var = tok[0].upper()
-                            if var in 'TGXNPSRCKOFDR': # global vars %
+                            if var in 'TGXNPSRCKFDR': # global vars %
                                 cmd = tok.split(' ')[0]
                                 op = cmd[1]
                                 try:
@@ -371,7 +384,7 @@ class Player:
                                     else: assert False
                                 elif op=='+':
                                     if var=='K': self.transpose += note_offset('#1' if val=='+' else val)
-                                    elif var=='O': self.octave += int(1 if val=='+' else val)
+                                    # elif var=='O': self.octave += int(1 if val=='+' else val)
                                     elif var=='T': self.tempo += max(0,float(val))
                                     elif var in 'GX': self.grid += max(0,float(val))
                                     else: assert False
@@ -382,7 +395,7 @@ class Player:
                                     if var=='K':
                                         self.transpose -= note_offset(val)
                                         print(note_offset(val))
-                                    elif var=='O': self.octave -= int(1 if val=='-' else val)
+                                    # elif var=='O': self.octave -= int(1 if val=='-' else val)
                                     elif var=='T': self.tempo -= max(0,float(val))
                                     elif var in 'GX': self.grid -= max(0,float(val))
                                     else: assert False
@@ -400,7 +413,7 @@ class Player:
                                     elif var=='D':
                                         self.devices = val.split(',')
                                         self.refresh_devices()
-                                    elif var=='O': self.octave = int(val)
+                                    # elif var=='O': self.octave = int(val)
                                     elif var=='N': self.grid=float(val)/4.0 #!
                                     elif var=='T':
                                         vals = val.split('x')
@@ -428,8 +441,8 @@ class Player:
                                         self.add_flags(val.split(','))
                                         # for i in range(len(vals)): # TODO: ?
                                         #     self.tracks[i].add_flags(val.split(','))
-                                    elif var=='O':
-                                        self.octave = int(val)
+                                    # elif var=='O':
+                                    #     self.octave = int(val)
                                     elif var=='K':
                                         self.transpose = note_offset(val)
                                         # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
@@ -1232,7 +1245,7 @@ class Player:
                             cell = cell[count_seq(cell):] 
 
                         after = [] # after events
-                        cl = len(cell)
+                        clen = len(cell)
                         # All tokens here must be listed in CCHAR
                         
                         ## + and - symbols are changed to mean minor and aug chords
@@ -1243,7 +1256,7 @@ class Player:
                         #     mn = n + base + (octave+shift) * 12
                         c = cell[0]
                         c2 = None
-                        if cl:
+                        if clen:
                             c2 = cell[:2]
                         
                         if c: c = c.lower()
@@ -1301,7 +1314,7 @@ class Player:
                                 shift = 1
                             ch.octave = octave
                             # row_events += 1
-                        elif cl>1 and c=='~': # pitch wheel
+                        elif clen>1 and c=='~': # pitch wheel
                             cell = cell[1:]
                             # sn = 1.0
                             if cell[0]=='/' or cell[0]=='\\':
@@ -1365,15 +1378,15 @@ class Player:
                         #     cell = cell[len(num):]
                         #     vel = int((float(num) / float('9'*len(num)))*127)
                         #     ch.cc(7,vel)
-                        elif cell.startswith('Q'): # record sequence
-                            cell = cell[1:]
-                            r,ct = peel_uint(cell)
-                            # ch.record(r)
+                        elif cell.startswith('^^'): # record sequence
+                            cell = cell[2:]
+                            r,ct = peel_uint(cell,0)
+                            ch.record(r)
                             cell = cell[ct:]
-                        elif cell.startswith('q'): # replay sequence
+                        elif cell.startswith('^'): # replay sequence
                             cell = cell[1:]
-                            r,ct = peel_uint(cell)
-                            # ch.replay(r)
+                            r,ct = peel_uint(cell,0)
+                            ch.replay(r)
                             cell = cell[ct:]
                         elif c2=='ch': # midi channel
                             num,ct = peel_uint(cell[1:])
@@ -1387,8 +1400,7 @@ class Player:
                             # ch.soloed = True
                             cell = cell[1:]
                         elif c=='m':
-                            ch.enabled = (c=='m')
-                            ch.panic()
+                            ch.enable(c=='m')
                             cell = cell[1:]
                         elif c=='c': # MIDI CC
                             # get number
@@ -1398,14 +1410,19 @@ class Player:
                             cell = cell[ct+1:]
                             ccval,ct = peel_int(cell)
                             assert ct
+                            if not ct:
+                                error('cc requires value')
+                                cell = []
                             cell = cell[ct:]
                             ccval = int(num)
                             ch.cc(cc,ccval)
                         elif c=='p': # program/patch change
                             # bank select as other args?
                             cell = cell[1:]
-                            p,ct = peel_int(cell)
-                            assert ct
+                            p,ct = peel_uint(cell)
+                            if not ct:
+                                error('p command requires number')
+                                cell = []
                             cell = cell[ct:]
                             ch.patch(p)
                         elif c2=='bs': # program/patch change
@@ -1416,7 +1433,9 @@ class Player:
                             if cell and cell[0]==':':
                                 cell = cell[1:]
                                 num2,ct = peel_uint(cell)
-                                assert ct
+                                if not ct:
+                                    error(': params require number')
+                                    cell = []
                                 cell = cell[ct:]
                                 b = num2 # second val -> lsb
                                 b |= num << 8 # first value -> msb
@@ -1469,7 +1488,10 @@ class Player:
                             if ct:
                                 cell = cell[ct:]
                             delay = -1*(c=='(')*float('0.'+num) if num else 0.5
-                            assert(delay > 0.0) # TOOD: impl early notes
+                            if delay < 0.0:
+                                error('delay >= 0')
+                                cell = []
+                                continue
                         elif c=='|':
                             cell = []
                         elif c==':':

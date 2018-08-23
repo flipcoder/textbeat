@@ -1,12 +1,12 @@
-from . import *
+from .defs import *
 
-class Event:
+class Event(object):
     def __init__(self, t, func, ch):
         self.t = t
         self.func = func
         self.ch = ch
 
-class Schedule:
+class Schedule(object):
     def __init__(self, ctx):
         self.ctx = ctx
         self.events = []

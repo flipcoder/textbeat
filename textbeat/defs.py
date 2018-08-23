@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from __future__ import unicode_literals, print_function, generators
+from __future__ import absolute_import, unicode_literals, print_function, generators
 import os, sys, time, random, itertools, signal, tempfile, traceback, socket
 import time, subprocess, pipes, collections
 from collections import OrderedDict
@@ -97,7 +97,7 @@ DIR = appdirs.AppDirs(APPNAME)
 # LOG_FN = os.path.join(DIR.user_log_dir,'.log')
 HISTORY_FN = os.path.join(DIR.user_config_dir, 'history')
 HISTORY = FileHistory(HISTORY_FN)
-SCRIPT_PATH = os.path.dirname(os.path.realpath(os.path.join(__file__,'..')))
+SCRIPT_PATH = os.path.dirname(os.path.join(__file__))
 CFG_PATH = os.path.join(SCRIPT_PATH, 'config')
 DEF_PATH = os.path.join(SCRIPT_PATH, 'def')
 DEF_EXT = '.yaml'
@@ -133,6 +133,9 @@ def set_print(b):
     PRINT = b
 
 def log(msg):
+    if PRINT:
+        print(msg)
+def error(msg):
     if PRINT:
         print(msg)
 

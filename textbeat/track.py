@@ -1,11 +1,11 @@
-from . import *
+from .defs import *
 
-class Recording:
+class Recording(object):
     def __init__(self, name, slot):
         self.name = slot
         self.content = []
 
-class Tuplet:
+class Tuplet(object):
     def __init__(self):
         # self.tuplets = False
         self.note_spacing = 1.0
@@ -82,6 +82,7 @@ class Track(Lane):
         self.flags = 0 # set()
         self.enabled = True
         self.soloed = False
+        # self.muted = False
         self.volval = 1.0
         self.slots = {} # slot -> Recording
         self.slot = None # careful, this can be 0
@@ -90,10 +91,13 @@ class Track(Lane):
         self.lanes = []
         self.ccs = {}
         self.dev = 0
+
     # def _lazychannelfunc(self):
     #     # get active channel numbers
     #     return list(map(filter(lambda x: self.channels & x[0], [(1<<x,x) for x in range(16)]), lambda x: x[1]))
-    def device(self, dev, stackidx=-1):
+    def get_device(self):
+        return self.ctx.devices[self.dev]
+    def set_device(self, dev, stackidx=-1):
         if stackidx == -1:
             self.dev = dev
             for ch in self.channels:

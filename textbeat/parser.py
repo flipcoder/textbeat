@@ -1,4 +1,4 @@
-from . import *
+from .defs import *
 
 def count_seq(seq, match=''):
     if not seq:

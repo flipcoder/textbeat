@@ -286,7 +286,7 @@ class Track(Lane):
                         assert False
                 assert len(gmwords) > 0
                 if self.ctx.shell:
-                    log(FG.GREEN + 'GM Patch: ' + FG.WHITE +  gmwords[0])
+                    log(FG.GREEN + 'GM Patch: ' + STYLE.RESET_ALL +  gmwords[0])
                 p = GM_LOWER.index(gmwords[0])
                 # for i in range(len(GM_LOWER)):
                 #     continue_search = False
@@ -330,7 +330,7 @@ class Track(Lane):
         self.arp_notes_left = len(notes) * max(1,count)
         self.arp_idx = 0 # use inversions to move this start point (?)
         self.arp_once = False
-        self.arp_sustain = False
+        self.arp_sustain = sustain
     def arp_stop(self):
         self.arp_enabled = False
         self.release_all()
@@ -364,6 +364,7 @@ class Track(Lane):
         return bool(self.arp_note)
     def arp_restart(self, count = None):
         self.arp_enabled = True
+        # self.arp_sustain = False
         if count != None: # leave same (could be -1, so use -2)
             self.arp_count = count
         self.arp_idx = 0

@@ -1,29 +1,29 @@
 # TODO: eventually: scan and load plugins
 from .defs import *
 from shutilwhich import which
-import tempfile
+import tempfile, shutil
 # from xml.dom import minidom
 ARGS = get_args()
 SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['carla','supercollider','csound','midi', 'fluidsynth', 'sonicpi']) # gme,mpe
-gen_inited = False
+SUPPORT_ALL = set(['carla','midi', 'fluidsynth']) # gme,mpe,sonicpi,supercollider,csound
+auto_inited = False
 if which('carla'):
     SUPPORT.add('carla')
-    SUPPORT.add('gen') # auto generate
-    gen_inited = True
+    SUPPORT.add('auto') # auto generate
+    auto_inited = True
     
-if which('scsynth'):
-    try:
-        import oscpy
-        SUPPORT.add('supercollider')
-    except:
-        pass
+# if which('scsynth'):
+#     try:
+#         import oscpy
+#         SUPPORT.add('supercollider')
+#     except:
+#         pass
 
-try:
-    import psonic
-    SUPPORT.add('sonicpi')
-except ImportError:
-    pass
+# try:
+#     import psonic
+#     SUPPORT.add('sonicpi')
+# except ImportError:
+#     pass
 
 try:
     if which('fluidsynth'):
@@ -54,38 +54,73 @@ def csound_init(gen=[]):
 
 carla_inited = False
 carla_proc = None
-carla_proj = None
+carla_temp_proj = None
 def carla_init(gen):
     global carla_proc
-    global carla_proj
+    global carla_temp_proj
     global carla_inited
+    global carla_temp
+    
     if not carla_proc:
         import oscpy
         fn = ARGS['SONGNAME']
         if not fn:
             fn = 'default'
         if gen:
-            # generate proj file from devs
-            # embedded file -> /tmp/proj
-            # carla_proj = proj = fn.split('.')[0]+'.carxp' # TEMP: generate
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(temp_dir, os.path.join(os.path.abspath(sys.argv[0]),'presets','default.carxp'))
-            shutil.copy2(path, temp_path)
+            carla_temp_proj = tempfile.mkstemp('.carxp',fn)
+            os.close(carla_temp_proj[0])
+            carla_temp_proj = carla_temp_proj[1]
+            os.unlink(carla_temp_proj)
+            base_proj = os.path.join(os.path.join(os.path.dirname(os.path.abspath(__file__)),'presets','default.carxp'))
+            shutil.copy2(base_proj, carla_temp_proj)
+
+            # add instruments to temp proj file
+            filebuf = ''
+            with open(carla_temp_proj,'r') as f:
+                filebuf = f.read()
+            instrumentxml = ''
+            i = 0
+            for instrument in gen:
+                fnparts = instrument.split('.')
+                name = fnparts[0]
+                try:
+                    ext = fnparts[1].upper()
+                except IndexError:
+                    ext = 'LV2'
+                instrumentxml += '<!--'+name+'-->\n'+\
+                    '<Plugin><Info>\n'+\
+                    '<Type>'+ext+'</Type>\n'+\
+                    '<Name>'+name+'</Name>\n'+\
+                    '<URI>x</URI>'+\
+                    '</Info>\n'+\
+                    '<Data>\n'+\
+                        '<ControlChannel>N</ControlChannel>\n'+\
+                        '<Active>Yes</Active>\n'+\
+                        '<Options>'+hex(i)+'</Options>\n'+\
+                    '</Data>'+\
+                    '</Plugin>\n\n'
+                i += 1
+            filebuf = filebuf.replace('</EngineSettings>', '</EngineSettings>'+instrumentxml)
+            with open(carla_temp_proj,'w') as f:
+                f.write(filebuf)
+            
+            proj = carla_temp_proj
         else:
             proj = fn.split('.')[0]+'.carxp'
         if os.path.exists(proj):
-            carla_proc = subprocess.Popen(['carla', '--nogui', proj], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            print(proj)
+            carla_proc = subprocess.Popen(['carla',proj], stdout=subprocess.PIPE, stderr=subprocess.PIPE) # '--nogui', 
         elif not gen:
             log('To load a Carla project headless, create a \'%s\' file.' % proj)
     carla_inited = True
 
-def gen_init(gen):
+def auto_init(gen):
     carla_init(gen)
 
 support_init = {
     'csound': csound_init,
     'carla': carla_init,
-    'gen': gen_init,
+    'auto': auto_init,
 }
 
 def csound_send(s):
@@ -142,6 +177,9 @@ BGPROC = None
 # BGPROC.start()
 
 def support_stop():
+    global carla_temp_proj
+    if carla_temp_proj:
+        os.unlink(carla_temp_proj)
     if csound and csound_proc:
         csound_proc.kill()
     if carla_proc:
@@ -149,11 +187,11 @@ def support_stop():
     if BGPROC:
         BGPIPE.send((BGCMD.QUIT,))
         BGPROC.join()
-    if gen_inited and carla_proj:
-        try:
-            os.remove(carla_proj[1])
-        except OSError:
-            pass
-        except FileNotFoundError:
-            pass
+    # if gen_inited and carla_proj:
+    #     try:
+    #         os.remove(carla_proj[1])
+    #     except OSError:
+    #         pass
+    #     except FileNotFoundError:
+    #         pass
 

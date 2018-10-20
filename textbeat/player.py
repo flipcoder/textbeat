@@ -47,6 +47,7 @@ class Player(object):
         self.grid = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
         self.columns = 0
         self.column_shift = 0
+        self.showtextstr = []
         self.showtext = False # nice output (-v), only shell and cmd modes by default
         self.sustain = False # start sustained
         self.ring = False # disables midi muting on program exit
@@ -54,6 +55,7 @@ class Player(object):
         self.markers = {}
         f = StackFrame(-1,-1,0)
         f.returns[''] = 0
+        self.tutorial = None
         self.callstack = [f]
         self.separators = []
         self.track_history = ['.'] * NUM_TRACKS
@@ -64,6 +66,7 @@ class Player(object):
         self.stoprow = -1
         self.cmdmode = 'n' # n normal c command s sequence
         self.schedule = Schedule(self)
+        self.rack = []
         self.tracks = []
         self.shell = False
         self.remote = False
@@ -140,15 +143,18 @@ class Player(object):
     def refresh_devices(self):
         # determine output device support and load external programs
         # try:
-        import support
+        from .support import supports, support_init
         # except:
         #     import textbeat.support as support
         for dev in self.devices:
-            if not support.supports(dev):
-                print('device not supported by system: ' + dev)
+            if not supports(dev):
+                if dev!='auto':
+                    print('Device not supported by system: ' + dev)
+                else:
+                    print('Loading instrument presets requires Carla.')
                 assert False
             try:
-                support.support_init[dev](self.rack)
+                support_init[dev](self.rack)
             except KeyError:
                 # no init needed, silent
                 pass
@@ -265,9 +271,16 @@ class Player(object):
                                 #     ')> '
                                 modename = orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))
                                 
-                                cline = 'txbt> ('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
-                                    note_name(self.transpose + self.tracks[0].transpose) + ' ' +\
-                                    ('diatonic' if modename=='ionian' else modename) + \
+                                keynote = note_name(self.transpose + self.tracks[0].transpose)
+                                keynote = keynote if keynote!='C' else ''
+                                parts = [
+                                    str(int(self.tempo))+'bpm', # tempo
+                                    'x'+str(int(self.grid)), # subdiv
+                                    keynote,
+                                    ('' if modename=='ionian' else modename)
+                                ]
+                                cline = 'txbt> ('+ \
+                                    ' '.join(filter(lambda x: x, parts))+ \
                                     ')> '
                                 # if bufline.endswith('.txbt'):
                                     # play file?
@@ -1186,6 +1199,8 @@ class Player(object):
                     # save the intended notes since since scheduling may drop some
                     # during control phase
                     allnotes = notes 
+                    sustain = ch.sustain
+                    delay = 0.0
                     
                     # TODO: arp doesn't work if channel not visible/present, move this
                     if ch.arp_enabled:
@@ -1198,6 +1213,7 @@ class Player(object):
                             if ch.arp_next(self.shell or self.cmdmode in 'lc'):
                                 notes = [ch.arp_note]
                                 delay = ch.arp_delay
+                                sustain = ch.arp_sustain
                                 if not fzero(delay):
                                     ignore = False
                             #   schedule=True
@@ -1209,9 +1225,6 @@ class Player(object):
 
                     vel = ch.vel
                     stop = False
-                    sustain = ch.sustain
-                   
-                    delay = 0.0
                     showtext = []
                     arpnotes = False
                     arpreverse = False
@@ -1358,11 +1371,13 @@ class Player(object):
                             cell = cell[ct:]
                         elif c2=='__':
                             sustain = ch.sustain = True
+                            ch.arp_sustain = True
                             cell = cell[2:]
                         elif c2=='_-': # deprecated
                             sustain = False
                             cell = cell[2:]
                         elif c=='_':
+                            ch.arp_sustain = True
                             sustain = True
                             cell = cell[1:]
                         # elif c=='v': # volume - moved to CC
@@ -1386,14 +1401,16 @@ class Player(object):
                         elif cell.startswith('^'): # replay sequence
                             cell = cell[1:]
                             r,ct = peel_uint(cell,0)
+                            if self.showtext:
+                                showtext.append('play sequence: ' + num)
                             ch.replay(r)
                             cell = cell[ct:]
                         elif c2=='ch': # midi channel
                             num,ct = peel_uint(cell[1:])
                             cell = cell[1+ct:]
-                            ch.midi_channel(num)
                             if self.showtext:
-                                showtext.append('channel') 
+                                showtext.append('midi channel: ' + num) 
+                            ch.midi_channel(num)
                         elif c=='s':
                             # solo if used by itself (?)
                             # scale if given args
@@ -1570,6 +1587,7 @@ class Player(object):
                             if not notes:
                                 # & restarts arp (if no note)
                                 ch.arp_restart()
+                                # ch.arp_sustain = sustain
                             else:
                                 arpnotes = True
                                 arppattern = []
@@ -1677,7 +1695,7 @@ class Player(object):
                         #     pass
                             # schedule=True
 
-                    if notes and not tuplets:
+                    if notes and not tuplets and not sustain:
                         ch.release_all()
 
                     for ev in events:
@@ -1719,7 +1737,8 @@ class Player(object):
                         # if not schedule or (i==0 and strum>=EPSILON and delay<EPSILON):
                             ch.note_on(p + n, vel, sustain)
                         else:
-                            f = lambda _,ch=ch,p=p,n=n,vel=vel,sustain=sustain: ch.note_on(p + n, vel, sustain)
+                            f = lambda _, p=p,n=n,s=sustain,v=vel: \
+                                ch.note_on(p + n, v, s)
                             self.schedule.add(Event(delay,f,ch))
                         delay += delta
                         i += 1

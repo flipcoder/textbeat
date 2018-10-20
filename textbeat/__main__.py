@@ -4,18 +4,19 @@ Copyright (c) 2018 Grady O'Connell
 Open-source under MIT License
 
 Examples:
-    textbeat.py            shell
-    textbeat.py song.txbt  play song
+    textbeat                  shell
+    textbeat song.txbt        play song
 
 Usage:
-    textbeat.py [--dev=<device> | --verbose | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
-    textbeat.py [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --loop] [-eftnpsrxhv] [SONGNAME]
-    textbeat.py -c [COMMANDS ...]
-    textbeat.py -l [LINE_CONTENT ...]
+    textbeat [--dev=<device> | --midi=<fn> | --ring | --follow --stdin] [-aeftnpsrxhvL] [SONGNAME]
+    textbeat [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --stdin] [-aeftnpsrxhvL] [SONGNAME]
+    textbeat -c [COMMANDS ...]
+    textbeat -l [LINE_CONTENT ...]
 
 Options:
     -h --help             show this
     -v --verbose          verbose
+    -T --tutorial         (STUB) tutorial
     -t --tempo=<bpm>      (STUB) set tempo [default: 120]
     -x --grid=<g>         (STUB) set grid [default: 4]
     -n --note=<n>         (STUB) set grid using note value [default: 1]
@@ -25,9 +26,10 @@ Options:
     -f --flags            comma-separated global flags
     -c                    execute commands sequentially
     -l                    execute commands simultaenously
+    --stdin             read from stdin instead of file
     -r --remote           (STUB) remote/daemon mode, keep alive
     --ring                don't mute midi on end
-    --loop                loop song
+    -L --loop             loop song
     --midi=<fn>           generate midi file
     +<range>              play from line or maker, for range use start:end
     -e --edit             (STUB) open file in editor
@@ -41,7 +43,7 @@ Options:
     --lint                (STUB) analyze file
     --follow              (old) print newlines every line, no output
     --quiet               no output
-    --input               (STUB) midi input chord analyzer
+    -a --analyze          (STUB) midi input chord analyzer
 """
 from __future__ import absolute_import, unicode_literals, print_function, generators
 # try:
@@ -51,7 +53,7 @@ from .defs import *
 def main():
 # if __name__!='__main__':
 #     sys.exit(0)
-    ARGS = docopt(__doc__)
+    ARGS = docopt(__doc__.replace('TEXTBEAT',os.path.basename(sys.argv[0]).lower()))
     set_args(ARGS)
 
     from . import support
@@ -110,11 +112,13 @@ def main():
             elif arg == '--edit': pass
             elif arg == '-l': player.cmdmode = 'l'
             elif arg == '-c': player.cmdmode = 'c'
+            elif arg == '-T':
+                player.tutorial = Tutorial(player)
             elif arg =='--flags':
                 vals = val.split(',')
                 player.add_flags(map(player.FLAGS.index, vals))
             elif arg == '--loop': player.add_flags(Player.Flag.LOOP)
-            elif arg == '--renderman': player.renderman = True
+            # elif arg == '--renderman': player.renderman = True
 
     if player.cmdmode=='l':
         player.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
@@ -123,8 +127,14 @@ def main():
     else: # mode n
         # if len(sys.argv)>=2:
         #     FN = sys.argv[-1]
-        if ARGS['SONGNAME']:
-            FN = ARGS['SONGNAME']
+        FN = ARGS['SONGNAME']
+        from_stdin = False
+        if FN=='-' or ARGS['--stdin']:
+            FN = 0 # TEMP: doesnt work with py2
+            from_stdin = True
+        else:
+            from_stdin = False
+        if FN or from_stdin:
             # player.markers[''] = 0 # start marker
             with open(FN) as f:
                 lc = 0
@@ -161,7 +171,7 @@ def main():
                 player.cmdmode = ''
             player.shell = True
 
-    player.interactive = player.shell or player.remote
+    player.interactive = player.shell or player.remote or player.tutorial
 
     pygame.midi.init()
     if pygame.midi.get_count()==0:
@@ -258,20 +268,20 @@ def main():
         active = support.SUPPORT_ALL & support.SUPPORT
         inactive = support.SUPPORT_ALL - support.SUPPORT
         if active:
-            log(FG.GREEN + 'Active Modules: ' + FG.WHITE +  ', '.join(active) + FG.WHITE)
+            log(FG.GREEN + 'Active Modules: ' + STYLE.RESET_ALL +  ', '.join(active) + STYLE.RESET_ALL)
         if inactive:
-            log(FG.RED + 'Inactive Modules: ' +  FG.WHITE + ', '.join(inactive))
+            log(FG.RED + 'Inactive Modules: ' +  STYLE.RESET_ALL + ', '.join(inactive))
         if player.portname:
-            log(FG.GREEN + 'Device: ' + FG.WHITE + '%s' % (player.portname if player.portname else 'Unknown',))
-        log(FG.RED + 'Other Devices: ' + FG.WHITE + '%s' % (', '.join(portnames)))
+            log(FG.GREEN + 'Device: ' + STYLE.RESET_ALL + '%s' % (player.portname if player.portname else 'Unknown',))
+        log(FG.RED + 'Other Devices: ' + STYLE.RESET_ALL + '%s' % (', '.join(portnames)))
         if player.portname:
             if player.tracks[0].midich == DRUM_CHANNEL:
                 log(FG.GREEN + 'GM Percussion')
             else:
-                log(FG.GREEN + 'GM Patch: '+ FG.WHITE +'%s' % GM[player.tracks[0].patch_num]) 
+                log(FG.GREEN + 'GM Patch: '+ STYLE.RESET_ALL +'%s' % GM[player.tracks[0].patch_num]) 
 
-        log('Use -h for command line options.')
-        log('Read the manual and look at examples. Have fun!')
+        # log('')
+        # log(FG.BLUE + 'New? Type help and press enter to start the tutorial.')
         log('')
 
     player.run()
@@ -279,7 +289,7 @@ def main():
     if player.midifile:
         player.midifile.save(midifn)
 
-# TODO: turn all midi note off
+    # TODO: turn all midi note off
     i = 0
     for ch in player.tracks:
         if not player.ring:

@@ -29,8 +29,8 @@ Textbeat is a new project, but you can already do lots of cool things:
 - Strumming
 - Arpeggiation
 - Tuplets and polyrhythms
-- CC automation
-- Vibrato, pitch, and mod wheels
+- MIDI CC automation
+- Vibrato, pitch, and mod wheel control
 - Dynamics
 - Accents
 - Velocity
@@ -45,6 +45,8 @@ Textbeat is a new project, but you can already do lots of cool things:
 
 You can use the shell with General Midi out-of-the-box on windows, which is great for learning,
 but sounds bad without a decent soundfont.
+
+I'm currently working on headless VST rack generation.
 
 If you want to use VST instruments, you'll need to route the MIDI out to something that hosts them, like a DAW.
 
@@ -321,9 +323,9 @@ Unlike accents, volume changes persist.
 
 Interpolation is not yet impl
 
-## Articulation
+## Vibrato, Pitch, and Mod Wheel
 
-The vibrato symbol is a tilda (~).
+To add vibrato to a note, suffix it with a tilda (~).
 
 Vibrato uses the mod wheel right now, but will eventually use pitch wheel oscillation.
 
@@ -332,7 +334,7 @@ In the future, articulation will be programmable, per-track or per-song.
 ## Arpeggio Modulation
 
 Notes of arpeggios can be modified as they're running,
-by having effects in a grid space, for example:
+by having effects in the grid space they occur, for example:
 
 ```
 maj7&
@@ -347,7 +349,7 @@ maj7&
 
 maj7& starts a repeating 4-note arpeggio, and we indent to show this.
 
-Certain notes of the sequence are modulated with short/staccato '.', soft '?' and accent '!'
+Certain notes of the sequence are modulated with short/staccato '.', soft '?', and accent '!'
 
 For staccato usage w/o a note name, an extra dot is required since '.' is simply a placeholder.
 
@@ -367,7 +369,7 @@ The dots are placeholders.
 .    1''
 ```
 
-Columns can be detected in some cases, but you'll probably want to 
+Columns can be detected (in some cases), but you'll probably want to 
 specify the column width manually at the top,
 which allows vim to mark the columns.
 
@@ -386,7 +388,8 @@ For best view in an editor, it is recommended that you offset the first column b
 ## Patches
 
 Another useful global var is 'p', which sets midi patches by name or number
-across the tracks.  The midi names support partial case-insensitive matches.
+across the tracks.  The midi names support both patch numbers and partial case-insensitive
+matches of GM instruments.
 
 ```
 %t120 x2 p=piano,guitar,bass,drums c8,-2
@@ -396,17 +399,18 @@ For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/text
 
 ## Tuplets
 
-Very early support for this. See tuplet example.
-The 't' command spreads a set of notes across a tuplet grid,
-starting at the first occurence of t in that group.
+The 'T' (tuplet) gives us access to the musical concept of tuplets (called triplets in cases of 3).
+which allows note timing and durations to fall along a ratio instead of the usual note subdivisions.
+
+Tuplets are marked by 'T' and have an optional value at the first occurence in that group.
 Ratios provided will control expansion.  Default is 3:4.
 If no denominator is given, it will default to the next power of two
 (so 3:4, 5:8, 7:8, 11:16).
-So in other words if you need a 5:6, you'll need to write t5:6. :)
-The ratio of the beat saves.  You only need to specify it once per group.
+So in other words, T5 is the same as T5:8, but if you need a 5:6, you'll need to write T5:6.
+The ratio of the tuplet persists for the rest of the grouping.
 For nested tripets, group those by adding an extra 'T'.
 
-Consider the 2 tracks:
+The two tracks below are a basic usage of triplets:
 
 ```
 1     1T
@@ -419,8 +423,14 @@ Consider the 2 tracks:
 4
 ```
 
-The spacing is not even between the sets, but the 'T' value stretches them
-to make them line up in a default ratio of 3:4.
+The first column is playing notes along the grid normally, while the
+2nd column is playing 3 notes in the space of the others' 4 notes.
+
+Even though there is visual spacing between the triplet groups, the 'T' value effective
+stretches the notes so they occur along a slower grid according to that ratio.
+
+The spaces that occur after (and between) tuplet groupings should remain empty,
+since they are spacers to make the expansion line up.
 
 ## Picking
 
@@ -435,7 +445,7 @@ to make them line up in a default ratio of 3:4.
 # to set a relative key, this will go from a major scale to relative minor scale
 %k+6
 
-# you can also go down to relative minor below
+# you can also go downwards
 %k-6
 
 # scale names are supported, this changes the scale shape to dorian
@@ -447,10 +457,10 @@ to make them line up in a default ratio of 3:4.
 
 ## Chords (Advanced)
 
-Slash chords do not imply inversions,
-but are for stacking across octaves.  Additionally, note names alone do no imply chords.
+In textbeat, slash (/) chords do not imply inversions,
+but are for spanning chord voicings across octaves.  Additionally, note names alone do no imply chords.
 For example, C/E means play a C note with an E in a lower octave, whereas a musician might
-interpret this as a specific chord voicing.  (Inversions use shift operator (maj> for first inversion))
+interpret this as a specific chord voicing.  Inversions in textbeat uses shift operator (>) instead (maj> for maj first inversion))
 
 ```
 b7maj7#4/sus2/1
@@ -468,7 +478,7 @@ Check out the examples/ folder.  Play them with textbeat from the
 command line:
 
 ```
-./textbeat.py examples/jazz
+./txbt examples/jazz.txbt
 ``` 
 
 # Advanced
@@ -635,7 +645,7 @@ Example: 1~ is fine, but 1v is not. Use 1@v You only need one to combine: 1@v5e5
 Note: Fractional values specified are formated like numbers after a decimal point:
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
 
-CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/textbeat/blob/master/def/default.yaml).
+CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/textbeat/blob/master/textbeat/def/default.yaml).
 
 ```
 
@@ -659,9 +669,9 @@ CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/tex
 
 A majority of the music index is contained in inside these files:
 
-- Default: [def/default.yaml](https://github.com/flipcoder/textbeat/blob/master/def/default.yaml).
-- Informal: [def/informal.yaml](https://github.com/flipcoder/textbeat/blob/master/def/informal.yaml).
-- Experimental: [def/exp.yaml](https://github.com/flipcoder/textbeat/blob/master/def/exp.yaml).
+- Default: [def/default.yaml](https://github.com/flipcoder/textbeat/blob/master/textbeatdef/default.yaml).
+- Informal: [def/informal.yaml](https://github.com/flipcoder/textbeat/blob/master/textbeat/def/informal.yaml).
+- Experimental: [def/exp.yaml](https://github.com/flipcoder/textbeat/blob/master/textbeat/def/exp.yaml).
 
 These lists does not include certain chord modifications (add, no, drop, etc.).
 

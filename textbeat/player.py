@@ -1687,9 +1687,9 @@ class Player(object):
                     p = base
                     
                     if arpnotes:
-                        ch.arp(notes, arpcount, sustain, arppattern, arpreverse)
+                        ch.arp(notes, arpcount, sustain, arppattern, arpreverse, octave)
                         arpnext = ch.arp_next(self.shell or self.cmdmode in 'lc')
-                        notes = [ch.arp_note]
+                        notes = [ch.arp_note - (octave*12)] # [HACK] first note already has frame octave offset above
                         delay = ch.arp_delay
                         # if not fcmp(delay):
                         #     pass

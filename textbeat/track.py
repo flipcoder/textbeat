@@ -318,11 +318,11 @@ class Track(Lane):
     def bank(self, b):
         self.ccs[0] = b
         self.cc(0,b)
-    def arp(self, notes, count=0, sustain=False, pattern=[], reverse=False):
+    def arp(self, notes, count=0, sustain=False, pattern=[], reverse=False, octave=0):
         self.arp_enabled = True
         if reverse:
             notes = notes[::-1]
-        self.arp_notes = notes
+        self.arp_notes = list(map(lambda n: n + (octave*12), notes))
         self.arp_cycle_limit = count
         self.arp_cycle = count
         self.arp_pattern = pattern if pattern else [1]
@@ -361,7 +361,7 @@ class Track(Lane):
             self.arp_idx = 0
         # else:
         #     self.arp_idx += 1
-        return bool(self.arp_note)
+        return self.arp_note != None
     def arp_restart(self, count = None):
         self.arp_enabled = True
         # self.arp_sustain = False

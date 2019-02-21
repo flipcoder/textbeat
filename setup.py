@@ -15,7 +15,7 @@ setup(
     packages=['textbeat','textbeat.def','textbeat.presets'],
     include_package_data=True,
     install_requires=[
-        'pygame','colorama','prompt_toolkit','appdirs','pyyaml','docopt','future','shutilwhich'
+        'pygame','colorama','prompt_toolkit','appdirs','pyyaml','docopt','future','shutilwhich','mido'
     ],
     entry_points='''
         [console_scripts]

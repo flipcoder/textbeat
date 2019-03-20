@@ -5,11 +5,13 @@ Open-source under MIT License
 
 Examples:
     textbeat                  shell
+    textbeat -T               start tutorial
     textbeat song.txbt        play song
 
 Usage:
-    textbeat [--dev=<device> | --midi=<fn> | --ring | --follow --stdin] [-aeftnpsrxhvL] [SONGNAME]
-    textbeat [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --stdin] [-aeftnpsrxhvL] [SONGNAME]
+    textbeat [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [-adeftnpsrxhvL] [INPUT]
+    textbeat [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --stdin] [-adeftnpsrxhvL] [INPUT]
+    textbeat [-rT]
     textbeat -c [COMMANDS ...]
     textbeat -l [LINE_CONTENT ...]
 
@@ -26,8 +28,8 @@ Options:
     -f --flags            comma-separated global flags
     -c                    execute commands sequentially
     -l                    execute commands simultaenously
-    --stdin             read from stdin instead of file
-    -r --remote           (STUB) remote/daemon mode, keep alive
+    --stdin               read entire file from stdin
+    -r --remote           (STUB) realtime remote (control through stdin/out)
     --ring                don't mute midi on end
     -L --loop             loop song
     --midi=<fn>           generate midi file
@@ -112,8 +114,7 @@ def main():
             elif arg == '--edit': pass
             elif arg == '-l': player.cmdmode = 'l'
             elif arg == '-c': player.cmdmode = 'c'
-            elif arg == '-T':
-                player.tutorial = Tutorial(player)
+            elif arg == '-T': player.tutorial = Tutorial(player)
             elif arg =='--flags':
                 vals = val.split(',')
                 player.add_flags(map(player.FLAGS.index, vals))
@@ -124,10 +125,10 @@ def main():
         player.buf = ' '.join(ARGS['LINE_CONTENT']).split(';') # ;
     elif player.cmdmode=='c':
         player.buf = ' '.join(ARGS['COMMANDS']).split(' ') # spaces
-    else: # mode n
+    elif not player.tutorial: # mode n
         # if len(sys.argv)>=2:
         #     FN = sys.argv[-1]
-        FN = ARGS['SONGNAME']
+        FN = ARGS['INPUT']
         from_stdin = False
         if FN=='-' or ARGS['--stdin']:
             FN = 0 # TEMP: doesnt work with py2
@@ -175,17 +176,17 @@ def main():
 
     pygame.midi.init()
     if pygame.midi.get_count()==0:
-        print('No midi devices found.')
+        error('No midi devices found.')
         sys.exit(1)    
     dev = -1
 
 # if player.showtext:
 #     for i in range(pygame.midi.get_count()):
-#         print(pygame.midi.get_device_info(i))
+#         log(pygame.midi.get_device_info(i))
 
     DEVS = get_defs()['dev']
     if player.showtext:
-        print('MIDI Devices:')   
+        log('MIDI Devices:')
     portnames = []
     breakall = False
     firstpass = True
@@ -196,7 +197,7 @@ def main():
             if port[3]!=1:
                 continue
             if player.showtext:
-                print(' '*4 + portname) 
+                log(' '*4 + portname) 
             if player.portname:
                 if player.portname.lower() in portname.lower():
                     player.portname = portname
@@ -224,7 +225,7 @@ def main():
 #     #     continue
 #     portname = port[1].decode('utf-8')
 #     if player.showtext:
-#         print(' '*4 + portname) 
+#         log(' '*4 + portname) 
 #     if player.portname:
 #         if player.portname.lower() in portname.lower():
 #             player.portname = portname
@@ -238,7 +239,7 @@ def main():
 #                 break
 #     portnames += [portname]
     if player.showtext:
-        print('')  
+        log('')
 
     if dev == -1:
         dev = pygame.midi.get_default_output_id()

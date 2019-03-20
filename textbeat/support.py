@@ -1,15 +1,35 @@
-# TODO: eventually: scan and load plugins
 from .defs import *
 from shutilwhich import which
 import tempfile, shutil
 # from xml.dom import minidom
 ARGS = get_args()
 SUPPORT = set(['midi'])
-SUPPORT_ALL = set(['carla','midi', 'fluidsynth']) # gme,mpe,sonicpi,supercollider,csound
+SUPPORT_ALL = set(['carla', 'midi', 'fluidsynth', 'soundfonts']) # gme,mpe,sonicpi,supercollider,csound
+MIDI = True
+SOUNDFONTS = False # TODO: make this a SupportPlugin ref
+AUTO = False
 auto_inited = False
+
+# TODO: eventually: scan and load plugins
+
+class PluginType:
+    NONE = 0
+    AUTO = 1
+    SOUNDFONTS  = 2
+
+class Plugin:
+    def __init__(self, name, typ):
+        self.name = name
+        self.type = typ
+    def register(self):
+        pass
+        
+SUPPORT_PLUGINS = {}
+
 if which('carla'):
     SUPPORT.add('carla')
     SUPPORT.add('auto') # auto generate
+    AUTO = True
     auto_inited = True
     
 # if which('scsynth'):
@@ -27,7 +47,12 @@ if which('carla'):
 
 try:
     if which('fluidsynth'):
+        import fluidsynth # https://github.com/flipcoder/pyfluidsynth
         SUPPORT.add('fluidsynth')
+        SUPPORT.add('soundfonts')
+        SOUNDFONTS = True
+except AttributeError:
+    error("pyFluidSynth AttributeError detected. Use this pyFluidSynth version: https://github.com/flipcoder/pyfluidsynth")
 except ImportError:
     pass
 
@@ -108,7 +133,7 @@ def carla_init(gen):
         else:
             proj = fn.split('.')[0]+'.carxp'
         if os.path.exists(proj):
-            print(proj)
+            log(proj)
             carla_proc = subprocess.Popen(['carla',proj], stdout=subprocess.PIPE, stderr=subprocess.PIPE) # '--nogui', 
         elif not gen:
             log('To load a Carla project headless, create a \'%s\' file.' % proj)
@@ -175,6 +200,13 @@ BGPROC = None
 # BGPIPE, child = Pipe()
 # BGPROC = Process(target=bgproc_run, args=(child,))
 # BGPROC.start()
+
+def supports_soundfonts():
+    return SOUNDFONTS
+def supports_auto():
+    return AUTO
+def supports(tech):
+    return tech in SUPPORT
 
 def support_stop():
     global carla_temp_proj

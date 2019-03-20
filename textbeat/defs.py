@@ -132,6 +132,9 @@ def set_print(b):
     global PRINT
     PRINT = b
 
+def out(msg):
+    if PRINT:
+        print(msg)
 def log(msg):
     if PRINT:
         print(msg)

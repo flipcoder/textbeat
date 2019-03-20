@@ -1,5 +1,5 @@
-# TODO: This file includes code prototype that will be reorganized into
-#  other modules
+# TODO: This player modulde includes parser and player prototype code
+# that may eventually be reorganized into separate modules
 
 from .defs import *
 
@@ -138,7 +138,7 @@ class Player(object):
                 embedded_fn = row[1:]
                 embedded_file = []
             
-        # print(self.embedded_files.keys())
+        # out(self.embedded_files.keys())
 
     def refresh_devices(self):
         # determine output device support and load external programs
@@ -149,9 +149,9 @@ class Player(object):
         for dev in self.devices:
             if not supports(dev):
                 if dev!='auto':
-                    print('Device not supported by system: ' + dev)
+                    out('Device not supported by system: ' + dev)
                 else:
-                    print('Loading instrument presets requires Carla.')
+                    out('Loading instrument presets requires Carla.')
                 assert False
             try:
                 support_init[dev](self.rack)
@@ -204,15 +204,15 @@ class Player(object):
         if self.startrow==-1 and self.canfollow:
             cursor = self.row + 1
             if cursor != self.last_follow:
-                print(cursor)
+                out(cursor)
                 self.last_cursor = cursor
-            # print(self.rowno[self.row])
+            # out(self.rowno[self.row])
 
     def pause(self):
         try:
             for ch in self.tracks[:self.tracks_active]:
                 ch.release_all(True)
-            print('')
+            out('')
             input('PAUSED: Press ENTER to resume. Press Ctrl-C To quit.')
         except:
             return False
@@ -351,7 +351,7 @@ class Player(object):
                         self.row += 1
                         continue
                     
-                    # TODO: global 'silent' commands (doesn't take time)
+                    # TODO: global 'silent' commands (doesn't consume time)
                     if self.line.startswith('%'):
                         self.line = self.line[1:].strip() # remove % and spaces
                         for tok in self.line.split(' '):
@@ -407,7 +407,7 @@ class Player(object):
                                 elif op=='-':
                                     if var=='K':
                                         self.transpose -= note_offset(val)
-                                        print(note_offset(val))
+                                        out(note_offset(val))
                                     # elif var=='O': self.octave -= int(1 if val=='-' else val)
                                     elif var=='T': self.tempo -= max(0,float(val))
                                     elif var in 'GX': self.grid -= max(0,float(val))
@@ -505,7 +505,7 @@ class Player(object):
                                             #     self.transpose = 0
                                         
                                         except NoSuchScale:
-                                            print(FG.RED + 'No such scale.')
+                                            out(FG.RED + 'No such scale.')
                                             pass
                                     else: assert False # no such var
                                 else: assert False # no such op
@@ -677,6 +677,7 @@ class Player(object):
                     ch = self.tracks[cell_idx]
                     fullcell = cell[:]
                     ignore = False
+                    skipcell = False
                     
                     # if self.instrument != ch.instrument:
                     #     self.player.set_instrument(ch.instrument)
@@ -841,6 +842,9 @@ class Player(object):
                                 c = int(c)
                                 if c == 0:
                                     ignore = True
+                                    # TODO: allow zero if only if fretting mode
+                                    # skipcell = True
+                                    cell = cell[1:]
                                     break
                                 #     n = 1
                                 #     break
@@ -999,7 +1003,7 @@ class Player(object):
                                                     
                                                     num,ct = peel_uint(tok[cut+1:])
                                                     if ct:
-                                                        print(num)
+                                                        out(num)
                                                         cut += ct
                                                         cut -= 2 # remove "no"
                                                         chordname = chordname[:-2] # cut "no
@@ -1033,9 +1037,9 @@ class Player(object):
                                     # log(chordname)
                                     # don't include tuplet in chordname
                                     if 'add' in chordname:
-                                        # print(chordname)
+                                        # out(chordname)
                                         addtoks = chordname.split('add')
-                                        # print(addtoks)
+                                        # out(addtoks)
                                         chordname = addtoks[0]
                                         addnotes = addtoks[1:]
                                     
@@ -1128,7 +1132,6 @@ class Player(object):
                                         ignore = False # reenable default root if chord was w/o note name
                                         continue
                                     else:
-                                        # log('not chord, treat as note')
                                         pass
                                     #     assert False # not a chord, treat as note
                                     #     break
@@ -1145,6 +1148,7 @@ class Player(object):
                         #     noteloop = False
                             
                             slashnotes[0].append(n + chord_root-1)
+                        
                         
                         if expanded:
                             if not chord_notes:
@@ -1192,10 +1196,13 @@ class Player(object):
                     #     ch.strings = notes
                     #     notes = []
 
+                    # 'ignore' means do outer break
                     if ignore:
                         allnotes = []
                         notes = []
-
+                        # if skipcell: # 0 or something weird, completely skip line
+                        #     break
+                    
                     # save the intended notes since since scheduling may drop some
                     # during control phase
                     allnotes = notes 
@@ -1595,7 +1602,7 @@ class Player(object):
                                     if not (not arppattern and cell.startswith(':')) or\
                                         (arppattern and cell.startswith('|')):
                                         break
-                                    print(cell[1:])
+                                    out(cell[1:])
                                     num,ct = peel_int(cell[1:],1)
                                     if not ct:
                                         break
@@ -1623,8 +1630,8 @@ class Player(object):
                                         denom = 1 << i
                                         if denom > num:
                                             break
-                                # print('denom' + str(denom))
-                                # print('num ' + str(num))
+                                # out('denom' + str(denom))
+                                # out('num ' + str(num))
                                 ch.note_spacing = denom/float(num) # !
                                 ch.tuplet_count = int(num)
                                 ch.tuplet_offset = 0.0

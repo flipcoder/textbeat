@@ -340,7 +340,7 @@ class Track(Lane):
         # if not self.arp_enabled:
         #     self.arp_note = None
         #     return False
-        # print(self.arp_idx + 1)
+        # out(self.arp_idx + 1)
         if self.arp_notes_left != -1 or stop_infinite:
             if self.arp_notes_left != -1:
                 self.arp_notes_left = max(0, self.arp_notes_left - 1)
@@ -374,7 +374,7 @@ class Track(Lane):
             delay = self.tuplet_offset
             self.tuplet_offset += self.note_spacing - 1.0
             # if self.tuplet_offset >= 1.0 - EPSILON:
-            #     print('!!!')
+            #     out('!!!')
                 # self.tuplet_offset = 0.0
             self.tuplet_count -= 1
             if not self.tuplet_count:
@@ -383,7 +383,7 @@ class Track(Lane):
         #     self.tuplet_stop()
         # if feq(delay,1.0):
         #     return 0.0
-        # print(delay)
+        # out(delay)
         return delay
     def tuplet_stop(self):
         self.tuplets = False

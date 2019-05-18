@@ -16,11 +16,11 @@ class SuperCollider(Instrument):
     NAME = 'supercollider'
     def __init__(self):
         Instrument.__init__(self, SuperCollider.NAME)
-        self.enabled = False
+        self.initalized = False
     def init(self):
-        self.enabled = True
+        self.initalized = True
     def inited(self):
-        return self.enabled
+        return self.initalized
     def supported(self):
         return not ERROR
     def support(self):
@@ -28,5 +28,5 @@ class SuperCollider(Instrument):
     def stop(self):
         pass
 
-instrument.export(SuperCollider)
+export = SuperCollider
 

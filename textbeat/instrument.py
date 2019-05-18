@@ -13,11 +13,11 @@ class Instrument(object):
         pass
 
 PLUGINS = []
-# plugins call this method
-def export(s):
-    global PLUGINS
-    if s not in PLUGINS:
-        PLUGINS.append(s())
-def plugins():
-    return PLUGINS
+# # plugins call this method
+# def export(s):
+#     global PLUGINS
+#     if s not in PLUGINS:
+#         PLUGINS.append(s())
+# def plugins():
+#     return PLUGINS
 

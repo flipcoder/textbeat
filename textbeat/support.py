@@ -13,10 +13,19 @@ auto_inited = False
 
 SUPPORT_PLUGINS = {}
 
-# load new-style plugins from plugins dir
+# load plugins from plugins dir
+
+import textbeat.plugins as tbp
 from textbeat.plugins import *
-# get plugins from instrument modules's export list
-plugs = instrument.plugins()
+# search module exports for plugins
+plugs = []
+for p in tbp.__dict__:
+    try:
+        pattr = getattr(tbp, p)
+        plugs += [pattr.export()]
+    except:
+        pass
+# plugs = instrument.plugins()
 for plug in plugs:
     # plug.init()
     ps = plug.support()
@@ -29,6 +38,11 @@ for plug in plugs:
         if 'auto' in s:
             AUTO = True
             auto_inited = True
+        if 'soundfonts' in s:
+            SOUNDFONTS = True
+
+# Note: the plugins below are old-style (contained within this file).  New style
+#   plugins are in the plugins folder and are loaded above
 
 SUPPORT_ALL.add('carla')
 if which('carla'):
@@ -43,17 +57,17 @@ if which('carla'):
 # except ImportError:
 #     pass
 
-try:
-    SUPPORT_ALL.add('fluidsynth')
-    if which('fluidsynth'):
-        import fluidsynth # https://github.com/flipcoder/pyfluidsynth
-        SUPPORT.add('fluidsynth')
-        SUPPORT.add('soundfonts')
-        SOUNDFONTS = True
-# except AttributeError:
-#     error("pyFluidSynth AttributeError detected. Use this pyFluidSynth version: https://github.com/flipcoder/pyfluidsynth")
-except ImportError:
-    pass
+# try:
+#     SUPPORT_ALL.add('fluidsynth')
+#     if which('fluidsynth'):
+#         import fluidsynth # https://github.com/flipcoder/pyfluidsynth
+#         SUPPORT.add('fluidsynth')
+#         SUPPORT.add('soundfonts')
+#         SOUNDFONTS = True
+# # except AttributeError:
+# #     error("pyFluidSynth AttributeError detected. Use this pyFluidSynth version: https://github.com/flipcoder/pyfluidsynth")
+# except ImportError:
+#     pass
 
 csound = None
 # if which('csound'):
@@ -209,6 +223,7 @@ def supports(tech):
     return tech in SUPPORT
 
 def support_stop():
+    # stop old-style plugins
     global carla_temp_proj
     if carla_temp_proj:
         os.unlink(carla_temp_proj)
@@ -219,7 +234,8 @@ def support_stop():
     if BGPROC:
         BGPIPE.send((BGCMD.QUIT,))
         BGPROC.join()
-    global plugs
+
+    # stop plugins from plugins folder
     for plug in plugs:
         if plug.inited():
             plug.stop()

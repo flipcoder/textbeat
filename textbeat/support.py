@@ -1,6 +1,7 @@
 from .defs import *
 from shutilwhich import which
 import tempfile, shutil
+from . import instrument
 # from xml.dom import minidom
 ARGS = get_args()
 SUPPORT = set(['midi'])
@@ -10,34 +11,31 @@ SOUNDFONTS = False # TODO: make this a SupportPlugin ref
 AUTO = False
 auto_inited = False
 
-# TODO: eventually: scan and load plugins
-
-class PluginType:
-    NONE = 0
-    AUTO = 1
-    SOUNDFONTS  = 2
-
-class Plugin:
-    def __init__(self, name, typ):
-        self.name = name
-        self.type = typ
-    def register(self):
-        pass
-        
 SUPPORT_PLUGINS = {}
 
+# load new-style plugins from plugins dir
+from textbeat.plugins import *
+# get plugins from instrument modules's export list
+plugs = instrument.plugins()
+for plug in plugs:
+    # plug.init()
+    ps = plug.support()
+    SUPPORT_ALL = SUPPORT_ALL.union(ps)
+    if not plug.supported():
+        continue
+    for s in ps:
+        SUPPORT.add(s)
+        SUPPORT_PLUGINS[s] = plug
+        if 'auto' in s:
+            AUTO = True
+            auto_inited = True
+
+SUPPORT_ALL.add('carla')
 if which('carla'):
     SUPPORT.add('carla')
     SUPPORT.add('auto') # auto generate
     AUTO = True
     auto_inited = True
-    
-# if which('scsynth'):
-#     try:
-#         import oscpy
-#         SUPPORT.add('supercollider')
-#     except:
-#         pass
 
 # try:
 #     import psonic
@@ -46,18 +44,20 @@ if which('carla'):
 #     pass
 
 try:
+    SUPPORT_ALL.add('fluidsynth')
     if which('fluidsynth'):
         import fluidsynth # https://github.com/flipcoder/pyfluidsynth
         SUPPORT.add('fluidsynth')
         SUPPORT.add('soundfonts')
         SOUNDFONTS = True
-except AttributeError:
-    error("pyFluidSynth AttributeError detected. Use this pyFluidSynth version: https://github.com/flipcoder/pyfluidsynth")
+# except AttributeError:
+#     error("pyFluidSynth AttributeError detected. Use this pyFluidSynth version: https://github.com/flipcoder/pyfluidsynth")
 except ImportError:
     pass
 
 csound = None
 # if which('csound'):
+SUPPORT_ALL.add('csound')
 try:
     import csnd6
     SUPPORT.add('csound')
@@ -219,6 +219,10 @@ def support_stop():
     if BGPROC:
         BGPIPE.send((BGCMD.QUIT,))
         BGPROC.join()
+    global plugs
+    for plug in plugs:
+        if plug.inited():
+            plug.stop()
     # if gen_inited and carla_proj:
     #     try:
     #         os.remove(carla_proj[1])

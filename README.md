@@ -675,6 +675,12 @@ A majority of the music index is contained in inside these files:
 
 These lists does not include certain chord modifications (add, no, drop, etc.).
 
+# Plugins
+
+You may notice there are some incomplete module/plugin systems for integration 
+with different sound outputs and instruments hosts.
+These plugins are not yet functional.
+
 # What else?
 
 I'm improving this faster than I'm documenting it.  Because of that, not everything is explained.

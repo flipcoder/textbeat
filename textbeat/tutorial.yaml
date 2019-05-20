@@ -1,0 +1,175 @@
+tutorial:
+    - Introduction:
+      - text: |
+            Welcome to the textbeat tutorial!
+            Make sure your sound is on.
+            First, let's make sure you can hear midi.
+        prompt: |
+            Type the the number 1 and hit enter.
+        answer:
+            - '1'
+      - text: |
+            Did you hear a note?  It should probably sound like a low quality piano.
+            If you didn't, you need to check the manual for
+            setup instructions.  Textbeat does not (yet) come with builtin sounds.
+            You have to have something else that will play the notes!
+        prompt:
+            Everything good?  Type 1 to continue.
+        answer:
+            - '1'
+        - text: |
+            Alright, textbeat prefers note numbers.  But if you really like letters,
+            you can use those too.  By default, 1 is C.  Try it!
+        prompt:
+            Type C to play the note.
+        answer:
+            - C
+      - text: |
+            You are typing into the textbeat(txbt) shell.
+            Usually, you'd write songs in textbeat files (.txbt),
+            but this is a good enough place to start and learn what
+            commands do what.
+
+            There is one important difference between the shell and .txbt files.
+            
+            In the shell, you can type notes and they'll be played in sequence,
+            one after another.
+            But in .txbt files, everything is written vertically in columns,
+            so we can have different instruments on the same row.
+
+            Let's play some notes in sequence.  Type the notes below.
+        prompt:
+            '1 2 3'
+      - text: |
+            Woah, slow down there, Mozart.  It's time to change the tempo.
+            Currently we're at 120bpm (beats per minute) with 4 grid subdivisions.
+            
+            The subdivisions make the note faster, so let's slow that down.
+
+            Use the t and x global (%) commands to slow things down.
+        prompt:
+            '%t40x1'
+      - text: |
+            Alright, we're now at 40 beats per minute with no subdivisions From the top again!
+        prompt:
+            '1 2 3'
+      - text: |
+            Okay, let's try playing a scale. This is called the major scale.  It goes
+            from 1 all the way up to 1 in a higher octave.  We mark the higher octave
+            using \'
+        prompt:
+            "1 2 3 4 5 6 7 1'"
+      - text: |
+            We can use the higher octave with apostrophe (\') and lower with comma (,)
+        prompt:
+            "1, 1 1'"
+      - text: |
+            Let's stack 3 octaves of the same note.
+
+            The slash implies moving down to the next octave.
+
+            Musicians will hate me right now if I don't mention this.  This
+            syntax definition is SPECIFIC to textbeat.  There is something similar in music
+            called a slash chord (C/E).
+
+            In textbeat, the slash just means to stack the notes or chords.
+        prompt:
+            "1/1/1"
+      - text: |
+            Let's suffix this with a '&' to hear the notes played in sequence.
+            
+            In music, we call this an arpeggio.  We use the & symbol because it kind of
+            looks like an A for arpeggio.
+        prompt:
+            "1/1/1&"
+      - text: |
+            Alright, I'm bored of octaves, let's play a chord.
+        prompt:
+            'sus'
+      - text: |
+            You just played a sus chord (also called sus4).  Sus stands for suspended.
+
+            It contains the notes 1, 4, and 5 (relative to where we position it).
+            
+            Like octaves, sus has a very pure sound.  Let's arpeggiate it 3 times.
+
+            You\'ve probably heard this chord before in piano runs.
+        prompt:
+            'sus&3'
+      - text: |
+            Chords can be positioned wherever.  If we don't write a number, that
+            just means its on 1, or the note C.
+            
+            We can move the whole chord by writing a note number or letter before it.
+
+            Let's position it different places.
+        prompt:
+            '1sus 2sus 3sus'
+      - text: |
+            Let's introduce strum ($) chords.  In textbeat speak, this just opens
+            them up and plays them all in a single grid space,
+            instead of walking them slowly like the arpeggio (&) command.
+
+            We'll revisit strumming later, but until then, here it is.
+        prompt:
+            '1sus$ 2sus$ 3sus$'
+      - text: |
+            Alright, next, the major chord.  Let's arpeggiate (&) it.
+
+            Some people say major chords sound happy or accomplished.
+
+            There are a few ways to write this one (ma, maj, major, etc.)
+        prompt:
+            'ma&'
+      - text: |
+            Feeling happy yet?  Maybe this one will fit your mood more.
+            
+            Here's a minor chord.
+        prompt:
+            'm&'
+      - text: |
+            Minor sounds darker than major, maybe even sad.
+          
+            Alright let's walk some chords
+
+            Some major and some minor. Pay attention!
+            
+            I also slipped in a cool new one.
+        prompt:
+            '1ma 2m 3m 4ma 5ma 6m 7o 1ma'
+      - text: |
+            So we're moving the chords up while changing the chord shapes
+            as we go to what sounds the best.
+          
+            It might be worth mentioning, you can do the same thing with roman numerals.
+
+            The number implies position like the prefixes above, but they are
+            not notes by default, but major and minor chords depending on the case.
+            
+            The 'o' is short for diminished chord, and in our major scale you'll
+            find it on note 6.
+
+            Let's play these chords!
+        prompt:
+            "I ii iii IV V vi viio I'"
+      - text: |
+            Alright, so you know that diminished chord of 7?
+            It probably sounded good in this context, but if you play it by
+            itself it sounds a little bit unresolved.  Check it out.
+        prompt:
+            'o&'
+      - text: |
+            Sus, major, minor, and diminished.  That's a lot to take in.
+
+            Let's end with one more command. The underscore (_) sustains the notes
+            like a piano pedal.
+
+            Let's combine the strum and hold sustain commands ($_) and do
+            a nice piano run!
+        prompt:
+            'ma/ma/1$_'
+      - text: |
+            It's probably time for you to go experiment with what you've learned.
+
+            Come back for part II by typing tutorial2 in the shell.
+

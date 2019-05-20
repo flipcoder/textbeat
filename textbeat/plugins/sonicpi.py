@@ -10,13 +10,13 @@ except ImportError:
 
 class SonicPi(Instrument):
     NAME = 'sonicpi'
-    def __init__(self):
+    def __init__(self, args):
         Instrument.__init__(self, SonicPi.NAME)
         self.initalized = False
-    def init(self):
+    def enable(self):
         self.initalized = True
-    def inited(self):
-        return self.initalized
+    def enabled(self):
+        return self.initialized
     def supported(self):
         return not ERROR
     def support(self):

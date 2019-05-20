@@ -14,13 +14,13 @@ else:
 
 class SuperCollider(Instrument):
     NAME = 'supercollider'
-    def __init__(self):
+    def __init__(self, args):
         Instrument.__init__(self, SuperCollider.NAME)
         self.initalized = False
-    def init(self):
+    def enable(self):
         self.initalized = True
-    def inited(self):
-        return self.initalized
+    def enabled(self):
+        return self.enabled
     def supported(self):
         return not ERROR
     def support(self):

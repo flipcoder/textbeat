@@ -66,7 +66,7 @@ class Player(object):
         self.stoprow = -1
         self.cmdmode = 'n' # n normal c command s sequence
         self.schedule = Schedule(self)
-        self.rack = []
+        self.host = []
         self.tracks = []
         self.shell = False
         self.remote = False
@@ -143,7 +143,7 @@ class Player(object):
     def refresh_devices(self):
         # determine output device support and load external programs
         # try:
-        from .support import supports, support_init
+        from .support import supports, SUPPORT_PLUGINS
         # except:
         #     import textbeat.support as support
         for dev in self.devices:
@@ -151,17 +151,18 @@ class Player(object):
                 if dev!='auto':
                     out('Device not supported by system: ' + dev)
                 else:
-                    out('Loading instrument presets requires Carla.')
+                    out('Loading instrument presets requires a compatible host module.')
                 assert False
             try:
-                support_init[dev](self.rack)
+                # support_enable[dev](self.rack)
+                SUPPORT_PLUGINS[dev].enable(self.host)
             except KeyError:
                 # no init needed, silent
                 pass
         self.auto = 'auto' in self.devices
 
-    def set_rack(self, plugins):
-        self.rack = plugins
+    def set_host(self, plugins):
+        self.host = plugins
         self.refresh_devices()
         
     # def remove_flags(self, f):
@@ -421,7 +422,7 @@ class Player(object):
                                     elif var=='R':
                                         if not 'auto' in self.devices:
                                             self.devices = ['auto'] + self.devices
-                                        self.set_rack(val.split(','))
+                                        self.set_host(val.split(','))
                                     elif var=='V': self.version = val
                                     elif var=='D':
                                         self.devices = val.split(',')

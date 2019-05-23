@@ -9,9 +9,9 @@ Examples:
     textbeat song.txbt        play song
 
 Usage:
-    textbeat [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [-adeftnpsrxhvL] [INPUT]
-    textbeat [+RANGE] [--dev=<device> | --midi=<fn> | --ring | --follow | --stdin] [-adeftnpsrxhvL] [INPUT]
-    textbeat [-rT]
+    textbeat [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [-adeftnpsrxvL] [INPUT]
+    textbeat [+RANGE] [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [-adeftnpsrxL] [INPUT]
+    textbeat [-rhT]
     textbeat -c [COMMANDS ...]
     textbeat -l [LINE_CONTENT ...]
 
@@ -36,7 +36,7 @@ Options:
     +<range>              play from line or maker, for range use start:end
     -e --edit             (STUB) open file in editor
     --vi                  (STUB) shell vi mode
-    -h --transpose        transpose (in half steps)
+    -H --transpose        transpose (in half steps)
     --sustain             start with sustain enabled
     --numbers             use note numbers in output
     --notenames           use note names in output
@@ -55,7 +55,7 @@ from .defs import *
 def main():
 # if __name__!='__main__':
 #     sys.exit(0)
-    ARGS = docopt(__doc__.replace('TEXTBEAT',os.path.basename(sys.argv[0]).lower()))
+    ARGS = docopt(__doc__.replace('textbeat',os.path.basename(sys.argv[0]).lower()))
     set_args(ARGS)
 
     from . import support
@@ -86,6 +86,7 @@ def main():
             elif arg == '--midi':
                 midifn = val
                 player.midifile = mido.MidiFile()
+                player.cansleep = False
             elif arg == '--grid': player.grid = float(val)
             elif arg == '--note': player.grid = float(val)/4.0
             elif arg == '--speed': player.speed = float(val)

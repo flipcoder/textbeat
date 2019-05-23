@@ -40,6 +40,9 @@ class Track(Lane):
         self.initial_channel = midich
         self.non_drum_channel = midich
         self.reset()
+    def us(self):
+        # microseconds
+        return int(self.ctx.t)*1000000
     def reset(self):
         Lane.reset(self)
         self.mode = 0 # 0 is NONE which inherits global mode
@@ -179,13 +182,14 @@ class Track(Lane):
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE ON (%s, %s, %s)' % (n,v,ch))
             if (not self.ctx.muted or (self.ctx.muted and self.soloed))\
                 and self.enabled and self.ctx.startrow==-1:
-                self.midi[ch[0]].note_on(n,v,ch[1])
                 if self.ctx.midifile:
                     while ch[0] >= len(self.ctx.midifile.tracks):
                         self.ctx.midifile.tracks.append(mido.MidiTrack())
                     self.ctx.midifile.tracks[ch[0]].append(mido.Message(
-                        'note_on',velocity=v,time=int(self.ctx.t),channel=ch[1]
+                        'note_on',note=n,velocity=v,time=self.us(),channel=ch[1]
                     ))
+                else:
+                    self.midi[ch[0]].note_on(n,v,ch[1])
     def note_off(self, n, v=-1):
         if v == -1:
             v = self.vel
@@ -195,10 +199,21 @@ class Track(Lane):
             # log("off " + str(n))
             for ch in self.channels:
                 if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: NOTE OFF (%s, %s, %s)' % (n,v,ch))
-                self.midi[ch[0]].note_on(self.notes[n],0,ch[1])
-                self.midi[ch[0]].note_off(self.notes[n],v,ch[1])
+                if not self.ctx.midifile:
+                    self.midi[ch[0]].note_on(self.notes[n],0,ch[1])
+                    self.midi[ch[0]].note_off(self.notes[n],v,ch[1])
                 self.notes[n] = 0
                 self.sustain_notes[n] = 0
+                if self.ctx.midifile:
+                    while ch[0] >= len(self.ctx.midifile.tracks):
+                        self.ctx.midifile.tracks.append(mido.MidiTrack())
+                    self.ctx.midifile.tracks[ch[0]].append(mido.Message(
+                        'note_on',note=n,velocity=0,time=self.us(),channel=ch[1]
+                    ))
+                    self.ctx.midifile.tracks[ch[0]].append(mido.Message(
+                        'note_off',note=n,velocity=v,time=self.us(),channel=ch[1]
+                    ))
+
             self.cc(MIDI_SUSTAIN_PEDAL, True)
     def release_all(self, mute_sus=False, v=-1):
         if v == -1:

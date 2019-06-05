@@ -515,11 +515,11 @@ class Player(object):
                                     if self.midifile:
                                         if not self.midifile.tracks:
                                             self.midifile.tracks.append(mido.MidiTrack())
-                                        # self.midifile.tracks[0].append(mido.MetaMessage(
-                                        #     'set_tempo', tempo=mido.bpm2tempo(int(
-                                        #         val.split('x')[0]
-                                        #     ))
-                                        # ))
+                                        self.midifile.tracks[0].append(mido.MetaMessage(
+                                            'set_tempo', tempo=mido.bpm2tempo(int(
+                                                val.split('x')[0]
+                                            ))
+                                        ))
                         self.row += 1
                         continue
                     

@@ -140,6 +140,11 @@ class Track(Lane):
         # if f != f & FLAGS:
         #     raise ParseError('invalid flags')
         return self.flags & f
+    def midifile_write(self, ch, msg):
+        # ch: midi channel index, not midi channel # (index 0 of self.channels tuple item)
+        while ch >= len(self.ctx.midifile.tracks):
+            self.ctx.midifile.tracks.append(mido.MidiTrack())
+        self.ctx.midifile.tracks[ch].append(msg)
     def enable(self, v=True):
         was = v
         if not was and v:
@@ -152,7 +157,10 @@ class Track(Lane):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,120,0))
-            self.midi[ch[0]].write_short(status, 120, 0)
+            if self.ctx.midifile:
+                self.midifile_write(ch[0], mido.UnknownMetaMessage(status,data=[120, 0],time=self.us()))
+            else:
+                self.midi[ch[0]].write_short(status, 120, 0)
             if self.modval>0:
                 self.refresh()
                 self.modval = False
@@ -161,7 +169,10 @@ class Track(Lane):
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status,123,0))
-            self.midi[ch[0]].write_short(status, 123, 0)
+            if self.ctx.midifile:
+                self.midifile_write(ch[0], mido.UnknownMetaMessage(status, [123, 0], time=self.us()))
+            else:
+                self.midi[ch[0]].write_short(status, 123, 0)
             if self.modval>0:
                 self.refresh()
                 self.modval = False
@@ -183,9 +194,7 @@ class Track(Lane):
             if (not self.ctx.muted or (self.ctx.muted and self.soloed))\
                 and self.enabled and self.ctx.startrow==-1:
                 if self.ctx.midifile:
-                    while ch[0] >= len(self.ctx.midifile.tracks):
-                        self.ctx.midifile.tracks.append(mido.MidiTrack())
-                    self.ctx.midifile.tracks[ch[0]].append(mido.Message(
+                    self.midifile_write(ch[0], mido.Message(
                         'note_on',note=n,velocity=v,time=self.us(),channel=ch[1]
                     ))
                 else:
@@ -205,12 +214,10 @@ class Track(Lane):
                 self.notes[n] = 0
                 self.sustain_notes[n] = 0
                 if self.ctx.midifile:
-                    while ch[0] >= len(self.ctx.midifile.tracks):
-                        self.ctx.midifile.tracks.append(mido.MidiTrack())
-                    self.ctx.midifile.tracks[ch[0]].append(mido.Message(
+                    self.midifile_write(ch[0], mido.Message(
                         'note_on',note=n,velocity=0,time=self.us(),channel=ch[1]
                     ))
-                    self.ctx.midifile.tracks[ch[0]].append(mido.Message(
+                    self.midifile_write(ch[0], mido.Message(
                         'note_off',note=n,velocity=v,time=self.us(),channel=ch[1]
                     ))
 
@@ -261,13 +268,19 @@ class Track(Lane):
         for ch in self.channels:
             status = (MIDI_PITCH<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2))
-            self.midi[ch[0]].write_short(status,val,val2)
+            if self.ctx.midifile:
+                self.midifile_write(ch[0],mido.UnknownMetaMessage(status,data=[val1,val2], time=self.us()))
+            else:
+                self.midi[ch[0]].write_short(status,val,val2)
     def cc(self, cc, val): # control change
         if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
-            self.midi[ch[0]].write_short(status,cc,val)
+            if self.ctx.midifile:
+                self.midifile_write(ch[0], mido.UnknownMetaMessage(status,data=[cc,val],time=self.us()))
+            else:
+                self.midi[ch[0]].write_short(status,cc,val)
             self.ccs[cc] = v
         if cc==1:
             self.modval = val

@@ -229,11 +229,12 @@ class Player(object):
         embedded_file = False
         
         # set initial midifile tempo
-        if not self.midifile.tracks:
-            self.midifile.tracks.append(mido.MidiTrack())
-        self.midifile.tracks[0].append(mido.MetaMessage(
-            'set_tempo', tempo=mido.bpm2tempo(self.tempo)
-        ))
+        if self.midifile:
+            if not self.midifile.tracks:
+                self.midifile.tracks.append(mido.MidiTrack())
+            self.midifile.tracks[0].append(mido.MetaMessage(
+                'set_tempo', tempo=mido.bpm2tempo(self.tempo)
+            ))
         
         while not self.quitflag:
             self.follow()

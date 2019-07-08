@@ -43,7 +43,7 @@ Options:
     --flats               prefer flats in output (default)
     --sharps              prefer sharps in output
     --lint                (STUB) analyze file
-    --follow              (old) print newlines every line, no output
+    --follow              tracks file output for editors by printing newlines every line
     --quiet               no output
     -a --analyze          (STUB) midi input chord analyzer
 """
@@ -55,7 +55,8 @@ from .defs import *
 def main():
 # if __name__!='__main__':
 #     sys.exit(0)
-    ARGS = docopt(__doc__.replace('textbeat',os.path.basename(sys.argv[0]).lower()))
+    # ARGS = docopt(__doc__.replace('textbeat',os.path.basename(sys.argv[0]).lower()))
+    ARGS = docopt(__doc__)
     set_args(ARGS)
 
     from . import support

@@ -201,6 +201,8 @@ class Player(object):
             return
         return self.flags & f
 
+    # for editor integration: "follows" the output of the file by printing
+    #   newlines to stdout for every parsed line
     def follow(self):
         if self.startrow==-1 and self.canfollow:
             cursor = self.row + 1
@@ -225,6 +227,13 @@ class Player(object):
         
         self.header = True
         embedded_file = False
+        
+        # set initial midifile tempo
+        if not self.midifile.tracks:
+            self.midifile.tracks.append(mido.MidiTrack())
+        self.midifile.tracks[0].append(mido.MetaMessage(
+            'set_tempo', tempo=mido.bpm2tempo(self.tempo)
+        ))
         
         while not self.quitflag:
             self.follow()
@@ -695,7 +704,7 @@ class Player(object):
 
                     cell = cell.strip()
                     if cell:
-                        self.header = False
+                        self.header = False # contents here, no longer in file header
                     
                     if cell.count('\"') == 1: # " is recall, but multiple " means lyrics/speak?
                         cell = cell.replace("\"", self.track_history[cell_idx])
@@ -703,7 +712,7 @@ class Player(object):
                         self.track_history[cell_idx] = cell
                     
                     fullcell_sub = cell[:]
-                    
+
                     # empty
                     # if not cell:
                     #     cell_idx += 1
@@ -821,7 +830,9 @@ class Player(object):
                             # try to get roman numberal or number
                             c,ct = peel_roman_s(tok)
                             ambiguous = 0
-                            for amb in ('ion','dor','dim','dom','alt','dou','egy','aeo','dia','gui','bas','aug'): #  TODO: make these auto
+                            # Help parser ambiguities (TODO: make these automatic)
+                            # (These are names that begin with letters or roman numerals)
+                            for amb in ('ion','dor','dim','dom','alt','dou','egy','aeo','dia','gui','bas','aug'):
                                 ambiguous += tok.lower().startswith(amb)
                             if ct and not ambiguous:
                                 lower = (c.lower()==c)

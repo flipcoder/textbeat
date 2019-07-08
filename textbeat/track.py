@@ -1,4 +1,5 @@
 from .defs import *
+import math
 
 class Recording(object):
     def __init__(self, name, slot):
@@ -42,7 +43,8 @@ class Track(Lane):
         self.reset()
     def us(self):
         # microseconds
-        return int(self.ctx.t)*1000000
+        # return int(self.ctx.t)*1000000
+        return math.floor(mido.second2tick(self.ctx.t, self.ctx.grid, self.ctx.tempo))
     def reset(self):
         Lane.reset(self)
         self.mode = 0 # 0 is NONE which inherits global mode
@@ -144,6 +146,7 @@ class Track(Lane):
         # ch: midi channel index, not midi channel # (index 0 of self.channels tuple item)
         while ch >= len(self.ctx.midifile.tracks):
             self.ctx.midifile.tracks.append(mido.MidiTrack())
+        # print(msg)
         self.ctx.midifile.tracks[ch].append(msg)
     def enable(self, v=True):
         was = v

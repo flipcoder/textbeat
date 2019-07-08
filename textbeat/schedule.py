@@ -61,8 +61,8 @@ class Schedule(object):
             
             slp = t*(1.0-self.passed) # remaining time
             if slp > 0.0:
+                self.ctx.t += self.ctx.speed*slp
                 if self.ctx.cansleep and self.ctx.startrow == -1:
-                    self.ctx.t += self.ctx.speed*slp
                     time.sleep(self.ctx.speed*slp)
             self.passed = 0.0
             

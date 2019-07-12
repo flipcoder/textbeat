@@ -202,12 +202,12 @@ class Player(object):
         return self.flags & f
 
     # for editor integration: "follows" the output of the file by printing
-    #   newlines to stdout for every parsed line
+    #   line numbers to stdout for every parsed line
     def follow(self):
         if self.startrow==-1 and self.canfollow:
             cursor = self.row + 1
             if cursor != self.last_follow:
-                out(cursor)
+                print(cursor)
                 self.last_cursor = cursor
             # out(self.rowno[self.row])
 

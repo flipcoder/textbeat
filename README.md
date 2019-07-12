@@ -24,7 +24,7 @@ but with syntax inspired by jazz/music theory.
 
 # Features
 
-Textbeat is a new project, but you can already do lots of cool things:
+Textbeat is still in development, but you can already do lots of cool things:
 
 - Strumming
 - Arpeggiation
@@ -43,19 +43,51 @@ Textbeat is a new project, but you can already do lots of cool things:
 
 # Setup
 
+## Linux
+
+```
+git clone https://github.com/flipcoder/textbeat
+cd textbeat
+sudo python setup.py install
+textbeat
+```
+
+## Windows (Powershell)
+
+```
+git clone https://github.com/flipcoder/textbeat
+cd textbeat
+pip install -r requirements.txt
+./txbt.cmd
+```
+
+## Test it out!
+
+Once you're in textbeat, try this:
+
+```
+maj&
+```
+
+If you don't hear 3 notes, you need to set up midi (this is the case with Linux).
+
+## How to set up midi
+
 You can use the shell with General Midi out-of-the-box on windows, which is great for learning,
 but sounds bad without a decent soundfont.
 
-I'm currently working on headless VST rack generation.
-
 If you want to use VST instruments, you'll need to route the MIDI out to something that hosts them, like a DAW.
+(I'm currently working on headless VST rack generation.)
 
 For windows, you can use a virtual midi driver, such as [loopMIDI](http://www.tobias-erichsen.de/software/loopmidi.html) for usage with a VST host or DAW.
 
-If you're on Linux, you can use soundfonts through qsynth or use a software instrument like helm or dexed.  VSTs should work here as well.
+If you're on Linux, you can use soundfonts through qsynth or use a software instrument like helm or dexed.  I recommend qsynth.
+
+VSTs should work here as well but you need to pick a host.
 
 If you feed the MIDI into a DAW you'll be able to record the output through the DAW itself.
-I'm currently looking into recording via a headless host.
+
+I'm currently looking into export options and recording via a headless host.
 
 # Tutorial
 

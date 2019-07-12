@@ -221,13 +221,7 @@ class Player(object):
             return False
         return True
 
-    def run(self):
-        for ch in self.tracks:
-            ch.refresh()
-        
-        self.header = True
-        embedded_file = False
-        
+    def write_midi_tempo(self):
         # set initial midifile tempo
         if self.midifile:
             if not self.midifile.tracks:
@@ -235,6 +229,15 @@ class Player(object):
             self.midifile.tracks[0].append(mido.MetaMessage(
                 'set_tempo', tempo=mido.bpm2tempo(self.tempo)
             ))
+
+    def run(self):
+        for ch in self.tracks:
+            ch.refresh()
+        
+        self.header = True
+        embedded_file = False
+        
+        self.write_midi_tempo()
         
         while not self.quitflag:
             self.follow()
@@ -1315,11 +1318,12 @@ class Player(object):
                         #     c = cell[1]
                         #     shift = int(c) if c.isdigit() else 0
                         #     p = base + (octave+shift) * 12
-                        # INVERSION
                         ct = 0
-                        if c2==';;':
+                        # CELL COMMENTS
+                        if c2==';;': # cell comment
                             cell = []
                             break
+                        #INVERSIONS
                         elif c == '>' or c=='<':
                             sign = (1 if c=='>' else -1)
                             ct = count_seq(cell)
@@ -1333,6 +1337,7 @@ class Player(object):
                             if ch.arp_enabled:
                                 ch.arp_notes = ch.arp_notes[1:] + ch.arp_notes[:1]
                             cell = cell[ct:]
+                        # OCTAVE SHIFTING
                         elif c == ',' or c=='\'':
                             cell = cell[1:]
                             sign = 1 if c=='\'' else -1
@@ -1356,7 +1361,8 @@ class Player(object):
                                 shift = 1
                             ch.octave = octave
                             # row_events += 1
-                        elif clen>1 and c=='~': # pitch wheel
+                        # PITCH WHEEL
+                        elif clen>1 and c=='~':
                             cell = cell[1:]
                             # sn = 1.0
                             if cell[0]=='/' or cell[0]=='\\':
@@ -1379,16 +1385,20 @@ class Player(object):
                                     cell = cell[1:]
                                 vel = min(127,int(ch.vel + 0.5*(127.0-ch.vel)))
                             ch.pitch(vel)
-                        elif c == '~': #  vibrato
+                        # VIBRATO
+                        elif c == '~':
                             ch.mod(127) # TODO: pitch osc in the future
                             cell = cell[1:]
+                        # MOD WHEEL
                         # elif c == '`': # mod wheel -- moved to CC
                         #     ch.mod(127)
                         #     cell = cell[1:]
+                        # MUTE SUSTAIN
                         elif cell.startswith('--'):
                             num, ct = count_seq('-')
                             sustain = ch.sustain = False
                             cell = cell[ct:]
+                        # STOP/PANIC
                         elif cell.startswith('='):
                             num, ct = count_seq('=')
                             if num==2:
@@ -1398,13 +1408,16 @@ class Player(object):
                             if num<=3:
                                 sustain = ch.sustain = False
                             cell = cell[ct:]
+                        # SUSTAIN HOLD
                         elif c2=='__':
                             sustain = ch.sustain = True
                             ch.arp_sustain = True
                             cell = cell[2:]
-                        elif c2=='_-': # deprecated
+                        # [DEPRECATED] STOP SUSTAIN
+                        elif c2=='_-':
                             sustain = False
                             cell = cell[2:]
+                        # SUSTAIN
                         elif c=='_':
                             ch.arp_sustain = True
                             sustain = True
@@ -1422,32 +1435,38 @@ class Player(object):
                         #     cell = cell[len(num):]
                         #     vel = int((float(num) / float('9'*len(num)))*127)
                         #     ch.cc(7,vel)
-                        elif cell.startswith('^^'): # record sequence
+                        # RECORD SEQ
+                        elif cell.startswith('^^'):
                             cell = cell[2:]
                             r,ct = peel_uint(cell,0)
                             ch.record(r)
                             cell = cell[ct:]
-                        elif cell.startswith('^'): # replay sequence
+                        # REPLAY SEQ
+                        elif cell.startswith('^'):
                             cell = cell[1:]
                             r,ct = peel_uint(cell,0)
                             if self.showtext:
                                 showtext.append('play sequence: ' + num)
                             ch.replay(r)
                             cell = cell[ct:]
-                        elif c2=='ch': # midi channel
+                        # MIDI CHANNEl
+                        elif c2=='ch':
                             num,ct = peel_uint(cell[1:])
                             cell = cell[1+ct:]
                             if self.showtext:
                                 showtext.append('midi channel: ' + num) 
                             ch.midi_channel(num)
+                        # SCALE
                         elif c=='s':
                             # solo if used by itself (?)
                             # scale if given args
                             # ch.soloed = True
                             cell = cell[1:]
+                        # MUTE
                         elif c=='m':
                             ch.enable(c=='m')
                             cell = cell[1:]
+                        # MIDI CC
                         elif c=='c': # MIDI CC
                             # get number
                             cell = cell[1:]
@@ -1462,7 +1481,8 @@ class Player(object):
                             cell = cell[ct:]
                             ccval = int(num)
                             ch.cc(cc,ccval)
-                        elif c=='p': # program/patch change
+                        # PROGRAM/PATCH CHANGE
+                        elif c=='p':
                             # bank select as other args?
                             cell = cell[1:]
                             p,ct = peel_uint(cell)
@@ -1471,7 +1491,8 @@ class Player(object):
                                 cell = []
                             cell = cell[ct:]
                             ch.patch(p)
-                        elif c2=='bs': # program/patch change
+                        # BANK SELECT
+                        elif c2=='bs': 
                             cell = cell[2:]
                             num,ct = peel_uint(cell)
                             cell = cell[ct:]
@@ -1486,6 +1507,7 @@ class Player(object):
                                 b = num2 # second val -> lsb
                                 b |= num << 8 # first value -> msb
                             ch.bank(b)
+                        # NOTE LENGTH
                         elif c=='*':
                             dots = count_seq(cell)
                             if notes:
@@ -1507,6 +1529,7 @@ class Player(object):
                                 cell = cell[dots:]
                             if self.showtext:
                                 showtext.append('duration(*)')
+                        # PLACEHOLDER
                         elif c=='.':
                             dots = count_seq(cell)
                             if len(c)>1 and notes:
@@ -1527,6 +1550,7 @@ class Player(object):
                                 cell = cell[dots:]
                             if self.showtext:
                                 showtext.append('shorten(.)')
+                        # NOTE TIME SHIFT
                         elif c=='(' or c==')': # note shift (early/delay)
                             num = ''
                             cell = cell[1:]
@@ -1538,11 +1562,14 @@ class Player(object):
                                 error('delay >= 0')
                                 cell = []
                                 continue
+                        # MARKER (ignore -- already parsed)
                         elif c=='|':
                             cell = []
+                        # MARKER (ignore -- already parsed)
                         elif c==':':
                             cell = []
-                        elif c2=='!!': # full accent
+                        # FULL ACCENT
+                        elif c2=='!!':
                             accent = '!!'
                             cell = cell[2:]
                             vel,ct = peel_uint_s(cell,127)
@@ -1556,7 +1583,8 @@ class Player(object):
                                     vel = 127
                             if self.showtext:
                                 showtext.append('accent(!!)')
-                        elif c=='!': # accent
+                        # ACCENT
+                        elif c=='!':
                             accent = '!'
                             cell = cell[1:]
                             # num,ct = peel_uint_s(cell)
@@ -1570,7 +1598,8 @@ class Player(object):
                                 vel = constrain(int(ch.vel + 0.5*(127.0-ch.vel)),127)
                             if self.showtext:
                                 showtext.append('accent(!)')
-                        elif c2=='??': # ghost
+                        # GHOST NOTE
+                        elif c2=='??':
                             accent = '??'
                             if ch.ghost_vel >= 0:
                                 vel = ch.ghost_vel
@@ -1579,7 +1608,8 @@ class Player(object):
                             cell = cell[2:]
                             if self.showtext:
                                 showtext.append('soften(??)')
-                        elif c=='?': # soft
+                        # SOFT NOTE
+                        elif c=='?':
                             accent = '?'
                             if ch.soft_vel >= 0:
                                 vel = ch.soft_vel
@@ -1589,7 +1619,8 @@ class Player(object):
                             if self.showtext:
                                 showtext.append('soften(?)')
                         # elif cell.startswith('$$') or (c=='$' and lennotes==1):
-                        elif c=='$': # strum/spread/tremolo
+                        # STRUM/SPREAD/TREMOLO
+                        elif c=='$':
                             sq = count_seq(cell)
                             cell = cell[sq:]
                             num,ct = peel_uint_s(cell,'0')
@@ -1605,6 +1636,7 @@ class Player(object):
                                 ch.soft_vel = vel 
                             if self.showtext:
                                 showtext.append('strum($)')
+                        # ARPEGGIO
                         elif c=='&':
                             count = count_seq(cell)
                             arpcount,ct = peel_uint(cell[count:],0)
@@ -1632,7 +1664,8 @@ class Player(object):
                                     cell = cell[1+ct:]
                             if self.showtext:
                                 showtext.append('arpeggio(&)')
-                        elif c=='t': #  tuplets
+                        # TUPLETS
+                        elif c=='t':
                             tuplets = True
                             tups = count_seq(cell,'t')
                             Tups = count_seq(cell[tups:],'T')
@@ -1661,10 +1694,12 @@ class Player(object):
                         #     if not notes:
                         #         cell = []
                         #         continue # ignore marker
+                        # GLOABL VARS (ignore -- already parsed)
                         elif c=='%':
                             # ctrl line
                             cell = []
                             break
+                        # MIDI CC
                         elif c2 in CC:
                             cell = cell[2:]
                             num,ct = peel_uint_s(cell)
@@ -1676,6 +1711,7 @@ class Player(object):
                                     cell = cell[1:]
                                 num = 1.0
                             ch.cc(CC[c2],constrain(int(num*127.0),127))
+                        # PERSISTENT VELOCITY
                         elif c in '0123456789':
                             # set persistent track velocity for accent level
                             num,ct = peel_uint(cell)
@@ -1691,6 +1727,7 @@ class Player(object):
                             else:
                                 ch.vel = num
                             vel = num 
+                        # MIDI CC
                         elif c in CC:
                             cell = cell[1:]
                             num,ct = peel_uint_s(cell)
@@ -1700,6 +1737,7 @@ class Player(object):
                             else:
                                 num = 1.0
                             ch.cc(CC[c],constrain(int(num*127.0),127))
+                        # PARSE ERROR
                         else:
                             # if self.cmdmode in 'cl':
                             log(FG.BLUE + self.line)
@@ -1737,7 +1775,7 @@ class Player(object):
                         strum -= strum
                     if strum > EPSILON:
                         ln = len(notes)
-                        delta = (1.0/(ln*forr(duration,1.0))) #t between notes
+                        delta = (1.0/(ln*forr(duration,1.0))) # t between notes
 
                     if self.showtext:
                         # log(FG.MAGENTA + ', '.join(map(lambda n: note_name(p+n), notes)))
@@ -1766,6 +1804,7 @@ class Player(object):
                         # if not schedule or (i==0 and strum>=EPSILON and delay<EPSILON):
                             ch.note_on(p + n, vel, sustain)
                         else:
+                            # schedule note to occur later
                             f = lambda _, p=p,n=n,s=sustain,v=vel: \
                                 ch.note_on(p + n, v, s)
                             self.schedule.add(Event(delay,f,ch))
@@ -1776,6 +1815,7 @@ class Player(object):
          
                 while True:
                     try:
+                        # don't delay on ctrl lines or file header
                         if not ctrl and not self.header:
                             self.schedule.logic(60.0 / self.tempo / self.grid)
                             break

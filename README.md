@@ -52,7 +52,7 @@ sudo python setup.py install
 textbeat
 ```
 
-## Windows (Powershell)
+## Windows
 
 ```
 git clone https://github.com/flipcoder/textbeat

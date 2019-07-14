@@ -52,12 +52,12 @@ sudo python setup.py install
 textbeat
 ```
 
-## Windows (Powershell)
+## Windows
 
 ```
 git clone https://github.com/flipcoder/textbeat
 cd textbeat
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ./txbt.cmd
 ```
 

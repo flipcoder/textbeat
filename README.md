@@ -427,7 +427,7 @@ matches of GM instruments.
 %t120 x2 p=piano,guitar,bass,drums c8,-2
 ```
 
-For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/textbeat/blob/master/config/gm.yaml).
+For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/textbeat/blob/master/textbeat/def/gm.yaml).
 
 ## Tuplets
 

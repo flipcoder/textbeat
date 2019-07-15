@@ -93,7 +93,7 @@ def peel_any(s, match, d=''):
             ct += 1
         else:
             break
-    return (ct,orr(r,d))
+    return (orr(r,d),ct)
 
 def note_value(s): # turns dot note values (. and *) into frac
     if not s:

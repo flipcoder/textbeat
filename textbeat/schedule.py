@@ -14,6 +14,7 @@ class Schedule(object):
         # we'll need to reenter knowing this value
         self.passed = 0.0 
         self.clock = 0.0
+        self.last_clock = 0
         self.started = False
     # all note mute and play events should be marked skippable
     def pending(self):
@@ -29,6 +30,12 @@ class Schedule(object):
     def logic(self, t):
         processed = 0
         self.passed = 0
+
+        # if self.last_clock == 0:
+        #     self.last_clock = time.clock()
+        # clock = time.clock()
+        # self.dontsleep = (clock - self.last_clock)
+        # self.last_clock = clock
 
         # clock = time.clock()
         # if self.started:
@@ -50,8 +57,8 @@ class Schedule(object):
                     # sleep until next event
                     if ev.t >= 0.0:
                         if self.ctx.cansleep and self.ctx.startrow == -1:
-                            self.ctx.t += self.ctx.speed*t*(ev.t-self.passed)
-                            time.sleep(self.ctx.speed*t*(ev.t-self.passed))
+                            self.ctx.t += self.ctx.speed * t * (ev.t-self.passed)
+                            time.sleep(max(0,self.ctx.speed * t * (ev.t-self.passed)))
                         ev.func(0)
                         self.passed = ev.t # only inc if positive
                     else:
@@ -59,11 +66,11 @@ class Schedule(object):
 
                     processed += 1
             
-            slp = t*(1.0-self.passed) # remaining time
+            slp = t * (1.0 - self.passed) # remaining time
             if slp > 0.0:
                 self.ctx.t += self.ctx.speed*slp
                 if self.ctx.cansleep and self.ctx.startrow == -1:
-                    time.sleep(self.ctx.speed*slp)
+                    time.sleep(max(0,self.ctx.speed*slp))
             self.passed = 0.0
             
             self.events = self.events[processed:]

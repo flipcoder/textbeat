@@ -1017,28 +1017,42 @@ class Player(object):
                                         try:
                                             # TODO: addchords
                                             
-                                            # TODO note removal (Maj7no5)
+                                            # TODO omit note (Maj7no5)
                                             if chordname[-2:]=='no':
-                                                numberpart = tok[cut+1:]
+                                                # print(tok)
+                                                # print(cut)
+                                                cut += 1 # The 'o' of no
+                                                numberpart = tok[cut:]
+                                                # print(numberpart)
                                                 # second check will throws
-                                                if numberpart in '#b' or (int(numberpart) or True):
+                                                int_numberpart = None
+                                                try:
+                                                    int_numberpart = int(numberpart)
+                                                except ValueError:
+                                                    pass
+                                                if numberpart[0] in '#b' or int_numberpart!=None:
                                                     # if tok[]
                                                     prefix,ct = peel_any(tok[cut:],'#b')
+                                                    # print('prefix', prefix)
+                                                    # print('ct', ct)
                                                     if ct: cut += ct
                                                     
-                                                    num,ct = peel_uint(tok[cut+1:])
+                                                    num,ct = peel_uint(tok[cut:])
                                                     if ct:
-                                                        out(num)
                                                         cut += ct
-                                                        cut -= 2 # remove "no"
-                                                        chordname = chordname[:-2] # cut "no
-                                                        nonotes.append(str(prefix)+str(num)) # ex: b5
+                                                        # cut += 1 # remove "no"
+                                                        chordname = chordname[:-2] # cut "no"
+                                                        if prefix:
+                                                            nonotes.append(str(prefix)+str(num)) # ex: b5
+                                                        else:
+                                                            nonotes.append(str(num)) # ex: b5
+                                                        # print(nonotes)
                                                         break
                                                 
                                                 # cut += 2
                                                 
                                         except IndexError:
-                                            log('chordname length ' + str(len(chordname)))
+                                            log('bad chordname index')
                                             pass # chordname length
                                         except ValueError:
                                             log('bad cast ' + char)

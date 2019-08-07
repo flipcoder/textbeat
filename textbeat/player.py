@@ -85,6 +85,7 @@ class Player(object):
         self.version = '0'
         self.auto = False
         self.embedded_files = {}
+        self.vibrato_tracks = set() # tracks that currently have vibrato going
 
         # require enable at top of file
         self.devices = ['midi']

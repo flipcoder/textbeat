@@ -96,6 +96,34 @@ class Track(Lane):
         self.lanes = []
         self.ccs = {}
         self.dev = 0
+        
+        # pitch wheel oscillation
+        self.vibrato_enabled = False # don't set this directly, call vibrato()
+        self.vibrato_amp = 0.0
+        self.vibrato_freq = 0.0 
+        # self.vibrato_offset = 0.0 # value that gets added to pitch
+
+    def vibrato(self, b, amp=0.0, freq=0.0):
+        self.vibrato_amp = amp
+        self.vibrato_freq = freq
+        self.vibrato_t = 0.0
+        if b == self.vibrato_enabled:
+            return
+        if b:
+            try:
+                self.ctx.vibrato_tracks.remove(self)
+            except KeyError:
+                pass
+        else:
+            self.ctx.vibrato_tracks.add(self)
+        self.pitch(self.pitchval)
+        self.vibrato_enabled = b
+
+    def vibrato_logic(self, t):
+        # TODO: test this
+        self.vibrato_t += t
+        v = math.sin(self.vibrato_t * self.vibrato_freq * math.tau) * self.vibrato_amp
+        self.pitch(self.pitchval + v, False) # don't save new pitchval on call
 
     # def _lazychannelfunc(self):
     #     # get active channel numbers
@@ -263,27 +291,27 @@ class Track(Lane):
             self.channels = [(0,midich)]
         elif midich not in self.channels:
             self.channels.append(midich)
-    def pitch(self, val): # [-1.0,1.0]
+    def write_short(self, ch, status, val, val2):
+        if self.ctx.midifile:
+            self.midifile_write(ch,mido.UnknownMetaMessage(status,data=[val,val2], time=self.us()))
+        else:
+            self.midi[ch].write_short(status,val,val2)
+    def pitch(self, val, save=True): # [-1.0,1.0]
+        if save:
+            self.pitchval = val
         val = min(max(0,int((1.0 + val)*0x2000)),16384)
-        self.pitchval = val
         val2 = (val>>0x7f)
         val = val&0x7f
         for ch in self.channels:
             status = (MIDI_PITCH<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: PITCH (%s, %s)' % (val,val2))
-            if self.ctx.midifile:
-                self.midifile_write(ch[0],mido.UnknownMetaMessage(status,data=[val1,val2], time=self.us()))
-            else:
-                self.midi[ch[0]].write_short(status,val,val2)
+            self.write_short(ch[0], status, val, val2)
     def cc(self, cc, val): # control change
         if type(val) ==type(bool): val = 127 if val else 0 # allow cc bool switches
         for ch in self.channels:
             status = (MIDI_CC<<4) + ch[1]
             if self.ctx.showmidi: log(FG.YELLOW + 'MIDI: CC (%s, %s, %s)' % (status, cc,val))
-            if self.ctx.midifile:
-                self.midifile_write(ch[0], mido.UnknownMetaMessage(status,data=[cc,val],time=self.us()))
-            else:
-                self.midi[ch[0]].write_short(status,cc,val)
+            self.write_short(ch[0], status, cc, val)
             self.ccs[cc] = v
         if cc==1:
             self.modval = val

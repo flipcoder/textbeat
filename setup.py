@@ -12,7 +12,7 @@ setup(
     author='Grady O\'Connell',
     author_email='flipcoder@gmail.com',
     license='MIT',
-    packages=['textbeat','textbeat.def','textbeat.presets'],
+    packages=['textbeat','textbeat.def','textbeat.presets','textbeat.plugins'],
     include_package_data=True,
     install_requires=[
         'pygame','colorama','prompt_toolkit','appdirs','pyyaml','docopt','future','shutilwhich','mido'

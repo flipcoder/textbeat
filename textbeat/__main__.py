@@ -9,8 +9,8 @@ Examples:
     textbeat song.txbt        play song
 
 Usage:
-    textbeat [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [-adeftnpsrxvL] [INPUT]
-    textbeat [+RANGE] [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [-adeftnpsrxL] [INPUT]
+    textbeat [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [--vi] [-adeftnpsrxvL] [INPUT]
+    textbeat [+RANGE] [--dev=<device>] [--midi=<fn>] [--ring] [--follow] [--stdin] [--vi] [-adeftnpsrxL] [INPUT]
     textbeat [-rhT]
     textbeat -c [COMMANDS ...]
     textbeat -l [LINE_CONTENT ...]

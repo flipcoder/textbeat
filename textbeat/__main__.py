@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """textbeat
-Copyright (c) 2018 Grady O'Connell
+Copyright (c) 2018-2020 Grady O'Connell
 Open-source under MIT License
 
 Examples:
@@ -29,7 +29,6 @@ Options:
     -c                    execute commands sequentially
     -l                    execute commands simultaenously
     --stdin               read entire file from stdin
-    -r --remote           (STUB) realtime remote (control through stdin/out)
     --ring                don't mute midi on end
     -L --loop             loop song
     --midi=<fn>           generate midi file
@@ -47,6 +46,7 @@ Options:
     --quiet               no output
     -a --analyze          (STUB) midi input chord analyzer
 """
+# -r --remote           (STUB) realtime remote (control through stdin/out)
 from __future__ import absolute_import, unicode_literals, print_function, generators
 # try:
 from .defs import *
@@ -105,7 +105,7 @@ def main():
                         player.tracks[i].patch(val)
             elif arg == '--sustain': player.sustain=True
             elif arg == '--ring': player.ring=True
-            elif arg == '--remote': player.remote = True
+            # elif arg == '--remote': player.remote = True
             elif arg == '--lint': LINT = True
             elif arg == '--quiet': set_print(False)
             elif arg == '--follow':
@@ -174,7 +174,8 @@ def main():
                 player.cmdmode = ''
             player.shell = True
 
-    player.interactive = player.shell or player.remote or player.tutorial
+    player.interactive = player.shell or player.tutorial
+    # player.interactive = player.shell or player.remote or player.tutorial
 
     pygame.midi.init()
     if pygame.midi.get_count()==0:

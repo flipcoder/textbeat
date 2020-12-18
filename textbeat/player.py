@@ -1,9 +1,10 @@
-# TODO: This player modulde includes parser and player prototype code
-# that may eventually be reorganized into separate modules
-
 from .defs import *
 
 class StackFrame(object):
+    """
+    Stack frames are items on the Player's call stack.
+    Similar to function calls, the Player uses a stack to track markers/repeats.
+    """
     def __init__(self, row, caller, count):
         self.row = row
         self.caller = caller
@@ -13,11 +14,21 @@ class StackFrame(object):
         # self.returns[row] = 0
 
 class Player(object):
+    """
+    The Player is what parses the txbt format and plays it.
+    This is the most "quick and dirty" part of textbeat, so it will probably
+    be rewritten eventually.
+    """
     
     class Flag:
-        ROMAN = bit(0)
-        TRANSPOSE = bit(1)
-        LOOP = bit(2)
+        """
+        Bitflags for Roman numeral notation, transposition, and looping
+        """
+        ROMAN = bit(0) # use roman numeral notation
+        TRANSPOSE = bit(1) # allow transposition of note letters
+        LOOP = bit(2) # loop the textbeat file (good for jamtrack, metronome)
+    
+    # string names for the bitflags
     FLAGS = [
         'roman',
         'transpose',
@@ -30,65 +41,74 @@ class Player(object):
     # ])
 
     def __init__(self):
-        self.quitflag = False
-        self.vimode = False
-        self.bcproc = None
-        self.log = False
+        self.quitflag = False # Set this bool to escape to stop the parser
+        self.vimode = False # use vi readline mode for prompt_toolkit
+        # self.log = False
+        # 'canfollow' means cursor location is printed for interop with vim and others
         self.canfollow = False
+        self.last_follow = 0 # the last line 'followed' (printed)
+        # sleeping can be disabled for writing to midi files instead of playback
         self.cansleep = True
-        self.lint = False
-        self.tracks_active = 1
+        self.lint = False # analyze file (not yet implemented)
+        self.tracks_active = 1 # the current number of known active tracks found by Player
         self.showmidi = False
-        self.scale = DIATONIC
-        self.mode = 1
-        self.transpose = 0
-        self.octave = 0
-        self.tempo = 90.0
+        self.scale = DIATONIC # default scale, see other options in theory.py
+        self.mode = 1 # musical mode number, 1=ionian
+        self.transpose = 0 # current transposion of entire song (in steps)
+        self.octave = 0 # relative octave transposition of entire song
+        self.tempo = 90.0 # default tempo when unspecified (may be different inside shell)
         self.grid = 4.0 # Grid subdivisions of a beat (4 = sixteenth note)
+        # columns/shift is hardcoded column placement and widths for
+        #   when working in text editors with column highlighting
         self.columns = 0
         self.column_shift = 0
-        self.showtextstr = []
+        # self.showtextstr = []
         self.showtext = False # nice output (-v), only shell and cmd modes by default
-        self.sustain = False # start sustained
-        self.ring = False # disables midi muting on program exit
+        self.sustain = False # start sustained?
+        self.ring = False # ring: disables midi muting on program exit, letting notes ring out
         self.buf = []
-        self.markers = {}
+        self.markers = {} # markers are for doing jumps and repeats
         f = StackFrame(-1,-1,0)
         f.returns[''] = 0
-        self.tutorial = None
-        self.callstack = [f]
-        self.separators = []
-        self.track_history = ['.'] * NUM_TRACKS
-        self.fn = None
-        self.row = 0
+        self.tutorial = None # Tutorial object to run (should be run inside shell, see -T)
+        self.callstack = [f] # callstack for moving around the file using markers/repeats
+        # self.separators = [] # separators are currently not supported
+        self.track_history = ['.'] * NUM_TRACKS # keep track of track history for replaying with " symbol
+        self.fn = None # filename
+        self.row = 0 # parser location, row #
         # self.rowno = []
-        self.startrow = -1
-        self.stoprow = -1
+        self.startrow = -1 # last row processed, def -1
+        self.stoprow = -1 # row to stop on, if playing a specific region (-1 is entire file)
         self.cmdmode = 'n' # n normal c command s sequence
-        self.schedule = Schedule(self)
-        self.host = []
+        self.plugins = [] # (under dev) textbeat interop plugins
         self.tracks = []
         self.shell = False
-        self.remote = False
+        # eventually, text editor interop may be done by controlling txbt through a socket
+        #   instead of column following
+        # self.remote = None
         self.interactive = False
         self.gui = False
         self.portname = ''
-        self.speed = 1.0
-        self.muted = False # mute all except for solo tracks
+        self.speed = 1.0 # speed multiplier (this one is per file)
+        self.muted = False # mute all except for "solo" tracks
         self.midi = []
-        self.instrument = None
-        self.t = 0.0 # actual time
-        self.last_follow = 0
-        self.last_marker = -1
-        self.midifile = None
-        self.flags = 0
+        # self.instrument = None
+        self.t = 0.0 # time since file processing started, in sec
+        self.last_follow = -1 # last follow location (row #)
+        self.last_marker = -1 # last marker location (row #)
+        self.midifile = None # midi file to write output to
+        self.flags = 0 # see FLAGS (bitflags)
         self.version = '0'
-        self.auto = False
+        self.auto = False # (under dev) automatically generate VST rack using a plugin
+        # embedded config files (key=filename), for things like synth/plugin customization
         self.embedded_files = {}
         self.vibrato_tracks = set() # tracks that currently have vibrato going
 
-        # require enable at top of file
+        # other devices require enabling them at the top of the file
         self.devices = ['midi']
+        
+        # (under dev) schedule will eventually decouple the player and parser
+        self.schedule = Schedule(self)
         
     def init(self):
         
@@ -156,14 +176,14 @@ class Player(object):
                 assert False
             try:
                 # support_enable[dev](self.rack)
-                SUPPORT_PLUGINS[dev].enable(self.host)
+                SUPPORT_PLUGINS[dev].enable(self.plugins)
             except KeyError:
                 # no init needed, silent
                 pass
         self.auto = 'auto' in self.devices
 
     def set_host(self, plugins):
-        self.host = plugins
+        self.plugins = plugins
         self.refresh_devices()
         
     # def remove_flags(self, f):
@@ -303,8 +323,8 @@ class Player(object):
                                 bufline = prompt(cline, history=HISTORY, vi_mode=self.vimode)
                                 bufline = list(filter(None, bufline.split(' ')))
                                 bufline = list(map(lambda b: b.replace(';',' '), bufline))
-                            elif self.remote:
-                                pass
+                            # elif self.remote:
+                            #     pass # not yet implemented
                             else:
                                 assert False
                                 
@@ -655,7 +675,8 @@ class Player(object):
                     # separate into chunks based on column width
                     cells = [cells[i:i + self.columns] for i in range(0, len(cells), self.columns)]
                     # log(cells)
-                elif not self.separators:
+                else:
+                    # elif not self.separators:
                     # AUTOGENERATE CELL self.separators
                     cells = fullline.split(' ')
                     pos = 0
@@ -670,17 +691,19 @@ class Player(object):
                     # if fullline.startswith(' '):
                     #     cells = ['.'] + cells # dont filter first one
                     autoseparate = True
-                else:
-                    # SPLIT BASED ON self.separators
-                    s = 0
-                    seplen = len(self.separators)
-                    # log(seplen)
-                    pos = 0
-                    for i in range(seplen):
-                        cells.append(fullline[pos:self.separators[i]].strip())
-                        pos = self.separators[i]
-                    lastcell = fullline[pos:].strip()
-                    if lastcell: cells.append(lastcell)
+                # else:
+                #     log('Track separators are no longer supported.')
+                #     assert False
+                #     # SPLIT BASED ON self.separators
+                #     s = 0
+                #     seplen = len(self.separators)
+                #     # log(seplen)
+                #     pos = 0
+                #     for i in range(seplen):
+                #         cells.append(fullline[pos:self.separators[i]].strip())
+                #         pos = self.separators[i]
+                #     lastcell = fullline[pos:].strip()
+                #     if lastcell: cells.append(lastcell)
                 
                 # make sure active tracks get empty cell
                 len_cells = len(cells)

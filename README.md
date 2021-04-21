@@ -92,7 +92,9 @@ I'm currently looking into export options and recording via a headless host.
 # Tutorial
 
 If you're familiar with trackers, you may pick this up quite easily.
-Music flows vertically, with separate columns that are separated by whitespace or
+
+First start by creating a .txbt (textbeat) file, inside the file music 
+flows vertically, with separate columns that are separated by whitespace or
 manually setting a column width.
 
 Each column represents a track, which defaults to separate midi channel numbers.
@@ -127,6 +129,14 @@ Musicians can think of grid as fractions of quarter note,
 The grid is the beat/quarter-note subdivision.
 
 Both Tempo and Grid can be decimal numbers as well.
+
+You can listen to what you've made by running:
+
+```
+textbeat <your file>
+```
+
+Consult the output of `textbeat -h` for further information.
 
 ## Note Numbers
 

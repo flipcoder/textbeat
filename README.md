@@ -363,7 +363,7 @@ If you wish to control volume/gain directly, use @v
 
 Unlike accents, volume changes persist.
 
-Interpolation is not yet impl
+Interpolation is not yet implemented
 
 ## Vibrato, Pitch, and Mod Wheel
 

@@ -2,6 +2,7 @@
 # that may eventually be reorganized into separate modules
 
 from .defs import *
+import re
 
 class StackFrame(object):
     def __init__(self, row, caller, count):
@@ -804,9 +805,27 @@ class Player(object):
                         # if not chord_notes: # processing cell note
                         #     pass
                         # else: # looping notes of a chord?
+
+                        if tok and tok[0]=='[':
+                            # offsets [...]
+                            
+                            ofs_end = tok.find(']')
+                            ofs_str = tok[:ofs_end]
+                            ofs_str = ofs_str[1:]
+                            ofs = ofs_str.split('|')
+                            ofs[0] = int(ofs[0]) #octave
+                            ofs_root = 0
+                            if len(ofs)==3: # contains note position?
+                                ofs_root = ofs[1] = int(ofs[1]) 
+                            ofs_notes = re.split('_| ', ofs[-1])
+                            notes = [int(n)+1 for n in ofs_notes]
+                            for i,n in enumerate(notes):
+                                notes[i] = ofs_root + n - 12*4 + 12*ofs[0]
+                            tok = tok[ofs_end+1:]
+                            if not expanded: cell = cell[ofs_end+1:]
                         
-                        if tok and not tok=='.':
-                        
+                        elif tok and not tok=='.':
+
                             # sharps/flats before note number/name
                             c = tok[0]
                             if c=='b' or c=='#':
@@ -1228,7 +1247,8 @@ class Player(object):
                         # if expanded and not chord_notes:
                         #     break
 
-                    notes = [i for o in slashnotes for i in o] # combine slashnotes
+                    if not notes:
+                        notes = [i for o in slashnotes for i in o] # combine slashnotes
                     cell = cell_before_slash[sz_before_slash-len(cell):]
 
                     # if frets:
@@ -1826,6 +1846,8 @@ class Player(object):
                         i += 1
                     
                     cell_idx += 1
+
+                # print('notes', notes)
          
                 while True:
                     try:

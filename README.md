@@ -129,6 +129,9 @@ Musicians can think of grid as fractions of quarter note,
 The grid is the beat/quarter-note subdivision.
 
 Both Tempo and Grid can be decimal numbers as well.
+For example, if you made some chords and you only want 
+one chord to be played per bar (eg 4 beats) 
+you could set `%t120x0.25`.
 
 You can listen to what you've made by running:
 

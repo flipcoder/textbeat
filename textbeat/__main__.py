@@ -50,6 +50,7 @@ Options:
 from __future__ import absolute_import, unicode_literals, print_function, generators
 # try:
 from .defs import *
+import asyncio
 # except:
 #     from .defs import *
 def main():
@@ -288,7 +289,7 @@ def main():
         # log(FG.BLUE + 'New? Type help and press enter to start the tutorial.')
         log('')
 
-    player.run()
+    asyncio.run(player.run())
 
     if player.midifile:
         player.midifile.save(midifn)

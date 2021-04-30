@@ -1,4 +1,6 @@
 from .defs import *
+import time
+import asyncio
 
 class Event(object):
     def __init__(self, t, func, ch):
@@ -16,6 +18,8 @@ class Schedule(object):
         self.clock = 0.0
         self.last_clock = 0
         self.started = False
+        # self.sleepfunc = time.sleep
+        # self.sleep = asyncio.sleep
     # all note mute and play events should be marked skippable
     def pending(self):
         return len(self.events)
@@ -27,13 +31,14 @@ class Schedule(object):
     def clear_channel(self, ch):
         assert False
         self.events = [ev for ev in self.events if ev.ch!=ch]
-    def logic(self, t):
+    async def logic(self, t):
         processed = 0
         self.passed = 0
 
+        # tt = time.perf_counter()
         # if self.last_clock == 0:
-        #     self.last_clock = time.clock()
-        # clock = time.clock()
+        #     self.last_clock = tt
+        # clock = tt
         # self.dontsleep = (clock - self.last_clock)
         # self.last_clock = clock
 
@@ -47,8 +52,8 @@ class Schedule(object):
         #     self.passed = 0.0
         # log(self.clock)
 
-        # pending_events_count = sum(1 for e in self.events if e.t > 0.0 and e.t < 2.0)
-        # print(pending_events_count)
+        pending_events_count = sum(1 for e in self.events if e.t > 0.0 and e.t < 2.0)
+        print(pending_events_count)
         
         try:
             self.events = sorted(self.events, key=lambda e: e.t)
@@ -60,7 +65,7 @@ class Schedule(object):
                     if ev.t >= 0.0:
                         if self.ctx.cansleep and self.ctx.startrow == -1:
                             self.ctx.t += self.ctx.speed * t * (ev.t-self.passed)
-                            time.sleep(max(0,self.ctx.speed * t * (ev.t-self.passed)))
+                            await asyncio.sleep(max(0,self.ctx.speed * t * (ev.t-self.passed)))
                         ev.func(0)
                         self.passed = ev.t # only inc if positive
                     else:
@@ -72,7 +77,7 @@ class Schedule(object):
             if slp > 0.0:
                 self.ctx.t += self.ctx.speed*slp
                 if self.ctx.cansleep and self.ctx.startrow == -1:
-                    time.sleep(max(0,self.ctx.speed*slp))
+                    await asyncio.sleep(max(0,self.ctx.speed*slp))
             self.passed = 0.0
             
             self.events = self.events[processed:]

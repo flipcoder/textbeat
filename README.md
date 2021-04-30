@@ -527,7 +527,8 @@ Here are the marker/repeat commands:
 - :N| goes back to last marker N number of times
 - :name*N| goes back to last marker 'name' N number of times
 - || return/pop to last position after marker jump
-- ||| end the song here
+- ||| return/pop to last position after marker jump by-label
+- |||| end the song here
 ``` 
 
 ## Command line parameters (use -):

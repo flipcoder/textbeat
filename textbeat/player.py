@@ -1,28 +1,36 @@
 from .defs import *
 
+from collections import deque
+from prompt_toolkit import PromptSession
+
+STACK_SIZE = 64
+
 class StackFrame(object):
     """
     Stack frames are items on the Player's call stack.
     Similar to function calls, the Player uses a stack to track markers/repeats.
     """
-    def __init__(self, row, caller, count):
+    def __init__(self, name, row, caller, count):
+        self.name = name
         self.row = row
         self.caller = caller
         self.count = count # repeat call counter
         self.markers = {} # marker name -> line
         self.returns = {} # repeat row -> number of rpts left
         # self.returns[row] = 0
+    def __str__(self):
+        return 'StackFrame' + str((self.name, self.row, self.caller, self.count, self.markers, self.returns))
 
 class Player(object):
     """
     The Player is what parses the txbt format and plays it.
-    This is the most "quick and dirty" part of textbeat, so it will probably
+    Beware! This is the most "quick and dirty" part of textbeat, so it will probably
     be rewritten eventually.
     """
     
     class Flag:
         """
-        Bitflags for Roman numeral notation, transposition, and looping
+        Bitflag options for Roman numeral notation, transposition, and looping
         """
         ROMAN = bit(0) # use roman numeral notation
         TRANSPOSE = bit(1) # allow transposition of note letters
@@ -68,10 +76,12 @@ class Player(object):
         self.ring = False # ring: disables midi muting on program exit, letting notes ring out
         self.buf = []
         self.markers = {} # markers are for doing jumps and repeats
-        f = StackFrame(-1,-1,0)
+        f = StackFrame('',-1,-1,0)
         f.returns[''] = 0
         self.tutorial = None # Tutorial object to run (should be run inside shell, see -T)
-        self.callstack = [f] # callstack for moving around the file using markers/repeats
+        # self.callstack = [f] # callstack for moving around the file using markers/repeats
+        self.callstack = deque(maxlen=STACK_SIZE) # callstack for moving around the file using markers/repeats
+        self.callstack.append(f)
         # self.separators = [] # separators are currently not supported
         self.track_history = ['.'] * NUM_TRACKS # keep track of track history for replaying with " symbol
         self.fn = None # filename
@@ -182,7 +192,7 @@ class Player(object):
                 pass
         self.auto = 'auto' in self.devices
 
-    def set_host(self, plugins):
+    def set_plugins(self, plugins):
         self.plugins = plugins
         self.refresh_devices()
         
@@ -251,7 +261,7 @@ class Player(object):
                 'set_tempo', tempo=mido.bpm2tempo(self.tempo)
             ))
 
-    def run(self):
+    async def run(self):
         for ch in self.tracks:
             ch.refresh()
         
@@ -259,6 +269,8 @@ class Player(object):
         embedded_file = False
         
         self.write_midi_tempo()
+
+        prompt_session = PromptSession(history=HISTORY, vi_mode=self.vimode)
         
         while not self.quitflag:
             self.follow()
@@ -320,7 +332,7 @@ class Player(object):
                                 # if bufline.endswith('.txbt'):
                                     # play file?
                                 # bufline = raw_input(cline)
-                                bufline = prompt(cline, history=HISTORY, vi_mode=self.vimode)
+                                bufline = await prompt_session.prompt_async(cline)
                                 bufline = list(filter(None, bufline.split(' ')))
                                 bufline = list(map(lambda b: b.replace(';',' '), bufline))
                             # elif self.remote:
@@ -456,7 +468,7 @@ class Player(object):
                                     elif var=='R':
                                         if not 'auto' in self.devices:
                                             self.devices = ['auto'] + self.devices
-                                        self.set_host(val.split(','))
+                                        self.set_plugins(val.split(','))
                                     elif var=='V': self.version = val
                                     elif var=='D':
                                         self.devices = val.split(',')
@@ -575,10 +587,20 @@ class Player(object):
                             continue
                         # marker AND repeat, continue to repeat parser section
                     
-                    if self.line.startswith('|||'):
+                    if self.line.startswith('||||'):
                         self.quitflag = True
                         continue
-                    elif self.line.startswith('||'):
+                    elif self.line.startswith('|||'):
+                        p = None
+                        while True:
+                            assert self.callstack
+                            p = self.callstack.pop()
+                            if p.name != '':
+                                break
+                        self.row = p.caller + 1
+                        continue
+                    elif self.line.startswith('||'): # return/pop
+                        # print(self.callstack)
                         if len(self.callstack)>1:
                             frame = self.callstack[-1]
                             frame.count = max(0,frame.count-1)
@@ -586,13 +608,17 @@ class Player(object):
                                 self.row = frame.row + 1
                                 continue
                             else:
+                                # print('returning to caller', frame.caller)
                                 self.row = frame.caller + 1
-                                self.callstack = self.callstack[:-1]
+                                # self.callstack = self.callstack[:-1]
+                                self.callstack.pop()
                                 continue
                         else:
-                            self.quitflag = True
+                            # allow bypassing '||' on empty stack
+                            # self.quitflag = True
+                            self.row += 1
                             continue
-                    if self.line[0]==':' and self.line[-1] in '|:' and '|' in self.line:
+                    elif self.line[0]==':' and self.line[-1] in '|:' and '|' in self.line:
                         jumpline = self.line[1:self.line.index('|')]
                         frame = self.callstack[-1]
                         jumpline = jumpline.split('*') # *n = n repeats
@@ -622,28 +648,38 @@ class Player(object):
                         # if bmrow in frame.returns:
                             
                             # return to marker (no pushing)
-                            #     self.callstack.append(StackFrame(bmrow, self.row, count))
+                            #     self.callstack.append(StackFrame(bm, bmrow, self.row, count))
                         #     self.markers[jumpline[0]] = bmrow
                         #     self.row = bmrow + 1
                         #     self.last_marker = bmrow
                         
+                        # print('bm', bm)
+                        # print('fm', frame.markers)
+                        # print('fm', frame.returns)
                         if bmrow==self.last_marker or bm in frame.markers: # call w/o push?
+                        # # if bm in frame.markers:
                             # ctx already passed bookmark, call w/o pushing (return to mark)
+                            # print(frame.returns, self.row)
                             if self.row in frame.returns: # have we repeated yet?
+                                # 2nd repeat (count exists)
                                 rpt = frame.returns[self.row]
                                 if rpt>0:
                                     frame.returns[self.row] = rpt - 1
                                     self.row = bmrow + 1 # repeat
                                 else:
+                                    # repeating done
+                                    # frame.returns[self.row] = rpt - 1
                                     del frame.returns[self.row] # reset
                                     self.row += 1
                             else:
                                 # start return count
-                                frame.returns[self.row] = count - 1
+                                self.callstack.append(StackFrame(bm, bmrow, self.row, count))
+                                self.callstack[-1].returns[self.row] = count - 1
                                 self.row = bmrow + 1 # repeat
                         else:
                             # mark not yet passed, do push/pop
-                            self.callstack.append(StackFrame(bmrow, self.row, count))
+                            # print(bm)
+                            self.callstack.append(StackFrame(bm, bmrow, self.row, count))
                             self.markers[bm] = bmrow
                             self.row = bmrow + 1
                             self.last_marker = bmrow
@@ -656,7 +692,7 @@ class Player(object):
                         #     else:
                         #         self.row += 1
                         # else:
-                        #     self.callstack.append(StackFrame(bmrow, self.row, count))
+                        #     self.callstack.append(StackFrame(bm, bmrow, self.row, count))
                         #     self.markers[jumpline[0]] = bmrow
                         #     self.row = bmrow + 1
                         #     self.last_marker = bmrow
@@ -1855,7 +1891,7 @@ class Player(object):
                     try:
                         # don't delay on ctrl lines or file header
                         if not ctrl and not self.header:
-                            self.schedule.logic(60.0 / self.tempo / self.grid)
+                            await self.schedule.logic(60.0 / self.tempo / self.grid)
                             break
                         else:
                             break

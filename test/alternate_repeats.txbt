@@ -1,0 +1,12 @@
+%t80
+; make sure there's something in the callstack
+|e:
+1'
+:e|
+2'
+|start:
+1
+||
+2
+:start|
+3

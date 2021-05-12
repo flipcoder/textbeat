@@ -38,7 +38,7 @@ ARGS = None
 RANGE = 109
 OCTAVE_BASE = 5
 DRUM_WORDS = ['drum','drums','drumset','drumkit','percussion']
-CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%@;'
+CCHAR = ' <>=~.\'`,_&|!?*\"$(){}[]%@;^'
 CCHAR_START = 'TV' # control chars
 PRINT = True
 

@@ -717,9 +717,9 @@ class Player(object):
                     cells = fullline.split(' ')
                     pos = 0
                     for cell in cells:
-                        if cell:
-                            if pos:
-                                self.separators.append(pos)
+                        # if cell:
+                            # if pos:
+                            #     self.separators.append(pos)
                             # log(cell)
                         pos += len(cell) + 1
                     # log( "self.separators " + str(self.separators))
@@ -1510,13 +1510,15 @@ class Player(object):
                         #     vel = int((float(num) / float('9'*len(num)))*127)
                         #     ch.cc(7,vel)
                         # RECORD SEQ
-                        elif cell.startswith('^^'):
+                        # elif cell.startswith('^^'):
+                        elif c2=='^^':
                             cell = cell[2:]
                             r,ct = peel_uint(cell,0)
                             ch.record(r)
                             cell = cell[ct:]
                         # REPLAY SEQ
-                        elif cell.startswith('^'):
+                        elif c=='^':
+                        # elif cell.startswith('^'):
                             cell = cell[1:]
                             r,ct = peel_uint(cell,0)
                             if self.showtext:

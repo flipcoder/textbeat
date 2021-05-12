@@ -2,8 +2,8 @@ from .defs import *
 import math
 
 class Recording(object):
-    def __init__(self, name, slot):
-        self.name = slot
+    def __init__(self, name):
+        self.name = name
         self.content = []
 
 class Tuplet(object):
@@ -90,8 +90,9 @@ class Track(Lane):
         # self.muted = False
         self.volval = 1.0
         self.slots = {} # slot -> Recording
+        self.recording_slots = set() # slots currently recording
         self.slot = None # careful, this can be 0
-        self_slot_idx = 0
+        self.slot_idx = 0
         self.lane = None
         self.lanes = []
         self.ccs = {}
@@ -103,6 +104,15 @@ class Track(Lane):
         self.vibrato_freq = 0.0 
         # self.vibrato_offset = 0.0 # value that gets added to pitch
 
+    def record(self, label):
+        self.slots[label] = Recording(label)
+        self.recording_slots.add(label)
+    def record_stop(self, label):
+        self.recording_slots.remove(label)
+    def recording(self):
+        return self.recording_slots
+    def replay(self, label):
+        pass
     def vibrato(self, b, amp=0.0, freq=0.0):
         self.vibrato_amp = amp
         self.vibrato_freq = freq

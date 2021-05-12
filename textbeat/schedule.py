@@ -53,8 +53,8 @@ class Schedule(object):
         # log(self.clock)
 
         pending_events_count = sum(1 for e in self.events if e.t > 0.0 and e.t < 2.0)
-        print(pending_events_count)
-        
+        # print(pending_events_count)
+
         try:
             self.events = sorted(self.events, key=lambda e: e.t)
             for ev in self.events:

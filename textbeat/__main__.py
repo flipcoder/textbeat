@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """textbeat
-Copyright (c) 2018-2020 Grady O'Connell
+Copyright (c) 2018-2021 Grady O'Connell
 Open-source under MIT License
 
 Examples:
@@ -268,14 +268,14 @@ def main():
 
     if player.shell:
         log(FG.BLUE + 'textbeat')# v'+str(VERSION))
-        log('Copyright (c) 2018 Grady O\'Connell')
+        log('Copyright (c) 2021 Grady O\'Connell')
         log('https://github.com/flipcoder/textbeat')
         active = support.SUPPORT_ALL & support.SUPPORT
         inactive = support.SUPPORT_ALL - support.SUPPORT
-        if active:
-            log(FG.GREEN + 'Active Modules: ' + STYLE.RESET_ALL +  ', '.join(active) + STYLE.RESET_ALL)
-        if inactive:
-            log(FG.RED + 'Inactive Modules: ' +  STYLE.RESET_ALL + ', '.join(inactive))
+        # if active:
+        #     log(FG.GREEN + 'Active Modules: ' + STYLE.RESET_ALL +  ', '.join(active) + STYLE.RESET_ALL)
+        # if inactive:
+        #     log(FG.RED + 'Inactive Modules: ' +  STYLE.RESET_ALL + ', '.join(inactive))
         if player.portname:
             log(FG.GREEN + 'Device: ' + STYLE.RESET_ALL + '%s' % (player.portname if player.portname else 'Unknown',))
         log(FG.RED + 'Other Devices: ' + STYLE.RESET_ALL + '%s' % (', '.join(portnames)))

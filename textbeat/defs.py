@@ -160,7 +160,7 @@ class Diff:
 def merge(a, b, overwrite=False, skip=None, diff=None, pth=None):
     for k,v in iteritems(b):
         contains = k in a
-        if contains and isinstance(a[k], dict) and isinstance(b[k], collections.Mapping):
+        if contains and isinstance(a[k], dict):# and isinstance(b[k], collections.Mapping):
             loc = (pth+[k]) if pth else None
             if callable(skip):
                 if not skip(loc,v):

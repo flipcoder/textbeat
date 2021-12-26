@@ -7,3 +7,4 @@ pyyaml
 docopt
 future
 shutilwhich
+mido

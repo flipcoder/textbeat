@@ -1,2 +1,3 @@
 recursive-include textbeat/def *
 recursive-include textbeat/presets *
+recursive-include textbeat/plugins *

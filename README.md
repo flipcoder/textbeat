@@ -92,7 +92,9 @@ I'm currently looking into export options and recording via a headless host.
 # Tutorial
 
 If you're familiar with trackers, you may pick this up quite easily.
-Music flows vertically, with separate columns that are separated by whitespace or
+
+First start by creating a .txbt (textbeat) file, inside the file music 
+flows vertically, with separate columns that are separated by whitespace or
 manually setting a column width.
 
 Each column represents a track, which defaults to separate midi channel numbers.
@@ -127,6 +129,17 @@ Musicians can think of grid as fractions of quarter note,
 The grid is the beat/quarter-note subdivision.
 
 Both Tempo and Grid can be decimal numbers as well.
+For example, if you made some chords and you only want 
+one chord to be played per bar (eg 4 beats) 
+you could set `%t120x0.25`.
+
+You can listen to what you've made by running:
+
+```
+textbeat <your file>
+```
+
+Consult the output of `textbeat -h` for further information.
 
 ## Note Numbers
 
@@ -353,7 +366,7 @@ If you wish to control volume/gain directly, use @v
 
 Unlike accents, volume changes persist.
 
-Interpolation is not yet impl
+Interpolation is not yet implemented
 
 ## Vibrato, Pitch, and Mod Wheel
 
@@ -526,7 +539,6 @@ Here are the marker/repeat commands:
 - :name| goes back to last marker 'name'
 - :N| goes back to last marker N number of times
 - :name*N| goes back to last marker 'name' N number of times
-- || return/pop to last position after marker jump
 - ||| return/pop to last position after marker jump by-label
 - |||| end the song here
 ``` 
@@ -755,4 +767,3 @@ without doing a C++ rewrite.
 # Can I Help?
 
 Yes!  Contact [flipcoder](https://github.com/flipcoder).
-

@@ -2,8 +2,18 @@ from .defs import *
 
 from collections import deque
 from prompt_toolkit import PromptSession
+from enum import Enum
 
 STACK_SIZE = 64
+
+class LoopResult(Enum):
+    """When parsing a line, this enum types help us decide whether we should continue in the loop, 
+    or break, or proceed further
+    This type is needed so we can choose how to deal interact with a loop from within functions
+    """
+    PROCEED = 0     # Continue parsing the current line
+    CONTINUE = 1    # Skips the current line
+    BREAK = 2        # Stop playback
 
 class StackFrame(object):
     """
@@ -261,6 +271,7 @@ class Player(object):
                 'set_tempo', tempo=mido.bpm2tempo(self.tempo)
             ))
 
+               
     async def run(self):
         for ch in self.tracks:
             ch.refresh()
@@ -277,76 +288,10 @@ class Player(object):
             
             try:
                 self.line = '.'
-                try:
-                    self.line = self.buf[self.row]
-                    if self.row == self.startrow:
-                        self.startrow = -1
-                    if self.stoprow!=-1 and self.row == self.stoprow:
-                        self.buf = []
-                        raise IndexError
-                except IndexError:
-                    if self.has_flags(Player.Flag.LOOP):
-                        self.row = 0
-                        continue
-                    
-                    self.row = len(self.buf)
-                    # done with file, finish playing some stuff
-                    
-                    arps_remaining = 0
-                    if self.interactive or self.cmdmode in ['c','l']: # finish arps in shell mode
-                        for ch in self.tracks[:self.tracks_active]:
-                            if ch.arp_enabled:
-                                if ch.arp_cycle_limit or not ch.arp_once:
-                                    arps_remaining += 1
-                                    self.line = '.'
-                        if not arps_remaining and not self.shell and self.cmdmode not in ['c','l']:
-                            break
-                        self.line = '.'
-                    
-                    if not arps_remaining and not self.schedule.pending():
-                        if self.interactive:
-                            for ch in self.tracks[:self.tracks_active]:
-                                ch.release_all()
-                            
-                            if self.shell:
-                                # self.shell PROMPT
-                                # log(orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode)))
-                                # cur_oct = self.tracks[0].octave
-                                # cline = FG.GREEN + 'txbt> '+FG.BLUE+ '('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
-                                #     note_name(self.tracks[0].transpose) + ' ' +\
-                                #     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
-                                #     ')> '
-                                modename = orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))
-                                
-                                keynote = note_name(self.transpose + self.tracks[0].transpose)
-                                keynote = keynote if keynote!='C' else ''
-                                parts = [
-                                    str(int(self.tempo))+'bpm', # tempo
-                                    'x'+str(int(self.grid)), # subdiv
-                                    keynote,
-                                    ('' if modename=='ionian' else modename)
-                                ]
-                                cline = 'txbt> ('+ \
-                                    ' '.join(filter(lambda x: x, parts))+ \
-                                    ')> '
-                                # if bufline.endswith('.txbt'):
-                                    # play file?
-                                # bufline = raw_input(cline)
-                                bufline = await prompt_session.prompt_async(cline)
-                                bufline = list(filter(None, bufline.split(' ')))
-                                bufline = list(map(lambda b: b.replace(';',' '), bufline))
-                            # elif self.remote:
-                            #     pass # not yet implemented
-                            else:
-                                assert False
-                                
-                            self.buf += bufline
-                            
-                            continue
-                        
-                        else:
-                            break
-                    
+                loop_result = await self.try_stop_on_index_error(prompt_session)
+                if loop_result == LoopResult.CONTINUE: continue
+                elif loop_result == LoopResult.BREAK: break
+
                 log(FG.MAGENTA + self.line)
                 
                 # cells = line.split(' '*2)
@@ -1930,3 +1875,74 @@ class Player(object):
 
             self.row += 1
 
+    async def try_stop_on_index_error(self, prompt_session:PromptSession) -> LoopResult:
+        try:
+            self.line = self.buf[self.row]
+            if self.row == self.startrow:
+                self.startrow = -1
+            if self.stoprow!=-1 and self.row == self.stoprow:
+                self.buf = []
+                raise IndexError
+            return LoopResult.PROCEED
+        except IndexError:
+            if self.has_flags(Player.Flag.LOOP):
+                self.row = 0
+                return LoopResult.CONTINUE
+            
+            self.row = len(self.buf)
+            # done with file, finish playing some stuff
+            
+            arps_remaining = 0
+            if self.interactive or self.cmdmode in ['c','l']: # finish arps in shell mode
+                for ch in self.tracks[:self.tracks_active]:
+                    if ch.arp_enabled:
+                        if ch.arp_cycle_limit or not ch.arp_once:
+                            arps_remaining += 1
+                            self.line = '.'
+                if not arps_remaining and not self.shell and self.cmdmode not in ['c','l']:
+                    return LoopResult.BREAK
+                self.line = '.'
+            
+            if not arps_remaining and not self.schedule.pending():
+                if self.interactive:
+                    for ch in self.tracks[:self.tracks_active]:
+                        ch.release_all()
+                    
+                    if self.shell:
+                        # self.shell PROMPT
+                        # log(orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode)))
+                        # cur_oct = self.tracks[0].octave
+                        # cline = FG.GREEN + 'txbt> '+FG.BLUE+ '('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
+                        #     note_name(self.tracks[0].transpose) + ' ' +\
+                        #     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
+                        #     ')> '
+                        modename = orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))
+                        
+                        keynote = note_name(self.transpose + self.tracks[0].transpose)
+                        keynote = keynote if keynote!='C' else ''
+                        parts = [
+                            str(int(self.tempo))+'bpm', # tempo
+                            'x'+str(int(self.grid)), # subdiv
+                            keynote,
+                            ('' if modename=='ionian' else modename)
+                        ]
+                        cline = 'txbt> ('+ \
+                            ' '.join(filter(lambda x: x, parts))+ \
+                            ')> '
+                        # if bufline.endswith('.txbt'):
+                            # play file?
+                        # bufline = raw_input(cline)
+                        bufline = await prompt_session.prompt_async(cline)
+                        bufline = list(filter(None, bufline.split(' ')))
+                        bufline = list(map(lambda b: b.replace(';',' '), bufline))
+                    # elif self.remote:
+                    #     pass # not yet implemented
+                    else:
+                        assert False
+                        
+                    self.buf += bufline
+                    
+                    return LoopResult.CONTINUE
+                
+                else:
+                    return LoopResult.BREAK

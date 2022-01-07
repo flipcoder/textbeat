@@ -7,13 +7,12 @@ from enum import Enum
 STACK_SIZE = 64
 
 class LoopResult(Enum):
-    """When parsing a line, this enum types help us decide whether we should continue in the loop, 
-    or break, or proceed further
-    This type is needed so we can choose how to deal interact with a loop from within functions
+    """This enum types help us decide whether we should continue in the loop, break, or proceed.
+    This type is needed so we can choose how to deal interact with a loop outside a functions scope.
     """
-    PROCEED = 0     # Continue parsing the current line
-    CONTINUE = 1    # Skips the current line
-    BREAK = 2        # Stop playback
+    PROCEED = 0     # Continue forward in the current loop
+    CONTINUE = 1    # Skip to the next iteration
+    BREAK = 2       # Break from the loop
 
 class StackFrame(object):
     """

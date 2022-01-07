@@ -1908,40 +1908,44 @@ class Player(object):
                         ch.release_all()
                     
                     if self.shell:
-                        # self.shell PROMPT
-                        # log(orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode)))
-                        # cur_oct = self.tracks[0].octave
-                        # cline = FG.GREEN + 'txbt> '+FG.BLUE+ '('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
-                        #     note_name(self.tracks[0].transpose) + ' ' +\
-                        #     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
-                        #     ')> '
-                        modename = orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))
-                        
-                        keynote = note_name(self.transpose + self.tracks[0].transpose)
-                        keynote = keynote if keynote!='C' else ''
-                        parts = [
-                            str(int(self.tempo))+'bpm', # tempo
-                            'x'+str(int(self.grid)), # subdiv
-                            keynote,
-                            ('' if modename=='ionian' else modename)
-                        ]
-                        cline = 'txbt> ('+ \
-                            ' '.join(filter(lambda x: x, parts))+ \
-                            ')> '
-                        # if bufline.endswith('.txbt'):
-                            # play file?
-                        # bufline = raw_input(cline)
-                        bufline = await prompt_session.prompt_async(cline)
-                        bufline = list(filter(None, bufline.split(' ')))
-                        bufline = list(map(lambda b: b.replace(';',' '), bufline))
+                        self.buf += await self.mk_prompt(prompt_session)
                     # elif self.remote:
                     #     pass # not yet implemented
                     else:
-                        assert False
-                        
-                    self.buf += bufline
-                    
+                       assert False
                     return LoopResult.CONTINUE
                 
                 else:
                     return LoopResult.BREAK
+            return LoopResult.PROCEED
+
+    async def mk_prompt(self, prompt_session:PromptSession):
+        """Creates a new prompt for the current line"""
+        # self.shell PROMPT
+        # log(orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode)))
+        # cur_oct = self.tracks[0].octave
+        # cline = FG.GREEN + 'txbt> '+FG.BLUE+ '('+str(int(self.tempo))+'bpm x'+str(int(self.grid))+' '+\
+        #     note_name(self.tracks[0].transpose) + ' ' +\
+        #     orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))+\
+        #     ')> '
+        modename = orr(self.tracks[0].scale,self.scale).mode_name(orr(self.tracks[0].mode,self.mode,-1))
+                        
+        keynote = note_name(self.transpose + self.tracks[0].transpose)
+        keynote = keynote if keynote!='C' else ''
+        parts = [
+            str(int(self.tempo))+'bpm', # tempo
+            'x'+str(int(self.grid)), # subdiv
+            keynote,
+            ('' if modename=='ionian' else modename)
+        ]
+        cline = 'txbt> ('+ \
+            ' '.join(filter(lambda x: x, parts))+ \
+            ')> '
+        # if bufline.endswith('.txbt'):
+            # play file?
+        # bufline = raw_input(cline)
+        bufline = await prompt_session.prompt_async(cline)
+        bufline = list(filter(None, bufline.split(' ')))
+        bufline = list(map(lambda b: b.replace(';',' '), bufline))
+        
+        return bufline

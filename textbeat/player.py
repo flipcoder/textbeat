@@ -287,7 +287,7 @@ class Player(object):
             
             try:
                 self.line = '.'
-                loop_result = await self.try_stop_on_index_error(prompt_session)
+                loop_result = await self.next_row(prompt_session)
                 if loop_result == LoopResult.CONTINUE: continue
                 elif loop_result == LoopResult.BREAK: break
 
@@ -1874,7 +1874,7 @@ class Player(object):
 
             self.row += 1
 
-    async def try_stop_on_index_error(self, prompt_session:PromptSession) -> LoopResult:
+    async def next_row(self, prompt_session:PromptSession) -> LoopResult:
         try:
             self.line = self.buf[self.row]
             if self.row == self.startrow:

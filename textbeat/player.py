@@ -1786,6 +1786,28 @@ class Player(object):
         return bufline
 
     def handle_set_variable_commands(self):
+        """Function used to parse/handle variable setting commands. E.g: Set tempo, grid"""
+
+        # We define sub-functions since we don't want the entire module scope to have access to
+        # these. If it turns out that these are useful in a broader context, we can just rip em out
+        # at that point
+        def read_operands(cmd) -> tuple[str,str]:
+            """Read the operator and value to use when modifying variables.
+               E.g: `+`, `-`, `=`
+            """
+            op = cmd[1]
+            try:
+                val = cmd[2:]
+            except:
+                val = ''
+            # log("op val %s %s" % (op,val))
+            if op == ':': op = '='
+            if not op in '*/=-+':
+                # implicit =
+                val = str(op) + str(val)
+                op='='
+            return (val,op)
+
         self.line = self.line[1:].strip() # remove % and spaces
         for tok in self.line.split(' '):
             if not tok:
@@ -1795,17 +1817,7 @@ class Player(object):
             var = tok[0].upper()
             if var in 'TGXNPSRCKFDR': # global vars %
                 cmd = tok.split(' ')[0]
-                op = cmd[1]
-                try:
-                    val = cmd[2:]
-                except:
-                    val = ''
-                # log("op val %s %s" % (op,val))
-                if op == ':': op = '='
-                if not op in '*/=-+':
-                    # implicit =
-                    val = str(op) + str(val)
-                    op='='
+                (val,op) = read_operands(cmd)
                 if not val or op=='.':
                     val = op + val # append
                     # TODO: add numbers after dots like other ops

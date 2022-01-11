@@ -8,3 +8,6 @@ clean.sh
 *.old
 *.pyc
 lint.txt
+debug/*.midi
+debug/*.txbt
+examples/*.midi

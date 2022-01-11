@@ -261,15 +261,14 @@ class Player(object):
             return False
         return True
 
-    def write_midi_tempo(self):
+    def write_midi_tempo(self, tempo=None):
         # set initial midifile tempo
         if self.midifile:
             if not self.midifile.tracks:
                 self.midifile.tracks.append(mido.MidiTrack())
             self.midifile.tracks[0].append(mido.MetaMessage(
-                'set_tempo', tempo=mido.bpm2tempo(self.tempo)
+                'set_tempo', tempo=mido.bpm2tempo(tempo or self.tempo)
             ))
-
                
     async def run(self):
         for ch in self.tracks:
@@ -502,14 +501,7 @@ class Player(object):
                                 else: assert False # no such op
                                             
                                 if var=='T':
-                                    if self.midifile:
-                                        if not self.midifile.tracks:
-                                            self.midifile.tracks.append(mido.MidiTrack())
-                                        self.midifile.tracks[0].append(mido.MetaMessage(
-                                            'set_tempo', tempo=mido.bpm2tempo(int(
-                                                val.split('x')[0]
-                                            ))
-                                        ))
+                                    self.write_midi_tempo(int(val.split('x')[0]))
                         self.row += 1
                         continue
                     

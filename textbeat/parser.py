@@ -1,5 +1,7 @@
 from .defs import *
 
+# Count the number of repeated characters of char `match` in sequence `seq`.
+# If no match is given, the first character found is used as the match char.
 def count_seq(seq, match=''):
     if not seq:
         return 0
@@ -15,15 +17,22 @@ def count_seq(seq, match=''):
         r+=1
     return r
 
+# Peel an unsigned int from the front of the string `s` and return both
+# the integer and its count. If nothing can be processed, return default `d`.
 def peel_uint(s, d=None):
     a,b = peel_uint_s(s,str(d) if d!=None else None)
     return (int(a) if a!=None and a!='' else None,b)
 
+# Peel an integer from the front of the string `s` and return both
+# the integer and its count. If nothing can be processed, return default `d`.
 def peel_int(s, d=None):
     a,b = peel_uint_s(s,str(d) if d!=None else None)
     return (int(a) if a!=None and a!='' else None,b)
 
-# don't cast
+# Peel an unsigned int from the front of the string `s` and return both
+# the integer (as a string) and its count. If nothing can be processed, return default `d`.
+# This is the `string` version of this function which returns the peeled integer
+# as a string.
 def peel_uint_s(s, d=None):
     r = ''
     for ch in s:
@@ -34,6 +43,9 @@ def peel_uint_s(s, d=None):
     if not r: return (d,0) if d!=None else ('',0)
     return (r,len(r))
 
+# Peel a roman numeral from the front of the string `s` and return both
+# the roman numeral (as a string) and its count.
+# If nothing can be processed, return default `d`.
 def peel_roman_s(s, d=None):
     nums = 'ivx'
     r = ''
@@ -51,6 +63,9 @@ def peel_roman_s(s, d=None):
     if not r: return (d,0) if d!=None else ('',0)
     return (r,len(r))
 
+# Peel an integer from the front of the string `s` and return both
+# the integer (as a string) and its count.
+# If nothing can be processed, return default `d`.
 def peel_int_s(s, d=None):
     r = ''
     for ch in s:
@@ -64,6 +79,9 @@ def peel_int_s(s, d=None):
     if not r: return (d,'') if d!=None else (0,'')
     return (int(r),len(r))
 
+# Peel a float from the front of the string `s` and return both
+# the float and its count.
+# If nothing can be processed, return default `d`.
 def peel_float(s, d=None):
     r = ''
     decimals = 0
@@ -84,6 +102,9 @@ def peel_float(s, d=None):
     if not r: return (d,0) if d!=None else (0,0)
     return (float(r),len(r))
 
+# Peel any number of characters matching char `match`.
+# Return the peeled string and its length.
+# If no match, return default `d`.
 def peel_any(s, match, d=''):
     r = ''
     ct = 0
@@ -95,7 +116,9 @@ def peel_any(s, match, d=''):
             break
     return (orr(r,d),ct)
 
-def note_value(s): # turns dot note values (. and *) into frac
+# Turns dot note values (. and *) into a decimal.
+# Returns its floating point value and the number of repeated chars found.
+def note_value(s):
     if not s:
         return (0.0, 0)
     r = 1.0

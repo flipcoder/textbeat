@@ -1983,3 +1983,4 @@ class Player(object):
                     self.write_midi_tempo(int(val.split('x')[0]))
         self.row += 1
         return LoopResult.CONTINUE
+        

@@ -1810,21 +1810,21 @@ class Player(object):
                 op='='
             return (val,op)
 
-        def handleDivision(var, val):
+        def handle_division(var, val):
             """Use /= to modify a global variable"""
             if var in 'GX': self.grid/=float(val)
             elif var=='N': self.grid/=float(val) #!
             elif var=='T': self.tempo/=float(val)
             else: assert False
 
-        def handleMultiply(var, val):
+        def handle_multiply(var, val):
             """Use *= to modify a global variable"""
             if var in 'GX': self.grid*=float(val)
             elif var=='N': self.grid*=float(val) #!
             elif var=='T': self.tempo*=float(val)
             else: assert False
 
-        def handleAdd(var, val):
+        def handle_add(var, val):
             """Use += to modify a global variable"""
             if var=='K': self.transpose += note_offset('#1' if val=='+' else val)
             # elif var=='O': self.octave += int(1 if val=='+' else val)
@@ -1835,7 +1835,7 @@ class Player(object):
             #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
             #     self.transpose = self.transpose%12
 
-        def handleSub(var, val):
+        def handle_sub(var, val):
             """Use -= to modify a global variable"""
             if var=='K':
                 self.transpose -= note_offset(val)
@@ -1849,7 +1849,7 @@ class Player(object):
             #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
             #     self.transpose = self.transpose%12
 
-        def handleAssign(var, val):
+        def handle_assign(var, val):
             """Use = to modify a global variable"""
             if var in 'GX': self.grid=float(val)
             elif var=='R':
@@ -1943,7 +1943,7 @@ class Player(object):
                     pass
             else: assert False # no such var
 
-        def adjustOperands(val: str, op:str) -> tuple[str,str]:
+        def adjust_operands(val: str, op:str) -> tuple[str,str]:
             val = op + val # append
             # TODO: add numbers after dots like other ops
             if val[0]=='.':
@@ -1970,17 +1970,16 @@ class Player(object):
             if var in 'TGXNPSRCKFDR': # global vars %
                 cmd = tok.split(' ')[0]
                 (val,op) = read_operands(cmd)
-                if not val or op=='.': (val,op) = adjustOperands(val,op)
+                if not val or op=='.': (val,op) = adjust_operands(val,op)
 
-                if op=='/': handleDivision(var,val)
-                elif op=='*': handleMultiply(var,val)
-                elif op=='+': handleAdd(var,val)
-                elif op=='-': handleSub(var,val)
-                elif op=='=': handleAssign(var,val)
+                if op=='/': handle_division(var,val)
+                elif op=='*': handle_multiply(var,val)
+                elif op=='+': handle_add(var,val)
+                elif op=='-': handle_sub(var,val)
+                elif op=='=': handle_assign(var,val)
                 else: assert False # no such op
                             
                 if var=='T':
                     self.write_midi_tempo(int(val.split('x')[0]))
         self.row += 1
         return LoopResult.CONTINUE
-        

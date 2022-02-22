@@ -343,168 +343,10 @@ class Player(object):
                     
                     # TODO: global 'silent' commands (doesn't consume time)
                     if self.line.startswith('%'):
-                        self.line = self.line[1:].strip() # remove % and spaces
-                        for tok in self.line.split(' '):
-                            if not tok:
-                                break
-                            if tok[0]==' ':
-                                tok = tok[1:]
-                            var = tok[0].upper()
-                            if var in 'TGXNPSRCKFDR': # global vars %
-                                cmd = tok.split(' ')[0]
-                                op = cmd[1]
-                                try:
-                                    val = cmd[2:]
-                                except:
-                                    val = ''
-                                # log("op val %s %s" % (op,val))
-                                if op == ':': op = '='
-                                if not op in '*/=-+':
-                                    # implicit =
-                                    val = str(op) + str(val)
-                                    op='='
-                                if not val or op=='.':
-                                    val = op + val # append
-                                    # TODO: add numbers after dots like other ops
-                                    if val[0]=='.':
-                                        note_value(val)
-                                        ct = count_seq(val)
-                                        val = pow(0.5,count)
-                                        op = '/'
-                                        num,ct = peel_uint(val[:ct])
-                                    elif val[0]=='*':
-                                        op = '*'
-                                        val = pow(2.0,count_seq(val))
-                                if op=='/':
-                                    if var in 'GX': self.grid/=float(val)
-                                    elif var=='N': self.grid/=float(val) #!
-                                    elif var=='T': self.tempo/=float(val)
-                                    else: assert False
-                                elif op=='*':
-                                    if var in 'GX': self.grid*=float(val)
-                                    elif var=='N': self.grid*=float(val) #!
-                                    elif var=='T': self.tempo*=float(val)
-                                    else: assert False
-                                elif op=='+':
-                                    if var=='K': self.transpose += note_offset('#1' if val=='+' else val)
-                                    # elif var=='O': self.octave += int(1 if val=='+' else val)
-                                    elif var=='T': self.tempo += max(0,float(val))
-                                    elif var in 'GX': self.grid += max(0,float(val))
-                                    else: assert False
-                                    # if var=='K':
-                                    #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
-                                    #     self.transpose = self.transpose%12
-                                elif op=='-':
-                                    if var=='K':
-                                        self.transpose -= note_offset(val)
-                                        out(note_offset(val))
-                                    # elif var=='O': self.octave -= int(1 if val=='-' else val)
-                                    elif var=='T': self.tempo -= max(0,float(val))
-                                    elif var in 'GX': self.grid -= max(0,float(val))
-                                    else: assert False
-                                    # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
-                                    # if var=='K':
-                                    #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
-                                    #     self.transpose = self.transpose%12
-                                elif op=='=':
-                                    if var in 'GX': self.grid=float(val)
-                                    elif var=='R':
-                                        if not 'auto' in self.devices:
-                                            self.devices = ['auto'] + self.devices
-                                        self.set_plugins(val.split(','))
-                                    elif var=='V': self.version = val
-                                    elif var=='D':
-                                        self.devices = val.split(',')
-                                        self.refresh_devices()
-                                    # elif var=='O': self.octave = int(val)
-                                    elif var=='N': self.grid=float(val)/4.0 #!
-                                    elif var=='T':
-                                        vals = val.split('x')
-                                        self.tempo=float(vals[0])
-                                        try:
-                                            self.grid = float(vals[1])
-                                        except:
-                                            pass
-                                    elif var=='C':
-                                        vals = val.split(',')
-                                        self.columns = int(vals[0])
-                                        try:
-                                            self.column_shift = int(vals[1])
-                                        except:
-                                            pass
-                                    elif var=='P':
-                                        vals = val.split(',')
-                                        for i in range(len(vals)):
-                                            p = vals[i]
-                                            if p.strip().isdigit():
-                                                self.tracks[i].patch(int(p))
-                                            else:
-                                                self.tracks[i].patch(p)
-                                    elif var=='F': # flags
-                                        self.add_flags(val.split(','))
-                                        # for i in range(len(vals)): # TODO: ?
-                                        #     self.tracks[i].add_flags(val.split(','))
-                                    # elif var=='O':
-                                    #     self.octave = int(val)
-                                    elif var=='K':
-                                        self.transpose = note_offset(val)
-                                        # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
-                                        # self.transpose = self.transpose%12
-                                    elif var=='S':
-                                        # var R=relative usage deprecated
-                                        try:
-                                            if val:
-                                                val = val.lower()
-                                                # ambigous alts
-                                                
-                                                if val.isdigit():
-                                                    modescale = (self.scale.name,int(val))
-                                                else:
-                                                    alts = {'major':'ionian','minor':'aeolian'}
-                                                    # try:
-                                                    #     modescale = (alts[val[0],val[1])
-                                                    # except KeyError:
-                                                    #     pass
-                                                    val = val.lower().replace(' ','')
-                                                    
-                                                    try:
-                                                        modescale = MODES[val]
-                                                    except KeyError:
-                                                        raise NoSuchScale()
-                                                
-                                                try:
-                                                    self.scale = SCALES[modescale[0]]
-                                                    self.mode = modescale[1]
-                                                    inter = self.scale.intervals
-                                                    self.transpose = 0
-                                                    # log(self.mode-1)
-                                                    
-                                                    if var=='R':
-                                                        for i in range(self.mode-1):
-                                                            inc = 0
-                                                            try:
-                                                                inc = int(inter[i])
-                                                            except ValueError:
-                                                                pass
-                                                            self.transpose += inc
-                                                    elif var=='S':
-                                                        pass
-                                                except ValueError:
-                                                    raise NoSuchScale()
-                                            # else:
-                                            #     self.transpose = 0
-                                        
-                                        except NoSuchScale:
-                                            out(FG.RED + 'No such scale.')
-                                            pass
-                                    else: assert False # no such var
-                                else: assert False # no such op
-                                            
-                                if var=='T':
-                                    self.write_midi_tempo(int(val.split('x')[0]))
-                        self.row += 1
-                        continue
-                    
+                        loop_result = self.handle_set_variable_commands()
+                        if loop_result == LoopResult.CONTINUE: continue
+                        elif loop_result == LoopResult.BREAK: break
+
                     # set marker here
                     if (self.line[0]=='|' or self.line.startswith(':|')) and self.line[-1]==':':
                         # allow override of markers in case of reuse
@@ -1941,3 +1783,203 @@ class Player(object):
         bufline = list(map(lambda b: b.replace(';',' '), bufline))
         
         return bufline
+
+    def handle_set_variable_commands(self):
+        """Function used to parse/handle variable setting commands. E.g: Set tempo, grid"""
+
+        #--------------------------#
+        # Sub-function definitions #
+        #--------------------------#
+        # We define sub-functions since we don't want the entire module scope to have access to
+        # these. If it turns out that these are useful in a broader context, we can just rip em out
+        # at that point
+        def read_operands(cmd) -> tuple[str,str]:
+            """Read the operator and value to use when modifying variables.
+               E.g: `+`, `-`, `=`
+            """
+            op = cmd[1]
+            try:
+                val = cmd[2:]
+            except:
+                val = ''
+            # log("op val %s %s" % (op,val))
+            if op == ':': op = '='
+            if not op in '*/=-+':
+                # implicit =
+                val = str(op) + str(val)
+                op='='
+            return (val,op)
+
+        def handle_division(var, val):
+            """Use /= to modify a global variable"""
+            if var in 'GX': self.grid/=float(val)
+            elif var=='N': self.grid/=float(val) #!
+            elif var=='T': self.tempo/=float(val)
+            else: assert False
+
+        def handle_multiply(var, val):
+            """Use *= to modify a global variable"""
+            if var in 'GX': self.grid*=float(val)
+            elif var=='N': self.grid*=float(val) #!
+            elif var=='T': self.tempo*=float(val)
+            else: assert False
+
+        def handle_add(var, val):
+            """Use += to modify a global variable"""
+            if var=='K': self.transpose += note_offset('#1' if val=='+' else val)
+            # elif var=='O': self.octave += int(1 if val=='+' else val)
+            elif var=='T': self.tempo += max(0,float(val))
+            elif var in 'GX': self.grid += max(0,float(val))
+            else: assert False
+            # if var=='K':
+            #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
+            #     self.transpose = self.transpose%12
+
+        def handle_sub(var, val):
+            """Use -= to modify a global variable"""
+            if var=='K':
+                self.transpose -= note_offset(val)
+                out(note_offset(val))
+            # elif var=='O': self.octave -= int(1 if val=='-' else val)
+            elif var=='T': self.tempo -= max(0,float(val))
+            elif var in 'GX': self.grid -= max(0,float(val))
+            else: assert False
+            # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
+            # if var=='K':
+            #     self.octave += -1*sgn(self.transpose)*(self.transpose//12)
+            #     self.transpose = self.transpose%12
+
+        def handle_assign(var, val):
+            """Use = to modify a global variable"""
+            if var in 'GX': self.grid=float(val)
+            elif var=='R':
+                if not 'auto' in self.devices:
+                    self.devices = ['auto'] + self.devices
+                self.set_plugins(val.split(','))
+            elif var=='V': self.version = val
+            elif var=='D':
+                self.devices = val.split(',')
+                self.refresh_devices()
+            # elif var=='O': self.octave = int(val)
+            elif var=='N': self.grid=float(val)/4.0 #!
+            elif var=='T':
+                vals = val.split('x')
+                self.tempo=float(vals[0])
+                try:
+                    self.grid = float(vals[1])
+                except:
+                    pass
+            elif var=='C':
+                vals = val.split(',')
+                self.columns = int(vals[0])
+                try:
+                    self.column_shift = int(vals[1])
+                except:
+                    pass
+            elif var=='P':
+                vals = val.split(',')
+                for i in range(len(vals)):
+                    p = vals[i]
+                    if p.strip().isdigit():
+                        self.tracks[i].patch(int(p))
+                    else:
+                        self.tracks[i].patch(p)
+            elif var=='F': # flags
+                self.add_flags(val.split(','))
+                # for i in range(len(vals)): # TODO: ?
+                #     self.tracks[i].add_flags(val.split(','))
+            # elif var=='O':
+            #     self.octave = int(val)
+            elif var=='K':
+                self.transpose = note_offset(val)
+                # self.octave += -1*sgn(self.transpose)*(self.transpose//12)
+                # self.transpose = self.transpose%12
+            elif var=='S':
+                # var R=relative usage deprecated
+                try:
+                    if val:
+                        val = val.lower()
+                        # ambigous alts
+                        
+                        if val.isdigit():
+                            modescale = (self.scale.name,int(val))
+                        else:
+                            alts = {'major':'ionian','minor':'aeolian'}
+                            # try:
+                            #     modescale = (alts[val[0],val[1])
+                            # except KeyError:
+                            #     pass
+                            val = val.lower().replace(' ','')
+                            
+                            try:
+                                modescale = MODES[val]
+                            except KeyError:
+                                raise NoSuchScale()
+                        
+                        try:
+                            self.scale = SCALES[modescale[0]]
+                            self.mode = modescale[1]
+                            inter = self.scale.intervals
+                            self.transpose = 0
+                            # log(self.mode-1)
+                            
+                            if var=='R':
+                                for i in range(self.mode-1):
+                                    inc = 0
+                                    try:
+                                        inc = int(inter[i])
+                                    except ValueError:
+                                        pass
+                                    self.transpose += inc
+                            elif var=='S':
+                                pass
+                        except ValueError:
+                            raise NoSuchScale()
+                    # else:
+                    #     self.transpose = 0
+                
+                except NoSuchScale:
+                    out(FG.RED + 'No such scale.')
+                    pass
+            else: assert False # no such var
+
+        def adjust_operands(val: str, op:str) -> tuple[str,str]:
+            val = op + val # append
+            # TODO: add numbers after dots like other ops
+            if val[0]=='.':
+                note_value(val)
+                ct = count_seq(val)
+                val = pow(0.5,count)
+                op = '/'
+                num,ct = peel_uint(val[:ct])
+            elif val[0]=='*':
+                op = '*'
+                val = pow(2.0,count_seq(val))
+            return (val,op)
+
+        #------------------------#
+        # Function's Entry Point #
+        #------------------------#
+        self.line = self.line[1:].strip() # remove % and spaces
+        for tok in self.line.split(' '):
+            if not tok:
+                return LoopResult.BREAK
+            if tok[0]==' ':
+                tok = tok[1:]
+            var = tok[0].upper()
+            if var in 'TGXNPSRCKFDR': # global vars %
+                cmd = tok.split(' ')[0]
+                (val,op) = read_operands(cmd)
+                if not val or op=='.': (val,op) = adjust_operands(val,op)
+
+                if op=='/': handle_division(var,val)
+                elif op=='*': handle_multiply(var,val)
+                elif op=='+': handle_add(var,val)
+                elif op=='-': handle_sub(var,val)
+                elif op=='=': handle_assign(var,val)
+                else: assert False # no such op
+                            
+                if var=='T':
+                    self.write_midi_tempo(int(val.split('x')[0]))
+        self.row += 1
+        return LoopResult.CONTINUE

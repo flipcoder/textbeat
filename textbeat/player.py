@@ -479,7 +479,7 @@ class Player(object):
                                         try:
                                             if val:
                                                 val = val.lower()
-                                                # ambigous alts
+                                                # ambiguous alts
                                                 
                                                 if val.isdigit():
                                                     modescale = (self.scale.name,int(val))
@@ -831,7 +831,7 @@ class Player(object):
                                     tok = tok[1:]
                                     if not expanded: cell = cell[1:]
 
-                            # try to get roman numberal or number
+                            # try to get roman numeral or number
                             c,ct = peel_roman_s(tok)
                             ambiguous = 0
                             # Help parser ambiguities (TODO: make these automatic)
@@ -985,7 +985,7 @@ class Player(object):
                                 except ValueError:
                                     ignore = True
                             else:
-                                ignore = True # reenable if there's a chord listed
+                                ignore = True # re-enable if there's a chord listed
                             
                             # CHORDS
                             addnotes = []
@@ -1168,7 +1168,7 @@ class Player(object):
                                         # chordnoteslist.append(chord_notes)
                                         # chordrootslist.append(chord_root)
                                         chord_root = n
-                                        ignore = False # reenable default root if chord was w/o note name
+                                        ignore = False # re-enable default root if chord was w/o note name
                                         continue
                                     else:
                                         pass
@@ -1252,7 +1252,7 @@ class Player(object):
                     if ch.arp_enabled:
                         if notes: # incoming notes?
                             # log(notes)
-                            # interupt arp
+                            # interrupt arp
                             ch.arp_stop()
                         else:
                             # continue arp
@@ -1708,7 +1708,7 @@ class Player(object):
                         #     if not notes:
                         #         cell = []
                         #         continue # ignore marker
-                        # GLOABL VARS (ignore -- already parsed)
+                        # GLOBAL VARS (ignore -- already parsed)
                         elif c=='%':
                             # ctrl line
                             cell = []

@@ -12,9 +12,9 @@ class SonicPi(Instrument):
     NAME = 'sonicpi'
     def __init__(self, args):
         Instrument.__init__(self, SonicPi.NAME)
-        self.initalized = False
+        self.initialized = False
     def enable(self):
-        self.initalized = True
+        self.initialized = True
     def enabled(self):
         return self.initialized
     def supported(self):

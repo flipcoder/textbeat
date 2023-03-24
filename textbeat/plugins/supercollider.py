@@ -16,9 +16,9 @@ class SuperCollider(Instrument):
     NAME = 'supercollider'
     def __init__(self, args):
         Instrument.__init__(self, SuperCollider.NAME)
-        self.initalized = False
+        self.initialized = False
     def enable(self):
-        self.initalized = True
+        self.initialized = True
     def enabled(self):
         return self.enabled
     def supported(self):

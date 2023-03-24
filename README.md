@@ -230,7 +230,7 @@ Now with dots for staccato:
 ```
 
 Notes that are played in the same track as other notes mute the previous notes.
-In order to overide this, hold a note by suffixing it with underscore (_).
+In order to override this, hold a note by suffixing it with underscore (_).
 
 A (-) character will then mute them all.
 
@@ -447,7 +447,7 @@ For a full list of GM names, see [def/gm.yaml](https://github.com/flipcoder/text
 The 'T' (tuplet) gives us access to the musical concept of tuplets (called triplets in cases of 3).
 which allows note timing and durations to fall along a ratio instead of the usual note subdivisions.
 
-Tuplets are marked by 'T' and have an optional value at the first occurence in that group.
+Tuplets are marked by 'T' and have an optional value at the first occurrence in that group.
 Ratios provided will control expansion.  Default is 3:4.
 If no denominator is given, it will default to the next power of two
 (so 3:4, 5:8, 7:8, 11:16).
@@ -641,7 +641,7 @@ To do relative values, drop the equals sign:
     - midi channels exceeding max value will be spanned across outputs
 - p: program assign
     - Set program to a given number
-    - Global var (%) p is usually prefered for string matching
+    - Global var (%) p is usually preferred for string matching
 - c: control change (midi CC param)
     - setting CC5 to 25 would be c5:25
 - q: play recording
@@ -687,7 +687,7 @@ Track commands that start with letters should be separated
 from notedata by prefixing '@':
 Example: 1~ is fine, but 1v is not. Use 1@v You only need one to combine: 1@v5e5
 
-Note: Fractional values specified are formated like numbers after a decimal point:
+Note: Fractional values specified are formatted like numbers after a decimal point:
 Example: 3, 30, and 300 all mean 30% (read like .3, .30, etc.)
 
 CC mapping is customizable inside [def/cc.yaml](https://github.com/flipcoder/textbeat/blob/master/textbeat/def/default.yaml).
@@ -757,7 +757,7 @@ Features I'm adding eventually:
 - Recording and encoding output of a project
 - Midi controller input and recording
 - Midi input chord analysis
-- MPE support for temperment and dynamic tonality
+- MPE support for temperament and dynamic tonality
 ```
 
 I'll be making use of python's multiprocessing or

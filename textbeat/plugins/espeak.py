@@ -42,7 +42,7 @@ class BackgroundProcess(object):
                 self.words.clear()
             else:
                 log('BAD COMMAND: ' + msg[0])
-            self.processses = list(filter(lambda p: p.poll()==None, self.processes))
+            self.processes = list(filter(lambda p: p.poll()==None, self.processes))
         self.con.close()
         for tmp in self.words:
             tmp.close()

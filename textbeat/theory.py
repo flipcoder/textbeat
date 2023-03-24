@@ -95,7 +95,7 @@ DIATONIC = SCALES['diatonic']
 # for lookup, normalize name first, add root to result
 # number chords can't be used with note numbers "C7 but not 17
 # in the future it might be good to lint chord names in a test
-# so that they dont clash with commands and break previous songs if chnaged
+# so that they dont clash with commands and break previous songs if changed
 # This will be replaced for a better parser
 # TODO: need optional notes marked
 CHORDS = DEFS['chords']

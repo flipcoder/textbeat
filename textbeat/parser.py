@@ -37,7 +37,7 @@ def peel_uint_s(s, d=None):
 def peel_roman_s(s, d=None):
     nums = 'ivx'
     r = ''
-    case = -1 # -1 unknown, 0 low, 1 uppper
+    case = -1 # -1 unknown, 0 low, 1 upper
     for ch in s:
         chl = ch.lower()
         chcase = (chl==ch)

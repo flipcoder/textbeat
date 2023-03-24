@@ -27,7 +27,7 @@ Options:
     -p --patch=<patch>    (STUB) default midi patch, partial match
     -f --flags            comma-separated global flags
     -c                    execute commands sequentially
-    -l                    execute commands simultaenously
+    -l                    execute commands simultaneously
     --stdin               read entire file from stdin
     -r --remote           (STUB) realtime remote (control through stdin/out)
     --ring                don't mute midi on end
@@ -133,7 +133,7 @@ def main():
         FN = ARGS['INPUT']
         from_stdin = False
         if FN=='-' or ARGS['--stdin']:
-            FN = 0 # TEMP: doesnt work with py2
+            FN = 0 # TEMP: doesn't work with py2
             from_stdin = True
         else:
             from_stdin = False
